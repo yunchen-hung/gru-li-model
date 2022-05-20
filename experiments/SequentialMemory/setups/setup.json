@@ -1,0 +1,38 @@
+{
+    "model": {
+        "class": "ValueMemoryLSTM",
+        "input_dim": 4,
+        "hidden_dim": 256,
+        "decision_dim": 128,
+        "output_dim": 5,
+        "subclasses": [{
+            "name":"memory_module",
+            "class": "ValueMemory",
+            "value_dim": 256,
+            "capacity": 32,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "LCASimilarity",
+                    "lca_cycles": 10,
+                    "input_size": 32,
+                    "lateral_inhibition": 0.5
+                }
+            ]
+        }]
+    },
+    "env": {
+        
+    },
+    "training": {
+        "num_iter": 10000,
+        "optimizer": {
+            "class": "Adam",
+            "lr": 1e-3,
+            "lr_decay_factor": 0.5,
+            "lr_decay_patience": 30,
+            "lr_decay_threshold": 1e-3,
+            "min_lr": 1e-8
+        }
+    }
+}
