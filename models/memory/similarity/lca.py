@@ -3,9 +3,10 @@ import torch
 import torch.nn as nn
 
 from .utils import make_weights
+from models.basic_module import BasicModule
 
 
-class LCA(nn.Module):
+class LCA(BasicModule):
     """
     input_size : int
         the number of accumulators in the LCA
@@ -56,7 +57,7 @@ class LCA(nn.Module):
         timestep = inp.shape[0]
         x = torch.matmul(self.W_i, inp)
         offset = self.offset * torch.ones(self.input_size, device=self.device)
-        noise = torch.randn(size=(timestep, self.input_size)) * self.noise_sd * math.sqrt(self.alpha)
+        noise = torch.randn(size=(timestep, self.input_size)) * self.noise_std * math.sqrt(self.alpha)
         w = torch.zeros((timestep, self.input_size))
         for t in range(timestep):
             w[t] = w[max(t-1, 0)] 

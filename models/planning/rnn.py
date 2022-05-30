@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 
 from utils import import_attr
+from ..basic_module import BasicModule
 
 INIT_STATE_METHODS = ['zero', 'random', 'train', 'keep_last']
 
 
-class RNN(nn.Module):
+class RNN(BasicModule):
     def __init__(self, input_dim: int, hidden_dim: int, act_fn: str, init_state_method: str = 'zero', device: str = 'cpu') -> None:
         super().__init__()
         self.device = device
@@ -29,7 +30,7 @@ class RNN(nn.Module):
         return next_state
 
 
-class CTRNN(nn.Module):
+class CTRNN(BasicModule):
     def __init__(self, input_dim: int, hidden_dim: int, act_fn: str, dt: int, tau: int, device: str = 'cpu') -> None:
         super().__init__()
         self.device = device

@@ -2,8 +2,10 @@ from turtle import forward
 import torch
 import torch.nn as nn
 
+from ..basic_module import BasicModule
 
-class LSTM(nn.Module):
+
+class LSTM(BasicModule):
     def __init__(self, input_dim: int, hidden_dim: int, device: str = 'cpu') -> None:
         super().__init__()
         self.device = device
@@ -24,4 +26,12 @@ class LSTM(nn.Module):
         z_i, z_f, z_o = preact[:, self.hidden_dim:].sigmoid().chunk(3, 1)
         c_next = torch.mul(z_f, c) + torch.mul(z_i, z)
         h_next = torch.mul(z_o, c_next.tanh())
+
+        self.write(z, 'z')
+        self.write(z_i, 'z_i')
+        self.write(z_f, 'z_f')
+        self.write(z_o, 'z_o')
+        self.write(c_next, 'c')
+        self.write(h_next, 'h')
+
         return h_next, c_next, [z_i, z_f, z_o]

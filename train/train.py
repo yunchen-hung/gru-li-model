@@ -2,7 +2,7 @@ import torch
 
 from models.rl import pick_action, compute_returns, compute_a2c_loss
 from models.utils import entropy
-from .utils import count_accuracy, save_model, env_regeneration
+from .utils import count_accuracy, save_model
 
 
 # TODO: support other RL algorithms
@@ -11,49 +11,56 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test_it
     test_accuracies = []
     test_errors = []
 
+    batch_size = env.batch_size
+    agent.set_retrieval(True)
+
     for i in range(num_iter):
-        actions, probs, rewards, values, entropys = [], [], [], [], []
+        env.regenerate_contexts()
+        for batch in range(batch_size):
+            actions, probs, rewards, values, entropys = [], [], [], [], []
 
-        obs = torch.Tensor(env.reset()).to(device)
-        done = False
-        state = agent.init_state(1)  # TODO: possibly add batch size here
-        agent.set_encoding(False)
-        while not done:
-            action_distribution, value, state, cache = agent.forward(obs, state)
-            action, log_prob_action = pick_action(action_distribution)
-            obs_, reward, done, info = env.step(action)
-            obs = torch.Tensor(obs_).to(device)
+            obs = torch.Tensor(env.reset()).to(device)
+            done = False
+            state = agent.init_state(1)  # TODO: possibly add batch size here
+            agent.set_encoding(False)
+            while not done:
+                torch.autograd.set_detect_anomaly(True)
+                action_distribution, value, state = agent(obs, state)
+                action, log_prob_action = pick_action(action_distribution)
+                obs_, reward, done, info = env.step(action)
+                obs = torch.Tensor(obs_).to(device)
 
-            if info.get("encoding_on", False):
-                agent.set_encoding(True)
+                if info.get("encoding_on", False):
+                    agent.set_encoding(True)
 
-            probs.append(log_prob_action)
-            rewards.append(reward)
-            values.append(value)
-            entropys.append(entropy(action_distribution))
-            actions.append(action)
-            total_reward += reward
+                probs.append(log_prob_action)
+                rewards.append(reward)
+                values.append(value)
+                entropys.append(entropy(action_distribution))
+                actions.append(action)
+                total_reward += reward
 
-        actions_total_num += len(actions)
-        correct_actions, wrong_actions = env.compute_accuracy(actions)
-        actions_correct_num += correct_actions
-        actions_wrong_num += wrong_actions
+            actions_total_num += len(actions)
+            correct_actions, wrong_actions = env.compute_accuracy(actions)
+            actions_correct_num += correct_actions
+            actions_wrong_num += wrong_actions
 
-        returns = compute_returns(rewards, normalize=True)  # TODO: make normalize a parameter
-        loss_actor, loss_critic = compute_a2c_loss(probs, values, returns)
-    
-        pi_ent = torch.stack(entropys).sum()
-        loss = loss_actor + loss_critic - pi_ent * 0.1  # 0.1: eta, make it a parameter
-
-        total_loss += loss.item()
-        total_actor_loss += loss_actor.item()
-        total_critic_loss += loss_critic.item()
-
-        optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
-        optimizer.step()
+            returns = compute_returns(rewards, normalize=True)  # TODO: make normalize a parameter
+            loss_actor, loss_critic = compute_a2c_loss(probs, values, returns)
         
+            pi_ent = torch.stack(entropys).sum()
+            loss = loss_actor + loss_critic - pi_ent * 0.1  # 0.1: eta, make it a parameter
+
+            total_loss += loss.item()
+            total_actor_loss += loss_actor.item()
+            total_critic_loss += loss_critic.item()
+
+            optimizer.zero_grad()
+            # loss.backward(retain_graph=True)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
+            optimizer.step()
+            
         min_test_loss = torch.inf
         if i % test_iter == 0:
             accuracy = actions_correct_num / actions_total_num
@@ -65,7 +72,7 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test_it
             mean_critic_loss = total_critic_loss / test_iter
 
             test_accuracy, test_error, test_not_know_rate, test_mean_reward, test_mean_loss, test_mean_actor_loss, test_mean_critic_loss \
-                = count_accuracy(agent, env, num_iter=100, device=device)
+                = count_accuracy(agent, env, num_trials_per_condition=10, device=device)
 
             scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
 
@@ -88,8 +95,5 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test_it
         
         if i % save_iter == 0:
             save_model(agent, model_save_path, filename="{}.pt".format(i))
-
-        if "env_regeneration" in setup:
-            env_regeneration(env, i, setup["env_regeneration"])
     
     return test_accuracies, test_errors

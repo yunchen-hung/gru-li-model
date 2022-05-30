@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 
+from ..basic_module import BasicModule
 
-class KeyValueMemory(nn.Module):
+
+class KeyValueMemory(BasicModule):
     def __init__(self, key_dim: int, value_dim: int, device: str = 'cpu') -> None:
         super().__init__()
         self.device = device

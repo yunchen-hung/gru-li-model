@@ -5,7 +5,7 @@ import torch
 
 import consts
 from utils import load_setup, parse_setup
-from train import train_model, plot_accuracy_and_error
+from train import train_model, plot_accuracy_and_error, record_model
 
 
 def parse_args():
@@ -36,14 +36,23 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
     model, env, optimizer, scheduler, setup = parse_setup(setup)
 
-    model_save_path = exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/setup["model_save_name"]
+    run_name = setup.get("run_name", setup_name.split(".")[0])
+    print("run_name: {}".format(run_name))
+
+    model_save_path = exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name
     model_save_path.mkdir(parents=True, exist_ok=True)
+
+    # print(model)
+    # for child in model.children():
+    #     print(child)
 
     if train or not os.path.exists(model_save_path/"model.pt"):
         test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, device=device, model_save_path=model_save_path, **setup["training"])
         plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
     
     model.load_state_dict(torch.load(model_save_path/"model.pt"))
+
+    record_model(model, env, device=device)
 
 
 if __name__ == "__main__":
