@@ -13,7 +13,7 @@ class BasicSimilarity(BasicModule):
         self.measure = similarity_measure
         self.device = device
 
-    def forward(self, query, values):
+    def forward(self, query, values, input_weight=1.0):
         if self.measure == 'cosine':
             similarities = F.cosine_similarity(query.to(self.device), values.to(self.device))
         elif self.measure == 'l1':
@@ -22,7 +22,8 @@ class BasicSimilarity(BasicModule):
             similarities = - F.pairwise_distance(query.to(self.device), values.to(self.device), p=2)
         else:
             raise Exception(f'Unrecognizable self.measure: {self.measure}')
-        return similarities
+        self.write(similarities, 'similarities')
+        return similarities * input_weight
 
 
 class LCASimilarity(BasicModule):
@@ -35,7 +36,7 @@ class LCASimilarity(BasicModule):
         self.device = device
 
     def forward(self, query, values, input_weight=1.0):
-        similarities = self.measure(query, values)
+        similarities = self.measure(query.to(self.device), values.to(self.device))
         lcas = self.lca(similarities.repeat(self.lca_cycles, 1), input_weight)
         
         self.write(similarities, 'similarities')

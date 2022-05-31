@@ -13,10 +13,7 @@
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "LCASimilarity",
-                    "lca_cycles": 10,
-                    "input_size": 10,
-                    "lateral_inhibition": 0.8
+                    "class": "BasicSimilarity"
                 }
             ]
         }]

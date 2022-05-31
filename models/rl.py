@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 eps = np.finfo(np.float32).eps.item()
 
 
-def compute_a2c_loss(probs, values, returns, use_V=True):
+def compute_a2c_loss(probs, values, returns, use_V=True, device='cpu'):
     """compute the objective node for policy/value networks
 
     Parameters
@@ -29,7 +29,7 @@ def compute_a2c_loss(probs, values, returns, use_V=True):
         if use_V:
             A_t = R_t - v_t.item()
             value_losses.append(
-                smooth_l1_loss(torch.squeeze(v_t), torch.squeeze(R_t))
+                smooth_l1_loss(torch.squeeze(v_t.to(device)), torch.squeeze(R_t.to(device)))
             )
         else:
             A_t = R_t

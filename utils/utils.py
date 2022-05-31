@@ -1,5 +1,7 @@
 import importlib
+import pathlib
 import torch
+import matplotlib.pyplot as plt
 
 from .dict_utils import load_dict
 
@@ -17,31 +19,45 @@ def import_attr(module_and_attr_name):
     return attr_
 
 
+def savefig(save_dir, filename, pdf=False):
+    if save_dir is None:
+        return None
+    if isinstance(save_dir, str):
+        save_dir = pathlib.Path(save_dir)
+
+    filename = filename.replace('.', '-')
+    pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+    plt.savefig(save_dir/filename)
+    plt.savefig(save_dir/(filename + ".pdf"), transparent=True) if pdf else None
+    plt.close()
+
+
 def load_setup(setup_path):
     setup = load_dict(setup_path)
     return setup
 
 
-def parse_setup(setup):
-    model = load_model(setup.pop("model"))
+def parse_setup(setup, device):
+    model = load_model(setup.pop("model"), device)
     env = load_environment(setup.pop("env"))
     optimizer, scheduler = load_optimizer(setup["training"].pop("optimizer"), model)
     setup["model_name"] = model.__class__.__name__
     return model, env, optimizer, scheduler, setup
 
 
-def load_model(setup):
+def load_model(setup, device):
     subclasses_dict = {}
     if "subclasses" in setup:
         for subclass in setup["subclasses"]:
             name = subclass.pop("name")
-            submodel = load_model(subclass)
+            submodel = load_model(subclass, device)
             subclasses_dict[name] = submodel
         setup.pop("subclasses")
     model_class = setup.pop("class")
     for key, value in subclasses_dict.items():
         setup[key] = value
-    model = import_attr("models.{}".format(model_class))(**setup)
+    model = import_attr("models.{}".format(model_class))(device=device, **setup)
     return model
 
 

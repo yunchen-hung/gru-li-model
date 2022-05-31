@@ -106,7 +106,8 @@ class BarcodeBandits(gym.Env):
         return observation
 
     def render(self, mode='human'):
-        pass
+        for i in range(self.context_num):
+            print("context {}: {}, max_reward_arm: {}".format(i, self.contexts[i], self.max_reward_arms[i]))
 
     def compute_accuracy(self, actions):
         correct_actions = 0

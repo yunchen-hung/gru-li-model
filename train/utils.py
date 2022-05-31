@@ -7,7 +7,7 @@ from models.rl import pick_action, compute_returns, compute_a2c_loss
 from models.utils import entropy
 
 
-def count_accuracy(agent, env, num_trials_per_condition=100, device="cpu"):
+def count_accuracy(agent, env, num_trials_per_condition=10, device="cpu"):
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
     context_num = env.context_num
     num_iter = context_num * num_trials_per_condition

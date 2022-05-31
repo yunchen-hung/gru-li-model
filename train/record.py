@@ -1,81 +1,70 @@
 import torch
-from models.basic_module import analyze
 
+from models.basic_module import analyze
 from models.rl import pick_action, compute_returns, compute_a2c_loss
 from models.utils import entropy
 from .utils import count_accuracy, save_model
 
 
-def record_model(agent, env, num_trials_per_condition=100, device='cpu'):
-    total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
-    test_accuracies = []
-    test_errors = []
-
+def record_model(agent, env, trials_per_condition=2, device='cpu'):
+    batch_size = env.batch_size
     context_num = env.context_num
-    num_iter = context_num * num_trials_per_condition
 
+    env.regenerate_contexts()
+    agent.memory_module.reset_memory()
     agent.set_retrieval(True)
+    memory_contexts = []
+    capacity = agent.memory_module.capacity
 
-    for i in range(num_trials_per_condition):
-        for j in range(context_num):
-            actions, probs, rewards, values, entropys = [], [], [], [], []
-            # inps, outs = {}, {}
-            # def forward_hook(module, input, output):
-            #     print(module)
-            #     inps[id(module)] = input
-            #     outs[id(module)] = output
+    for batch in range(batch_size):
+        actions, probs, rewards, values = [], [], [], []
+        obs = torch.Tensor(env.reset()).to(device)
+        done = False
+        agent.set_encoding(False)
+        state = agent.init_state(1)
+        while not done:
+            action_distribution, value, state = agent(obs, state)
+            action, log_prob_action = pick_action(action_distribution)
+            obs_, reward, done, info = env.step(action)
+            obs = torch.Tensor(obs_).to(device)
 
-            obs = torch.Tensor(env.reset(context_index=j)).to(device)
+            if info.get("encoding_on", False):
+                agent.set_encoding(True)
+        memory_contexts.append(env.current_context_num)
+        if len(memory_contexts) > capacity:
+            memory_contexts.pop(0)
+
+    data = {'actions': [], 'probs': [], 'rewards': [], 'values': [], 'readouts': []}
+    for i in range(context_num):
+        actions, probs, rewards, values, readouts = [], [], [], [], []
+        for j in range(trials_per_condition):
+            obs = torch.Tensor(env.reset(context_index=i)).to(device)
             done = False
-            
-            # hook = agent.register_forward_hook(forward_hook)
             agent.set_encoding(False)
             state = agent.init_state(1)
-            while not done:
-                with analyze(agent):
+            with analyze(agent):
+                actions_trial, probs_trial, rewards_trial, values_trial = [], [], [], []
+                while not done:
                     action_distribution, value, state = agent(obs, state)
-                readout = agent.readout()
-                # print(readout.keys())
-                # print(readout['LSTM'].keys())
-                # print(readout['ValueMemory'].keys())
-                # print(readout['ValueMemory']['LCASimilarity'].keys())
-                action, log_prob_action = pick_action(action_distribution)
-                obs_, reward, done, info = env.step(action)
-                obs = torch.Tensor(obs_).to(device)
+                    action, log_prob_action = pick_action(action_distribution)
+                    obs_, reward, done, info = env.step(action)
+                    obs = torch.Tensor(obs_).to(device)
 
-                if info.get("encoding_on", False):
-                    agent.set_encoding(True)
-
-                probs.append(log_prob_action)
-                rewards.append(reward)
-                values.append(value)
-                entropys.append(entropy(action_distribution))
-                actions.append(action)    
-                total_reward += reward
-            # hook.remove()
-            # print("hook:", inps.keys(), outs.keys())
-            break
-
-            actions_total_num += len(actions)
-            correct_actions, wrong_actions = env.compute_accuracy(actions)
-            actions_correct_num += correct_actions
-            actions_wrong_num += wrong_actions
-
-            returns = compute_returns(rewards, normalize=True)  # TODO: make normalize a parameter
-            loss_actor, loss_critic = compute_a2c_loss(probs, values, returns)
-            pi_ent = torch.stack(entropys).sum()
-            loss = loss_actor + loss_critic - pi_ent * 0.1  # 0.1: eta, make it a parameter
-
-            total_loss += loss.item()
-            total_actor_loss += loss_actor.item()
-            total_critic_loss += loss_critic.item()
-        break
-
-    accuracy = actions_correct_num / actions_total_num
-    error = actions_wrong_num / actions_total_num
-    not_know_rate = 1 - accuracy - error
-    mean_reward = total_reward / actions_total_num
-    mean_loss = total_loss / num_iter
-    mean_actor_loss = total_actor_loss / num_iter
-    mean_critic_loss = total_critic_loss / num_iter
-    return accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss
+                    actions_trial.append(action)
+                    probs_trial.append(log_prob_action)
+                    rewards_trial.append(reward)
+                    values_trial.append(value)
+                actions.append(actions_trial)
+                probs.append(probs_trial)
+                rewards.append(rewards_trial)
+                values.append(values_trial)
+                readouts.append(agent.readout())
+        data['actions'].append(actions)
+        data['probs'].append(probs)
+        data['rewards'].append(rewards)
+        data['values'].append(values)
+        data['readouts'].append(readouts)
+    
+    data['memory_contexts'] = memory_contexts
+    
+    return data

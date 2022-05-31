@@ -24,9 +24,9 @@ class BasicModule(nn.Module):
         return self
 
     def write(self, tensor, name, append=True):
-        if self.to_numpy:
-            tensor = tensor.detach().clone().cpu().numpy()
         if self.analyzing:
+            if self.to_numpy:
+                tensor = tensor.detach().clone().cpu().numpy()
             if append:
                 # append
                 self.readout_dict[name].append(tensor)

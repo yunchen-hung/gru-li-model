@@ -48,7 +48,7 @@ class ValueMemory(BasicModule):
     
     def retrieve(self, query, input_weight=1.0):
         if self.stored_memory == 0 or not self.retrieving:
-            return torch.zeros(self.value_dim)
+            return torch.zeros(self.value_dim).to(self.device)
         # print("retrieve")
         # values = torch.stack(self.values).squeeze(dim=1)
         # print(values.shape)

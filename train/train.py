@@ -12,10 +12,13 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test_it
     test_errors = []
 
     batch_size = env.batch_size
-    agent.set_retrieval(True)
-
+    
+    print("start training")
+    print("batch size:", batch_size)
     for i in range(num_iter):
         env.regenerate_contexts()
+        agent.memory_module.reset_memory()
+        agent.set_retrieval(True)
         for batch in range(batch_size):
             actions, probs, rewards, values, entropys = [], [], [], [], []
 
@@ -46,7 +49,7 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test_it
             actions_wrong_num += wrong_actions
 
             returns = compute_returns(rewards, normalize=True)  # TODO: make normalize a parameter
-            loss_actor, loss_critic = compute_a2c_loss(probs, values, returns)
+            loss_actor, loss_critic = compute_a2c_loss(probs, values, returns, device=device)
         
             pi_ent = torch.stack(entropys).sum()
             loss = loss_actor + loss_critic - pi_ent * 0.1  # 0.1: eta, make it a parameter

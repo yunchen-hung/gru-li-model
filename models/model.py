@@ -66,7 +66,6 @@ class ValueMemoryLSTM(BasicModule):
         self.memory_module.retrieving = status
 
 
-
 def _softmax(z, beta):
     """helper function, softmax with beta
 

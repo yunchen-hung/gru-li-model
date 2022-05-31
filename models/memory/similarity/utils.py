@@ -28,5 +28,5 @@ def make_weights(diag_val, offdiag_val, weight_size, device):
     """
     diag_mask = torch.eye(weight_size)
     offdiag_mask = torch.ones((weight_size, weight_size)) - torch.eye(weight_size)
-    weight_matrix = diag_mask * diag_val + offdiag_mask * offdiag_val
+    weight_matrix = diag_mask.to(device) * diag_val + offdiag_mask.to(device) * offdiag_val
     return weight_matrix.float().to(device)
