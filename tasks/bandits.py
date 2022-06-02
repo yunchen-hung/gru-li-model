@@ -5,7 +5,10 @@ import gym
 
 class BarcodeBandits(gym.Env):
     def __init__(self, num_arms, context_len, context_num=0, sequence_len=10, trial_per_context_per_batch=10, 
-    max_arm_reward_probability=0.9, true_reward=1.0, false_reward=-0.1) -> None:
+    max_arm_reward_probability=0.9, true_reward=1.0, false_reward=-0.1, always_show_context=True) -> None:
+        """
+        always_show_context: if True, show the context in every timestep, else, only show the context in the first timestep
+        """
         self.num_arms = num_arms
         self.context_len = context_len
         self.context_num = context_num
@@ -15,6 +18,7 @@ class BarcodeBandits(gym.Env):
         self.other_arms_reward_prob = 1 - max_arm_reward_probability
         self.true_reward = true_reward
         self.false_reward = false_reward
+        self.always_show_context = always_show_context
 
         # sequence_len should be an int or a list
         if isinstance(self.sequence_len, int):
@@ -85,7 +89,10 @@ class BarcodeBandits(gym.Env):
             reward = np.random.choice([self.true_reward, self.false_reward], p=[self.other_arms_reward_prob, 1 - self.other_arms_reward_prob])
         done = self.timestep == self.current_seq_len
         info = {"encoding_on": self.timestep == self.current_seq_len - 1}
-        observation = np.zeros(self.context_len)
+        if self.always_show_context:
+            observation = self.contexts[self.current_context_num]
+        else:
+            observation = np.zeros(self.context_len)
         # self.contexts_seen_before[self.current_context_num] = True
         return observation, reward, done, info
 
