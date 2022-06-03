@@ -26,7 +26,8 @@ def run(data, model, env, paths):
     for i in range(context_num):
         readout = readouts[i][0]
         em_gates = readout['em_gate']
-        plt.plot(em_gates.squeeze(), label="context {}".format(i))
+        print(em_gates.shape)
+        plt.plot(np.mean(em_gates.squeeze(), axis=-1), label="context {}".format(i))
     plt.legend()
     plt.xlabel("timesteps")
     plt.ylabel("em_gate")
@@ -35,7 +36,7 @@ def run(data, model, env, paths):
 
     for i in range(context_num):
         readout = readouts[i][0]
-        similarity = readout['ValueMemory']['LCASimilarity']['similarities']    # x: context, y: timesteps
+        similarity = readout['KeyValueMemory']['BasicSimilarity']['similarities']    # x: context, y: timesteps
         plt.imshow(similarity, cmap="Blues")
         plt.colorbar()
         plt.xlabel("memory")
@@ -43,18 +44,17 @@ def run(data, model, env, paths):
         plt.title("memory-query similarity, context {}".format(i))
         savefig(paths["fig"], "similarity_context_{}".format(i))
 
-        lcas = readout['ValueMemory']['LCASimilarity']['lcas'][:, -1]
-        plt.imshow(lcas, cmap="Blues")
-        plt.colorbar()
-        plt.xlabel("memory")
-        plt.ylabel("timesteps")
-        plt.title("memory-query LCA similarity, context {}".format(i))
-        savefig(paths["fig"], "lcas_context_{}".format(i))
+        # lcas = readout['ValueMemory']['LCASimilarity']['lcas'][:, -1]
+        # plt.imshow(lcas, cmap="Blues")
+        # plt.colorbar()
+        # plt.xlabel("memory")
+        # plt.ylabel("timesteps")
+        # plt.title("memory-query LCA similarity, context {}".format(i))
+        # savefig(paths["fig"], "lcas_context_{}".format(i))
 
     for i in range(context_num):
         readout = readouts[i][0]
-        similarity = readout['ValueMemory']['LCASimilarity']['similarities']
-        plt.plot()
+        similarity = readout['KeyValueMemory']['BasicSimilarity']['similarities']
         plt.plot(memory_contexts[np.argmax(similarity, axis=1)], label="context {}".format(i))
     plt.xlabel("timesteps")
     plt.ylabel("max similarity memory context")
@@ -64,10 +64,20 @@ def run(data, model, env, paths):
 
     for i in range(context_num):
         readout = readouts[i][0]
-        lcas = readout['ValueMemory']['LCASimilarity']['lcas'][:, -1]
-        plt.plot()
-        plt.plot(memory_contexts[np.argmax(lcas, axis=1)], label="context {}".format(i))
+        similarity = readout['KeyValueMemory']['BasicSimilarity']['max_similarities']
+        plt.plot(memory_contexts[np.argmax(similarity, axis=1)], label="context {}".format(i))
     plt.xlabel("timesteps")
-    plt.ylabel("max LCA similarity memory context")
+    plt.ylabel("max similarity memory context")
     plt.legend()
-    savefig(paths["fig"], "max_lca_memory_context")
+    savefig(paths["fig"], "max_max_similarity_memory_context")
+    # plt.show()
+
+    # for i in range(context_num):
+    #     readout = readouts[i][0]
+    #     lcas = readout['ValueMemory']['LCASimilarity']['lcas'][:, -1]
+    #     plt.plot()
+    #     plt.plot(memory_contexts[np.argmax(lcas, axis=1)], label="context {}".format(i))
+    # plt.xlabel("timesteps")
+    # plt.ylabel("max LCA similarity memory context")
+    # plt.legend()
+    # savefig(paths["fig"], "max_lca_memory_context")

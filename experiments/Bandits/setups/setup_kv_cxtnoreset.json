@@ -43,5 +43,6 @@
             "min_lr": 1e-8
         }
     },
-    "keep_state": false
+    "keep_state": true,
+    "regenerate_context": false
 }

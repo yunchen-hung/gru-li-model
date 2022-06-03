@@ -11,20 +11,35 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test_it
     test_accuracies = []
     test_errors = []
 
+    keep_state = setup.get("keep_state", True)    # reset state after each episode
+    if keep_state:
+        print("keep state")
+    regenerate_context = setup.get("regenerate_context", True)    # regenerate context after each episode
+
     batch_size = env.batch_size
-    
+
     print("start training")
     print("batch size:", batch_size)
+    # state = agent.init_state(1)  # TODO: possibly add batch size here
     for i in range(num_iter):
-        env.regenerate_contexts()
+        state = agent.init_state(1)  # TODO: possibly add batch size here
+        if regenerate_context:
+            env.regenerate_contexts()
         agent.memory_module.reset_memory()
         agent.set_retrieval(True)
         for batch in range(batch_size):
             actions, probs, rewards, values, entropys = [], [], [], [], []
 
+            if keep_state:
+                new_state = []
+                for item in state:
+                    new_state.append(item.detach().clone())
+                state = tuple(new_state)
+            else:
+                state = agent.init_state(1)
+
             obs = torch.Tensor(env.reset()).to(device)
             done = False
-            state = agent.init_state(1)  # TODO: possibly add batch size here
             agent.set_encoding(False)
             while not done:
                 torch.autograd.set_detect_anomaly(True)

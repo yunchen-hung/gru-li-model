@@ -62,14 +62,15 @@ class ValueMemoryLSTM(BasicModule):
 
 
 class KeyValueLSTM(BasicModule):
-    def __init__(self, memory_module: KeyValueMemory, input_dim: int, output_dim: int, hidden_dim: int = 256, decision_dim: int = 128, 
+    def __init__(self, memory_module: KeyValueMemory, input_dim: int, other_input_dim: int, output_dim: int, hidden_dim: int = 256, decision_dim: int = 128, 
         context_embedding_dim: int = 16, act_fn="ReLU", em_gate_act_fn="Sigmoid", device: str = 'cpu'):
         super().__init__()
         self.device = device
 
-        self.lstm = LSTM(context_embedding_dim, hidden_dim, device)
+        self.lstm = LSTM(context_embedding_dim + other_input_dim, hidden_dim, device)
         self.memory_module = memory_module
 
+        self.input_dim = input_dim
         self.decision_dim = decision_dim
 
         self.fc_in = nn.Linear(input_dim, context_embedding_dim)
@@ -86,13 +87,15 @@ class KeyValueLSTM(BasicModule):
         return self.lstm.init_state(batch_size)
 
     def forward(self, inp, state, beta=1.0):
-        context_embedding = self.fc_in(inp)
-        h, c, z = self.lstm(context_embedding, state)
+        context_embedding = self.fc_in(inp[:self.input_dim])
+        h_prev, c_prev = state
+        lstm_input = torch.cat((context_embedding,inp[self.input_dim:]), -1)
+        h, c, z = self.lstm(lstm_input, state)
         o = z[2]
         # decision = self.act_fn(self.fc_decision(h))
-        em_gate = self.em_gate_act_fn(self.fc_em_gate_in(context_embedding) + self.fc_em_gate_rec(h))
-        memory = self.memory_module.retrieve(context_embedding, em_gate)
-        c2 = c + memory
+        em_gate = self.em_gate_act_fn(self.fc_em_gate_in(context_embedding) + self.fc_em_gate_rec(h_prev))
+        memory = self.memory_module.retrieve(context_embedding, 1.0)
+        c2 = c + memory * em_gate
         self.memory_module.encode((context_embedding, c2))
         h2 = torch.mul(o, c2.tanh())
         decision2 = self.act_fn(self.fc_decision(h2))

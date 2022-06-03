@@ -5,7 +5,7 @@ import gym
 
 class BarcodeBandits(gym.Env):
     def __init__(self, num_arms, context_len, context_num=0, sequence_len=10, trial_per_context_per_batch=10, 
-    max_arm_reward_probability=0.9, true_reward=1.0, false_reward=-0.1, always_show_context=True) -> None:
+    max_arm_reward_probability=0.9, true_reward=1.0, false_reward=0.0, always_show_context=True, meta_learning=True) -> None:
         """
         always_show_context: if True, show the context in every timestep, else, only show the context in the first timestep
         """
@@ -19,6 +19,7 @@ class BarcodeBandits(gym.Env):
         self.true_reward = true_reward
         self.false_reward = false_reward
         self.always_show_context = always_show_context
+        self.meta_learning = meta_learning
 
         # sequence_len should be an int or a list
         if isinstance(self.sequence_len, int):
@@ -30,10 +31,11 @@ class BarcodeBandits(gym.Env):
 
         if context_num == 0:
             # self.context_num = int(math.pow(2, context_len))
-            self.context_num = self.context_len
+            self.context_num = min(self.num_arms, self.context_len)
         else:
             self.context_num = context_num
             assert self.context_num <= self.context_len
+            assert self.context_num <= self.num_arms
         assert self.context_num > 0
         self.batch_size = self.context_num * self.trial_per_context_per_batch
 
@@ -56,9 +58,12 @@ class BarcodeBandits(gym.Env):
             # contexts_vector[i, :] = np.binary_repr(contexts_scalar[i], width=self.context_len)
             contexts_vector[i, contexts_scalar[i]] = 1
         
-        max_reward_arms = np.random.randint(self.num_arms, size=self.context_num) + 1
+        random_index = np.arange(self.num_arms)
+        np.random.shuffle(random_index)
+        max_reward_arms = random_index[:self.context_num]
+        # np.random.randint(self.num_arms, size=self.context_num) + 1
 
-        context_pool = np.arange(self.batch_size) % self.context_len
+        context_pool = np.arange(self.batch_size) % self.context_num
         np.random.shuffle(context_pool)
 
         return contexts_vector, max_reward_arms, context_pool
@@ -94,6 +99,8 @@ class BarcodeBandits(gym.Env):
         else:
             observation = np.zeros(self.context_len)
         # self.contexts_seen_before[self.current_context_num] = True
+        if self.meta_learning:
+            observation = np.concatenate((observation, [reward], [float(action)]))  # add reward as an input to the model
         return observation, reward, done, info
 
     def reset(self, context_index=None):
@@ -110,6 +117,8 @@ class BarcodeBandits(gym.Env):
             assert context_index >=0 and context_index < self.context_num
             self.current_context_num = context_index
         observation = self.contexts[self.current_context_num]
+        if self.meta_learning:
+            observation = np.concatenate((observation, [0.0], [0]))  # add reward as an input to the model
         return observation
 
     def render(self, mode='human'):

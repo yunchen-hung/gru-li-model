@@ -46,7 +46,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     # for child in model.children():
     #     print(child)
 
-    if os.path.exists(model_save_path/"model.pt"):
+    if not train and os.path.exists(model_save_path/"model.pt"):
         model.load_state_dict(torch.load(model_save_path/"model.pt"))
 
     print("device: ", device)

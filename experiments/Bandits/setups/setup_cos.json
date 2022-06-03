@@ -29,9 +29,9 @@
         "save_iter": 100,
         "optimizer": {
             "class": "Adam",
-            "lr": 1e-4,
+            "lr": 5e-5,
             "lr_decay_factor": 0.5,
-            "lr_decay_patience": 30,
+            "lr_decay_patience": 10,
             "lr_decay_threshold": 1e-3,
             "min_lr": 1e-8
         }

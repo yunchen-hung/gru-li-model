@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -8,9 +9,10 @@ SIMILARITY_MEASURES = ['cosine', 'l1', 'l2']
 
 
 class BasicSimilarity(BasicModule):
-    def __init__(self, similarity_measure='cosine', device: str = 'cpu'):
+    def __init__(self, similarity_measure='cosine', find_max=False, device: str = 'cpu'):
         super().__init__()
         self.measure = similarity_measure
+        self.find_max = find_max
         self.device = device
 
     def forward(self, query, values, input_weight=1.0):
@@ -23,6 +25,9 @@ class BasicSimilarity(BasicModule):
         else:
             raise Exception(f'Unrecognizable self.measure: {self.measure}')
         self.write(similarities, 'similarities')
+        if self.find_max:
+            similarities = F.one_hot(torch.argmax(similarities, dim=-1), num_classes=similarities.shape[-1]).to(self.device)
+            self.write(similarities, 'max_similarities')
         return similarities * input_weight
 
 

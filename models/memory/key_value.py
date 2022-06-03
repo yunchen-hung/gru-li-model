@@ -5,12 +5,13 @@ from ..basic_module import BasicModule
 
 
 class KeyValueMemory(BasicModule):
-    def __init__(self, key_dim: int, value_dim: int, capacity: int, device: str = 'cpu') -> None:
+    def __init__(self, similarity_measure, key_dim: int, value_dim: int, capacity: int, device: str = 'cpu') -> None:
         super().__init__()
         self.device = device
         self.key_dim = key_dim
         self.value_dim = value_dim
         self.capacity = capacity
+        self.similarity_measure = similarity_measure
 
         self.keys = torch.zeros((capacity, key_dim)).to(self.device)
         self.values = torch.zeros((capacity, value_dim)).to(self.device)

@@ -1,2 +1,2 @@
 from .model import ValueMemoryLSTM, KeyValueLSTM
-from .memory import LCASimilarity, ValueMemory, BasicSimilarity
+from .memory import LCASimilarity, ValueMemory, BasicSimilarity, KeyValueMemory

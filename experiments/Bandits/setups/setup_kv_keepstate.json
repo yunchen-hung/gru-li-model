@@ -1,7 +1,7 @@
 {
     "model": {
         "class": "KeyValueLSTM",
-        "input_dim": 6,
+        "input_dim": 7,
         "context_embedding_dim": 16,
         "hidden_dim": 256,
         "decision_dim": 128,
@@ -27,8 +27,7 @@
         "context_len": 6,
         "context_num": 4,
         "trial_per_context_per_batch": 20,
-        "false_reward": 0.0,
-        "meta_learning": false
+        "false_reward": 0.0
     },
     "training": {
         "num_iter": 10000,
@@ -43,5 +42,5 @@
             "min_lr": 1e-8
         }
     },
-    "keep_state": false
+    "keep_state": true
 }
