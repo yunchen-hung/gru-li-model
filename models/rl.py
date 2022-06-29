@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 eps = np.finfo(np.float32).eps.item()
 
 
-def compute_a2c_loss(probs, values, returns, use_V=True, device='cpu'):
+def compute_a2c_loss(probs, values, rewards, entropys, returns_normalize=True, use_V=True, device='cpu'):
     """compute the objective node for policy/value networks
 
     Parameters
@@ -15,8 +15,8 @@ def compute_a2c_loss(probs, values, returns, use_V=True, device='cpu'):
         action prob at time t
     values : list
         state value at time t
-    returns : list
-        return at time t
+    rewards : list
+        rewards at time t
 
     Returns
     -------
@@ -24,6 +24,7 @@ def compute_a2c_loss(probs, values, returns, use_V=True, device='cpu'):
         Description of returned object.
 
     """
+    returns = compute_returns(rewards, normalize=returns_normalize)
     policy_grads, value_losses = [], []
     for prob_t, v_t, R_t in zip(probs, values, returns):
         if use_V:
@@ -38,7 +39,9 @@ def compute_a2c_loss(probs, values, returns, use_V=True, device='cpu'):
         policy_grads.append(-prob_t * A_t)
     policy_gradient = torch.stack(policy_grads).sum()
     value_loss = torch.stack(value_losses).sum()
-    return policy_gradient, value_loss
+    pi_ent = torch.stack(entropys).sum()
+    loss = policy_gradient + value_loss - pi_ent * 0.1  # 0.1: eta, make it a parameter
+    return loss, policy_gradient, value_loss
 
 
 def pick_action(action_distribution):

@@ -41,9 +41,17 @@ def load_setup(setup_path):
 def parse_setup(setup, device):
     model = load_model(setup.pop("model"), device)
     env = load_environment(setup.pop("env"))
+    if "supervised_env" in setup:
+        sup_env = load_environment(setup.pop("supervised_env"))
+    else:
+        sup_env = None
     optimizer, scheduler = load_optimizer(setup["training"].pop("optimizer"), model)
+    if "supervised_training" in setup:
+        sup_optimizer, sup_scheduler = load_optimizer(setup["supervised_training"].pop("optimizer"), model)
+    else:
+        sup_optimizer, sup_scheduler = None, None
     setup["model_name"] = model.__class__.__name__
-    return model, env, optimizer, scheduler, setup
+    return model, env, optimizer, scheduler, sup_env, sup_optimizer, sup_scheduler, setup
 
 
 def load_model(setup, device):

@@ -22,48 +22,25 @@
         }]
     },
     "env": {
-        "class": "SequentialMemory",
+        "class": "FreeRecall",
         "vocabulary_num": 20,
         "memory_num": 5,
         "retrieve_time_limit": 10,
-        "reset_state_before_test": false
+        "reset_state_before_test": true
     },
     "training": {
-        "num_iter": 5000,
+        "num_iter": 20000,
         "test": false,
         "test_iter": 100,
-        "save_iter": 500,
+        "save_iter": 200,
         "optimizer": {
             "class": "Adam",
-            "lr": 5e-4,
+            "lr": 1e-4,
             "lr_decay_factor": 0.5,
             "lr_decay_patience": 10,
             "lr_decay_threshold": 1e-3,
             "min_lr": 1e-8
         }
     },
-    "supervised_env": {
-        "class": "SequentialMemory",
-        "vocabulary_num": 20,
-        "memory_num": 5,
-        "retrieve_time_limit": 10,
-        "reset_state_before_test": false
-    },
-    "supervised_training": {
-        "num_iter": 50000,
-        "test": false,
-        "test_iter": 500,
-        "save_iter": 1000,
-        "criterion": "CrossEntropyLoss",
-        "optimizer": {
-            "class": "Adam",
-            "lr": 1e-3,
-            "lr_decay_factor": 0.5,
-            "lr_decay_patience": 10,
-            "lr_decay_threshold": 1e-3,
-            "min_lr": 1e-8
-        }
-    },
-    "load_saved_model": true,
-    "pretrain": false
+    "load_saved_model": true
 }

@@ -20,6 +20,11 @@ def count_accuracy(agent, env, num_trials_per_condition=10, device="cpu"):
             
             state = agent.init_state(1)  # TODO: possibly add batch size here
             while not done:
+                if info.get("encoding_on", False):
+                    agent.set_encoding(True)
+                if info.get("reset_state", False):
+                    state = agent.init_state(1)
+
                 action_distribution, value, state = agent.forward(obs, state)
                 action, log_prob_action = pick_action(action_distribution)
                 obs_, reward, done, info = env.step(action)

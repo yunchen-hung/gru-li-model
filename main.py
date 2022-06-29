@@ -5,7 +5,7 @@ import torch
 
 import consts
 from utils import load_setup, parse_setup, import_attr
-from train import train_model, plot_accuracy_and_error, record_model
+from train import train_model, supervised_train_model, plot_accuracy_and_error, record_model
 
 
 def parse_args():
@@ -34,7 +34,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
     setup = load_setup(exp_dir/consts.SETUP_FOLDER/setup_name)
 
-    model, env, optimizer, scheduler, setup = parse_setup(setup, device)
+    model, env, optimizer, scheduler, sup_env, sup_optimizer, sup_scheduler, setup = parse_setup(setup, device)
 
     run_name = setup.get("run_name", setup_name.split(".")[0])
     print("run_name: {}".format(run_name))
@@ -42,17 +42,17 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     model_save_path = exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name
     model_save_path.mkdir(parents=True, exist_ok=True)
 
-    # print(model)
-    # for child in model.children():
-    #     print(child)
-
-    if not train and os.path.exists(model_save_path/"model.pt"):
+    if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_save_path/"model.pt"):
+        if setup.get("load_saved_model", False):
+            print("load saved model")
         model.load_state_dict(torch.load(model_save_path/"model.pt"))
 
     print("device: ", device)
     model.to(device)
 
     if train or not os.path.exists(model_save_path/"model.pt"):
+        if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler:
+            sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, device=device, model_save_path=model_save_path, **setup["supervised_training"])
         test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, device=device, model_save_path=model_save_path, **setup["training"])
         plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
 
