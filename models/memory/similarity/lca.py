@@ -47,7 +47,7 @@ class LCA(BasicModule):
         self.W_i = make_weights(input_weight, cross_weight, input_size, device)
         self.W_r = make_weights(self_excitation, -lateral_inhibition, input_size, device)
     
-    def forward(self, inp, input_weight=1):
+    def forward(self, inp, input_weight=1.0):
         """
         inp: timestep * memory_capacity(input_size)
         """

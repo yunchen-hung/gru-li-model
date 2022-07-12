@@ -53,15 +53,22 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     if train or not os.path.exists(model_save_path/"model.pt"):
         if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler:
             sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, device=device, model_save_path=model_save_path, **setup["supervised_training"])
-        test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, device=device, model_save_path=model_save_path, **setup["training"])
-        plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
+        if env and optimizer and scheduler:
+            test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, device=device, model_save_path=model_save_path, **setup["training"])
+            plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
 
-    data = record_model(model, env, device=device)
+    if env:
+        data = record_model(model, env, device=device)
+    else:
+        data = record_model(model, sup_env, device=device)
 
     paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup["model_name"]/run_name}
 
     run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
-    run_exp(data, model, env, paths)
+    if env:
+        run_exp(data, model, env, paths)
+    else:
+        run_exp(data, model, sup_env, paths)
 
 
 if __name__ == "__main__":

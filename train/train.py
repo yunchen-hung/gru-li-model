@@ -3,11 +3,11 @@ import torch
 from models.rl import pick_action, compute_returns, compute_a2c_loss
 from models.utils import entropy
 from .utils import count_accuracy, save_model
-from utils import import_attr
+from train.utils import import_criterion
 
 
 # TODO: support other RL algorithms
-def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', model_save_path=None):
+def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', model_save_path=None, use_memory=None):
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
     test_accuracies = []
     test_errors = []
@@ -19,6 +19,9 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
     loss_setup = setup.get("loss_setup", {})
 
     batch_size = env.batch_size
+
+    if use_memory:
+        agent.use_memory = use_memory
 
     print("start training")
     print("batch size:", batch_size)
@@ -89,6 +92,8 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
             total_critic_loss += loss_critic.item()
             
         if i % test_iter == 0:
+            print(torch.tensor(actions[env.memory_num:]).cpu().detach().numpy(), env.memory_sequence)
+
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error
@@ -131,18 +136,25 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
     return test_accuracies, test_errors
 
 
-def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="CrossEntropyLoss", num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', model_save_path=None):
+def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="CrossEntropyLoss", num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', model_save_path=None, use_memory=None):
     actions_correct_num, actions_wrong_num, actions_total_num, total_loss = 0, 0, 0, 0.0
     test_accuracies = []
     test_errors = []
 
-    criterion = import_attr("torch.nn.{}".format(criterion))()
+    criterion = import_criterion(criterion)
 
     keep_state = setup.get("keep_state", False)    # reset state after each episode
     if keep_state:
         print("keep state")
 
     batch_size = env.batch_size
+
+    if use_memory:
+        agent.use_memory = use_memory
+    if agent.use_memory:
+        print("Agent use memory")
+    else:
+        print("Agent not use memory")
 
     print("start supervised training")
     print("batch size:", batch_size)
@@ -171,18 +183,19 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="C
 
             outputs = []
             for t in range(data.shape[0]):
-                # if info.get("encoding_on", False):
-                #     agent.set_encoding(True)
-                # else:
-                #     agent.set_encoding(False)
-                # if info.get("retrieval_off", False):
-                #     agent.set_retrieval(False)
-                # else:
-                #     agent.set_retrieval(True)
-                # if info.get("reset_state", False):
-                #     state = agent.init_state(1)
+                if agent.use_memory:
+                    # TODO: make it scalable for other tasks
+                    if t < env.memory_num:
+                        agent.set_encoding(True)
+                    else:
+                        agent.set_encoding(False)
+                    if t < env.memory_num:
+                        agent.set_retrieval(False)
+                    else:
+                        agent.set_retrieval(True)
+                if t == env.memory_num and env.reset_state_before_test:
+                    state = agent.init_state(1)
 
-                # torch.autograd.set_detect_anomaly(True)
                 output, value, state = agent(data[t], state)
 
                 values.append(value)
@@ -209,7 +222,8 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="C
             total_loss += loss.item()
             
         if i % test_iter == 0:
-            # print(actions, gt)
+            print(actions[env.memory_num:], env.memory_sequence)
+            # print(outputs)
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error

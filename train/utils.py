@@ -5,6 +5,16 @@ import matplotlib.pyplot as plt
 
 from models.rl import pick_action, compute_returns, compute_a2c_loss
 from models.utils import entropy
+from utils import import_attr
+import torch.nn
+
+
+def import_criterion(criterion_name):
+    if hasattr(torch.nn, criterion_name):
+        criterion = import_attr("torch.nn.{}".format(criterion_name))()
+    else:
+        criterion = import_attr("train.criterions.{}".format(criterion_name))()
+    return criterion
 
 
 def count_accuracy(agent, env, num_trials_per_condition=10, device="cpu"):

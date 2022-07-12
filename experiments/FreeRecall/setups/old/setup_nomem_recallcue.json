@@ -10,7 +10,7 @@
             "name":"memory_module",
             "class": "ValueMemory",
             "value_dim": 256,
-            "capacity": 5,
+            "capacity": 6,
             "subclasses": [
                 {
                     "name":"similarity_measure",
@@ -24,8 +24,8 @@
         "vocabulary_num": 20,
         "memory_num": 5,
         "retrieve_time_limit": 5,
-        "start_recall_cue": true,
-        "reset_state_before_test": false
+        "reset_state_before_test": false,
+        "start_recall_cue": true
     },
     "training": {
         "num_iter": 200000,

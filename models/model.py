@@ -34,7 +34,11 @@ class ValueMemoryLSTM(BasicModule):
     def forward(self, inp, state, beta=1.0):
         h, c, z = self.lstm(inp, state)
         o = z[2]
+        # print(inp, state)
+        # print(h, self.fc_decision(h))
         dec_act = self.act_fn(self.fc_decision(h))
+        # print(dec_act)
+        # print()
         if self.use_memory:
             em_gate = self.em_gate_act_fn(self.fc_em_gate_value(torch.cat((c, dec_act), 1)))
             memory = self.memory_module.retrieve(c, em_gate)
@@ -47,6 +51,7 @@ class ValueMemoryLSTM(BasicModule):
             self.write(memory, 'memory')
         else:
             self.write(dec_act, 'dec_act')
+        # print(dec_act)
         pi_a = _softmax(self.fc_actor(dec_act), beta)
         value = self.fc_critic(dec_act)
 

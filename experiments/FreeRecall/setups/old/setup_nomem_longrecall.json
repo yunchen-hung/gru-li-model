@@ -1,7 +1,7 @@
 {
     "model": {
         "class": "ValueMemoryLSTM",
-        "input_dim": 22,
+        "input_dim": 21,
         "hidden_dim": 256,
         "decision_dim": 128,
         "output_dim": 21,
@@ -10,11 +10,14 @@
             "name":"memory_module",
             "class": "ValueMemory",
             "value_dim": 256,
-            "capacity": 5,
+            "capacity": 6,
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "BasicSimilarity"
+                    "class": "LCASimilarity",
+                    "lca_cycles": 5,
+                    "input_size": 6,
+                    "lateral_inhibition": 0.1
                 }
             ]
         }]
@@ -23,15 +26,14 @@
         "class": "FreeRecall",
         "vocabulary_num": 20,
         "memory_num": 5,
-        "retrieve_time_limit": 5,
-        "start_recall_cue": true,
+        "retrieve_time_limit": 10,
         "reset_state_before_test": false
     },
     "training": {
         "num_iter": 200000,
         "test": false,
         "test_iter": 1000,
-        "save_iter": 200,
+        "save_iter": 2000,
         "optimizer": {
             "class": "Adam",
             "lr": 1e-4,

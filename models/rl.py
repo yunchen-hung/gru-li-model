@@ -60,6 +60,7 @@ def pick_action(action_distribution):
     """
     m = Categorical(action_distribution)
     a_t = m.sample()
+    # a_t = torch.argmax(action_distribution)
     log_prob_a_t = m.log_prob(a_t)
     return a_t, log_prob_a_t
 

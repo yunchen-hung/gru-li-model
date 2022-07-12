@@ -38,6 +38,9 @@ class BasicModule(nn.Module):
         if hasattr(self, 'readout_dict'):
             readout_dict = {}
             for key, value in self.readout_dict.items():
+                # print(key)
+                # for v in value:
+                #     print(v.shape)
                 if self.to_numpy:
                     readout_dict[key] = np.stack(value, axis=0)
                 else:

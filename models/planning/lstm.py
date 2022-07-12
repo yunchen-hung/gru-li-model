@@ -15,9 +15,12 @@ class LSTM(BasicModule):
         self.fc_in = nn.Linear(input_dim, hidden_dim * 4)
         self.fc_rec = nn.Linear(hidden_dim, hidden_dim * 4, bias=False)
 
+        self.c0 = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
+        self.h0 = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
+
     def init_state(self, batch_size):
-        return (torch.zeros(batch_size, self.hidden_dim).to(self.device),
-                torch.zeros(batch_size, self.hidden_dim).to(self.device))
+        return (self.h0.repeat(batch_size, 1).to(self.device),
+                self.c0.repeat(batch_size, 1).to(self.device))
 
     def forward(self, inp, state):
         h, c = state
