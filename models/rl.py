@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 eps = np.finfo(np.float32).eps.item()
 
 
-def compute_a2c_loss(probs, values, rewards, entropys, returns_normalize=True, use_V=True, device='cpu'):
+def compute_a2c_loss(probs, values, rewards, entropys, returns_normalize=True, use_V=True, eta=0.01, device='cpu'):
     """compute the objective node for policy/value networks
 
     Parameters
@@ -40,7 +40,7 @@ def compute_a2c_loss(probs, values, rewards, entropys, returns_normalize=True, u
     policy_gradient = torch.stack(policy_grads).sum()
     value_loss = torch.stack(value_losses).sum()
     pi_ent = torch.stack(entropys).sum()
-    loss = policy_gradient + value_loss - pi_ent * 0.1  # 0.1: eta, make it a parameter
+    loss = policy_gradient + value_loss - pi_ent * eta  # 0.1: eta, make it a parameter
     return loss, policy_gradient, value_loss
 
 

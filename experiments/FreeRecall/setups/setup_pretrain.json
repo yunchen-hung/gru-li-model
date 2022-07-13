@@ -55,7 +55,7 @@
         "test": false,
         "test_iter": 500,
         "save_iter": 2000,
-        "stop_test_accu": 1.00,
+        "stop_test_accu": 0.99,
         "use_memory": false,
         "criterion": "FreeRecallSumMSELoss",
         "optimizer": {

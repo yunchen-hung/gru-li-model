@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 from utils import import_attr
 
@@ -26,3 +27,27 @@ def entropy(probs):
 
     """
     return - torch.stack([pi * torch.log2(pi) for pi in probs]).sum()
+
+def softmax(z, beta):
+    """helper function, softmax with beta
+
+    Parameters
+    ----------
+    z : torch tensor, has 1d underlying structure after torch.squeeze
+        the raw logits
+    beta : float, >0
+        softmax temp, big value -> more "randomness"
+
+    Returns
+    -------
+    1d torch tensor
+        a probability distribution | beta
+
+    """
+    assert beta > 0
+    # softmax the input to a valid PMF
+    pi_a = F.softmax(torch.squeeze(z / beta), dim=0)
+    # make sure the output is valid
+    if torch.any(torch.isnan(pi_a)):
+        raise ValueError(f'Softmax produced nan: {z} -> {pi_a}')
+    return pi_a

@@ -62,7 +62,7 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                     else:
                         agent.set_retrieval(True)
                     if info.get("reset_state", False):
-                        state = agent.init_state(1)
+                        state = agent.init_state(1, recall=True)
                     
                     action_distribution, value, state = agent(obs, state)
                     action, log_prob_action = pick_action(action_distribution)

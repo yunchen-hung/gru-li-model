@@ -6,21 +6,52 @@ from ..basic_module import BasicModule
 
 
 class LSTM(BasicModule):
-    def __init__(self, input_dim: int, hidden_dim: int, device: str = 'cpu') -> None:
+    def __init__(self, input_dim: int, hidden_dim: int, init_state_type='train', device: str = 'cpu') -> None:
+        """
+        init_state_type: 
+            zero: initialize states with all zeros
+            random: initialize states with random values
+            train: train init states
+            train_diff: train init states of stimuli presenting and 
+        """
         super().__init__()
         self.device = device
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
+        self.init_state_type = init_state_type
 
         self.fc_in = nn.Linear(input_dim, hidden_dim * 4)
         self.fc_rec = nn.Linear(hidden_dim, hidden_dim * 4, bias=False)
 
         self.c0 = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
         self.h0 = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
+        if self.init_state_type == 'train_diff':
+            self.c0_recall = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
+            self.h0_recall = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
 
-    def init_state(self, batch_size):
-        return (self.h0.repeat(batch_size, 1).to(self.device),
-                self.c0.repeat(batch_size, 1).to(self.device))
+    def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
+        if prev_state is None:
+            h = torch.zeros(batch_size, self.hidden_dim).to(self.device)
+            c = torch.zeros(batch_size, self.hidden_dim).to(self.device)
+        else:
+            h, c = prev_state
+        if self.init_state_type == 'zero':
+            c0 = torch.zeros(batch_size, self.hidden_dim) * flush_level + c * (1 - flush_level)
+            h0 = torch.zeros(batch_size, self.hidden_dim) * flush_level + h * (1 - flush_level)
+        elif self.init_state_type == 'random':
+            c0 = torch.randn(batch_size, self.hidden_dim) * flush_level + c * (1 - flush_level)
+            h0 = torch.randn(batch_size, self.hidden_dim) * flush_level + h * (1 - flush_level)
+        elif self.init_state_type == 'train':
+            c0 = flush_level * self.c0.repeat(batch_size, 1) + c * (1 - flush_level)
+            h0 = flush_level * self.h0.repeat(batch_size, 1) + h * (1 - flush_level)
+        elif self.init_state_type == 'train_diff': 
+            if recall:
+                c0 = self.c0_recall.repeat(batch_size, 1) * flush_level + c * (1 - flush_level)
+                h0 = self.h0_recall.repeat(batch_size, 1) * flush_level + h * (1 - flush_level)
+            else:
+                c0 = self.c0.repeat(batch_size, 1) * flush_level + c * (1 - flush_level)
+                h0 = self.h0.repeat(batch_size, 1) * flush_level + h * (1 - flush_level)
+        return h0, c0
 
     def forward(self, inp, state):
         h, c = state
