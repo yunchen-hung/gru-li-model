@@ -7,7 +7,8 @@ from train.utils import import_criterion
 
 
 # TODO: support other RL algorithms
-def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', model_save_path=None, use_memory=None):
+def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
+    model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9):
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
     test_accuracies = []
     test_errors = []
@@ -22,7 +23,15 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
 
     if use_memory:
         agent.use_memory = use_memory
-
+    
+    if soft_flush:
+        print("soft flush")
+        flush_level = 0.0
+        accuracy = 0.0
+        flush_iter = 0
+    else:
+        flush_level = 1.0
+ 
     print("start training")
     print("batch size:", batch_size)
     # state = agent.init_state(1)  # TODO: possibly add batch size here
@@ -57,7 +66,11 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
                 else:
                     agent.set_retrieval(True)
                 if info.get("reset_state", False):
-                    state = agent.init_state(1)
+                    if soft_flush and (accuracy > soft_flush_accuracy or flush_iter >= soft_flush_iter):
+                        flush_level = min(1.0, flush_level+0.1)
+                        flush_iter = 0
+                        print("flush level changed to {}".format(flush_level))
+                    state = agent.init_state(1, recall=True, flush_level=flush_level, prev_state=state)
                 # print(agent.memory_module.stored_memory)
 
                 # torch.autograd.set_detect_anomaly(True)
@@ -90,11 +103,13 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
             total_loss += loss.item()
             total_actor_loss += loss_actor.item()
             total_critic_loss += loss_critic.item()
+
+            flush_iter += 1
+            accuracy = actions_correct_num / actions_total_num
             
         if i % test_iter == 0:
             print(torch.tensor(actions[env.memory_num:]).cpu().detach().numpy(), env.memory_sequence)
 
-            accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error
             mean_reward = total_reward / actions_total_num
@@ -122,7 +137,7 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
                 min_test_loss = test_error - test_accuracy
                 save_model(agent, model_save_path, filename="model.pt")
             
-            if test_accuracy >= stop_test_accu:
+            if test_accuracy >= stop_test_accu and test_iter != 0:
                 break
 
             test_accuracies.append(test_accuracy)
@@ -136,7 +151,8 @@ def train_model(agent, env, optimizer, scheduler, setup, num_iter=10000, test=Tr
     return test_accuracies, test_errors
 
 
-def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="CrossEntropyLoss", num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', model_save_path=None, use_memory=None):
+def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="CrossEntropyLoss", num_iter=10000, test=False, test_iter=200, save_iter=1000, 
+    stop_test_accu=1.0, device='cpu', model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9):
     actions_correct_num, actions_wrong_num, actions_total_num, total_loss = 0, 0, 0, 0.0
     test_accuracies = []
     test_errors = []
@@ -155,6 +171,14 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="C
         print("Agent use memory")
     else:
         print("Agent not use memory")
+
+    if soft_flush:
+        print("soft flush")
+        flush_level = 0.0
+        accuracy = 0.0
+        flush_iter = 0
+    else:
+        flush_level = 1.0
 
     print("start supervised training")
     print("batch size:", batch_size)
@@ -194,7 +218,11 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion="C
                     else:
                         agent.set_retrieval(True)
                 if t == env.memory_num and env.reset_state_before_test:
-                    state = agent.init_state(1)
+                    if soft_flush and (accuracy > soft_flush_accuracy or flush_iter >= soft_flush_iter):
+                        flush_level = min(1.0, flush_level+0.1)
+                        flush_iter = 0
+                        print("flush level changed to {}".format(flush_level))
+                    state = agent.init_state(1, recall=True, flush_level=flush_level, prev_state=state)
 
                 output, value, state = agent(data[t], state)
 
