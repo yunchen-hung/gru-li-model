@@ -1,4 +1,3 @@
-import imp
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,11 +9,16 @@ from ..basic_module import BasicModule
 
 
 class ValueMemoryLSTM(BasicModule):
-    def __init__(self, memory_module: ValueMemory, input_dim: int, hidden_dim: int, decision_dim: int, output_dim: int, act_fn="ReLU", em_gate_act_fn="Sigmoid", 
-    use_memory=True, init_state_type='train', device: str = 'cpu'):
+    def __init__(self, memory_module: ValueMemory, input_dim: int, hidden_dim: int, decision_dim: int, output_dim: int, em_gate_type='scalar', act_fn='ReLU', 
+    em_gate_act_fn='Sigmoid', use_memory=True, init_state_type='train', use_mem_gate=False, device: str = 'cpu'):
+        """
+        init_state_type: see LSTM
+        em_gate_type: 'scalar' or 'vector'
+        """
         super().__init__()
         self.device = device
         self.use_memory = use_memory
+        self.use_mem_gate = use_mem_gate
 
         self.lstm = LSTM(input_dim, hidden_dim, init_state_type, device)
         self.memory_module = memory_module
@@ -24,7 +28,13 @@ class ValueMemoryLSTM(BasicModule):
         self.fc_decision = nn.Linear(hidden_dim, decision_dim)
         self.fc_actor = nn.Linear(decision_dim, output_dim)
         self.fc_critic = nn.Linear(decision_dim, 1)
-        self.fc_em_gate_value = nn.Linear(hidden_dim + decision_dim, 1)
+        if em_gate_type == 'scalar':
+            self.fc_em_gate_value = nn.Linear(hidden_dim + decision_dim, 1)
+        else:
+            self.fc_em_gate_value = nn.Linear(hidden_dim + decision_dim, memory_module.capacity)
+        if self.use_mem_gate:
+            self.fc_mem_gate = nn.Linear(hidden_dim + decision_dim, hidden_dim)
+            # self.mem_gate = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
 
         self.act_fn = load_act_fn(act_fn)
         self.em_gate_act_fn = load_act_fn(em_gate_act_fn)
@@ -43,6 +53,11 @@ class ValueMemoryLSTM(BasicModule):
         if self.use_memory:
             em_gate = self.em_gate_act_fn(self.fc_em_gate_value(torch.cat((c, dec_act), 1)))
             memory = self.memory_module.retrieve(c, em_gate)
+            if self.use_mem_gate:
+                mem_gate = self.fc_mem_gate(torch.cat((c, dec_act), 1)).sigmoid()
+                self.write(memory, 'raw_memory')
+                self.write(mem_gate, 'mem_gate')
+                memory = torch.mul(mem_gate, memory)
             c = c + memory
             self.memory_module.encode(c)
             h = torch.mul(o, c.tanh())
@@ -50,8 +65,6 @@ class ValueMemoryLSTM(BasicModule):
             
             self.write(em_gate, 'em_gate')
             self.write(memory, 'memory')
-        else:
-            self.write(dec_act, 'dec_act')
         # print(dec_act)
         pi_a = softmax(self.fc_actor(dec_act), beta)
         value = self.fc_critic(dec_act)

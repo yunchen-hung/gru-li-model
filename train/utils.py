@@ -3,21 +3,12 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from models.rl import pick_action, compute_returns, compute_a2c_loss
+from .criterions.rl import pick_action, compute_returns
 from models.utils import entropy
-from utils import import_attr
 import torch.nn
 
 
-def import_criterion(criterion_name):
-    if hasattr(torch.nn, criterion_name):
-        criterion = import_attr("torch.nn.{}".format(criterion_name))()
-    else:
-        criterion = import_attr("train.criterions.{}".format(criterion_name))()
-    return criterion
-
-
-def count_accuracy(agent, env, num_trials_per_condition=10, device="cpu"):
+def count_accuracy(agent, env, criterion, num_trials_per_condition=10, device="cpu"):
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
     context_num = env.context_num
     num_iter = context_num * num_trials_per_condition
@@ -56,7 +47,7 @@ def count_accuracy(agent, env, num_trials_per_condition=10, device="cpu"):
             actions_wrong_num += wrong_actions
 
             returns = compute_returns(rewards, normalize=True)  # TODO: make normalize a parameter
-            loss_actor, loss_critic = compute_a2c_loss(probs, values, returns)
+            loss, loss_actor, loss_critic = criterion(probs, values, returns)
             pi_ent = torch.stack(entropys).sum()
             loss = loss_actor + loss_critic - pi_ent * 0.1  # 0.1: eta, make it a parameter
 

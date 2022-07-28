@@ -115,3 +115,20 @@ class FreeRecall(gym.Env):
             else:
                 wrong_actions += 1
         return correct_actions, wrong_actions, not_know_actions
+
+    def compute_rewards(self, actions):
+        rewards = []
+        not_retrieved = np.zeros(self.vocabulary_num+1, dtype=np.bool)
+        not_retrieved[self.memory_sequence] = True
+        for t, action in enumerate(actions):
+            if t < self.memory_num:
+                rewards.append(0.0)
+            else:
+                if action in list(self.memory_sequence) and not_retrieved[action]:
+                    rewards.append(self.true_reward)
+                    not_retrieved[action] = False
+                elif action == 0:
+                    rewards.append(0.0)
+                else:
+                    rewards.append(self.false_reward)
+        return rewards

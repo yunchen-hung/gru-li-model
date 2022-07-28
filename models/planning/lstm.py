@@ -36,11 +36,11 @@ class LSTM(BasicModule):
         else:
             h, c = prev_state
         if self.init_state_type == 'zero':
-            c0 = torch.zeros(batch_size, self.hidden_dim) * flush_level + c * (1 - flush_level)
-            h0 = torch.zeros(batch_size, self.hidden_dim) * flush_level + h * (1 - flush_level)
+            c0 = torch.zeros(batch_size, self.hidden_dim).to(self.device) * flush_level + c * (1 - flush_level)
+            h0 = torch.zeros(batch_size, self.hidden_dim).to(self.device) * flush_level + h * (1 - flush_level)
         elif self.init_state_type == 'random':
-            c0 = torch.randn(batch_size, self.hidden_dim) * flush_level + c * (1 - flush_level)
-            h0 = torch.randn(batch_size, self.hidden_dim) * flush_level + h * (1 - flush_level)
+            c0 = torch.randn(batch_size, self.hidden_dim).to(self.device) * flush_level + c * (1 - flush_level)
+            h0 = torch.randn(batch_size, self.hidden_dim).to(self.device) * flush_level + h * (1 - flush_level)
         elif self.init_state_type == 'train':
             c0 = flush_level * self.c0.repeat(batch_size, 1) + c * (1 - flush_level)
             h0 = flush_level * self.h0.repeat(batch_size, 1) + h * (1 - flush_level)
@@ -67,5 +67,9 @@ class LSTM(BasicModule):
         self.write(z_o, 'z_o')
         self.write(c_next, 'c')
         self.write(h_next, 'h')
+        self.write(torch.mul(z_f, c), "rec")
+        self.write(torch.mul(z_i, z), "inp")
+        self.write(c_next.tanh(), "c_next_act_fn")
+        self.write(h_next, "h_next")
 
         return h_next, c_next, [z_i, z_f, z_o]

@@ -50,14 +50,16 @@ def parse_setup(setup, device):
         sup_env = None
     if "training" in setup:
         optimizer, scheduler = load_optimizer(setup["training"].pop("optimizer"), model)
+        criterion = load_criterion(setup["training"].pop("criterion"))
     else:
-        optimizer, scheduler = None, None
+        optimizer, scheduler, criterion = None, None, None
     if "supervised_training" in setup:
         sup_optimizer, sup_scheduler = load_optimizer(setup["supervised_training"].pop("optimizer"), model)
+        sup_criterion = load_criterion(setup["supervised_training"].pop("criterion"))
     else:
-        sup_optimizer, sup_scheduler = None, None
+        sup_optimizer, sup_scheduler, sup_criterion = None, None, None
     setup["model_name"] = model.__class__.__name__
-    return model, env, optimizer, scheduler, sup_env, sup_optimizer, sup_scheduler, setup
+    return model, env, optimizer, scheduler, criterion, sup_env, sup_optimizer, sup_scheduler, sup_criterion, setup
 
 
 def load_model(setup, device):
@@ -87,3 +89,12 @@ def load_optimizer(setup, model):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=setup.get("lr_decay_factor", 1e-3), patience=setup.get("lr_decay_patience", 30), 
         threshold=setup.get("lr_decay_threshold", 1e-3), min_lr=setup.get("min_lr", 1e-8), verbose=True)
     return optimizer, scheduler
+
+
+def load_criterion(setup):
+    criterion_name = setup.pop("class")
+    if hasattr(torch.nn, criterion_name):
+        criterion = import_attr("torch.nn.{}".format(criterion_name))(**setup)
+    else:
+        criterion = import_attr("train.criterions.{}".format(criterion_name))(**setup)
+    return criterion

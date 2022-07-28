@@ -10,11 +10,13 @@ from ..basic_module import BasicModule
 
 
 class ValueEncodeLSTM(BasicModule):
-    def __init__(self, memory_module: ValueMemory, input_dim: int, hidden_dim: int, decision_dim: int, output_dim: int, act_fn="ReLU", em_gate_act_fn="Sigmoid", 
-    use_memory=True, init_state_type='train', device: str = 'cpu'):
+    def __init__(self, memory_module: ValueMemory, input_dim: int, hidden_dim: int, decision_dim: int, output_dim: int, mem_dim: int = 0, act_fn="ReLU", em_gate_act_fn="Sigmoid", 
+    use_memory=True, init_state_type='train', encode_mem=True, decode_mem=True, device: str = 'cpu'):
         super().__init__()
         self.device = device
         self.use_memory = use_memory
+        self.encode_mem = encode_mem
+        self.decode_mem = decode_mem
 
         self.lstm = LSTM(input_dim, hidden_dim, init_state_type, device)
         self.memory_module = memory_module
@@ -25,6 +27,11 @@ class ValueEncodeLSTM(BasicModule):
         self.fc_actor = nn.Linear(decision_dim, output_dim)
         self.fc_critic = nn.Linear(decision_dim, 1)
         self.fc_em_gate_value = nn.Linear(hidden_dim + decision_dim, 1)
+        
+        if self.encode_mem:
+            self.fc_mem_encode = nn.Linear(hidden_dim, hidden_dim)
+        if self.decode_mem:
+            self.fc_mem_decode = nn.Linear(hidden_dim, hidden_dim)
 
         self.act_fn = load_act_fn(act_fn)
         self.em_gate_act_fn = load_act_fn(em_gate_act_fn)
@@ -43,13 +50,23 @@ class ValueEncodeLSTM(BasicModule):
         if self.use_memory:
             em_gate = self.em_gate_act_fn(self.fc_em_gate_value(torch.cat((c, dec_act), 1)))
             memory = self.memory_module.retrieve(c, em_gate)
+            if self.decode_mem:
+                self.write(memory, 'raw_memory')
+                memory = self.fc_mem_decode(memory)
+                self.write(memory, 'memory')
+            else:
+                self.write(memory, 'memory')
             c = c + memory
-            self.memory_module.encode(c)
+            if self.encode_mem:
+                memory_to_store = self.fc_mem_encode(c)
+                self.write(memory_to_store, "encoded_memory")
+            else:
+                memory_to_store = c
+            self.memory_module.encode(memory_to_store)
             h = torch.mul(o, c.tanh())
             dec_act = self.act_fn(self.fc_decision(h))
             
             self.write(em_gate, 'em_gate')
-            self.write(memory, 'memory')
         else:
             self.write(dec_act, 'dec_act')
         # print(dec_act)

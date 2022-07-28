@@ -34,7 +34,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
     setup = load_setup(exp_dir/consts.SETUP_FOLDER/setup_name)
 
-    model, env, optimizer, scheduler, sup_env, sup_optimizer, sup_scheduler, setup = parse_setup(setup, device)
+    model, env, optimizer, scheduler, criterion, sup_env, sup_optimizer, sup_scheduler, sup_criterion, setup = parse_setup(setup, device)
 
     run_name = setup.get("run_name", setup_name.split(".")[0])
     print("run_name: {}".format(run_name))
@@ -51,16 +51,16 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     model.to(device)
 
     if train or not os.path.exists(model_save_path/"model.pt"):
-        if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler:
-            sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, device=device, model_save_path=model_save_path, **setup["supervised_training"])
-        if env and optimizer and scheduler:
-            test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, device=device, model_save_path=model_save_path, **setup["training"])
+        if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler and sup_criterion:
+            sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, sup_criterion, device=device, model_save_path=model_save_path, **setup["supervised_training"])
+        if env and optimizer and scheduler and criterion:
+            test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, criterion, device=device, model_save_path=model_save_path, **setup["training"])
             plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
 
     if env:
-        data = record_model(model, env, device=device)
+        data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
     else:
-        data = record_model(model, sup_env, device=device)
+        data = record_model(model, sup_env, device=device, context_num=setup.get("context_num", 20))
 
     paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup["model_name"]/run_name}
 

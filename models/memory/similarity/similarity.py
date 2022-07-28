@@ -28,6 +28,10 @@ class BasicSimilarity(BasicModule):
         if self.find_max:
             similarities = F.one_hot(torch.argmax(similarities, dim=-1), num_classes=similarities.shape[-1]).to(self.device)
             self.write(similarities, 'max_similarities')
+        else:
+            # normalize
+            similarities = similarities / torch.sum(similarities, dim=-1, keepdim=True)
+        # print(similarities.shape, input_weight.shape)
         return similarities * input_weight
 
 

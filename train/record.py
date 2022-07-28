@@ -1,9 +1,7 @@
 import torch
 
 from models.basic_module import analyze
-from models.rl import pick_action, compute_returns, compute_a2c_loss
-from models.utils import entropy
-from .utils import count_accuracy, save_model
+from .criterions.rl import pick_action
 
 
 def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=False, device='cpu'):
@@ -27,8 +25,8 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
             state = agent.init_state(1)
             while not done:
                 action_distribution, value, state = agent(obs, state)
-                action, log_prob_action = pick_action(action_distribution)
-                obs_, reward, done, info = env.step(action)
+                action, log_prob_action, action_max = pick_action(action_distribution)
+                obs_, reward, done, info = env.step(action_max)
                 obs = torch.Tensor(obs_).to(device)
 
                 if info.get("encoding_on", False):
@@ -65,11 +63,11 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                         state = agent.init_state(1, recall=True)
                     
                     action_distribution, value, state = agent(obs, state)
-                    action, log_prob_action = pick_action(action_distribution)
-                    obs_, reward, done, info = env.step(action)
+                    action, log_prob_action, action_max = pick_action(action_distribution)
+                    obs_, reward, done, info = env.step(action_max)
                     obs = torch.Tensor(obs_).to(device)
 
-                    actions_trial.append(int(action))
+                    actions_trial.append(int(action_max))
                     probs_trial.append(log_prob_action)
                     rewards_trial.append(reward)
                     values_trial.append(value)

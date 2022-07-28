@@ -6,6 +6,7 @@
         "decision_dim": 128,
         "output_dim": 21,
         "use_memory": true,
+        "use_mem_gate": true,
         "subclasses": [{
             "name":"memory_module",
             "class": "ValueMemory",
@@ -55,7 +56,7 @@
         "test": false,
         "test_iter": 500,
         "save_iter": 2000,
-        "stop_test_accu": 0.99,
+        "stop_test_accu": 0.95, 
         "use_memory": false,
         "criterion": "FreeRecallSumMSELoss",
         "optimizer": {
@@ -67,6 +68,6 @@
             "min_lr": 1e-8
         }
     },
-    "load_saved_model": false,
-    "pretrain": true
+    "load_saved_model": true,
+    "pretrain": false
 }
