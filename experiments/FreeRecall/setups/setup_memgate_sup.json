@@ -15,7 +15,8 @@
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "BasicSimilarity"
+                    "class": "BasicSimilarity",
+                    "find_max": true
                 }
             ]
         }]

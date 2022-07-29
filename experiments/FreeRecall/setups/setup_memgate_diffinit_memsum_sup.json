@@ -6,6 +6,8 @@
         "decision_dim": 128,
         "output_dim": 21,
         "use_memory": true,
+        "use_mem_gate": true,
+        "init_state_type": "train_diff",
         "subclasses": [{
             "name":"memory_module",
             "class": "ValueMemory",
@@ -15,7 +17,7 @@
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "find_max": true
+                    "find_max":false
                 }
             ]
         }]
@@ -45,7 +47,7 @@
             "lr_decay_patience": 10,
             "lr_decay_threshold": 1e-3,
             "min_lr": 1e-8
-        }
+        } 
     },
     "load_saved_model": false,
     "pretrain": true,

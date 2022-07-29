@@ -15,7 +15,8 @@
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "BasicSimilarity"
+                    "class": "BasicSimilarity",
+                    "find_max": true
                 }
             ]
         }]
@@ -73,6 +74,7 @@
             "min_lr": 1e-8
         }
     },
-    "load_saved_model": true,
-    "pretrain": false
+    "load_saved_model": false,
+    "pretrain": true,
+    "context_num": 1000
 }

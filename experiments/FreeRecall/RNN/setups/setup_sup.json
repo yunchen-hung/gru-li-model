@@ -1,13 +1,19 @@
 {
     "model": {
-        "class": "ValueMemoryLSTM",
-        "input_dim": 22,
+        "class": "ValueMemoryCTRNN",
         "hidden_dim": 256,
-        "decision_dim": 128,
         "output_dim": 21,
         "use_memory": true,
         "subclasses": [{
-            "name":"memory_module",
+            "name": "planning_module",
+            "class": "CTRNN",
+            "input_dim": 22,
+            "hidden_dim": 256,
+            "act_fn": "Tanh",
+            "dt": 50,
+            "tau": 100
+        },{
+            "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 256,
             "capacity": 5,
@@ -15,7 +21,7 @@
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "find_max": true
+                    "find_max": false
                 }
             ]
         }]
@@ -45,7 +51,7 @@
             "lr_decay_patience": 10,
             "lr_decay_threshold": 1e-3,
             "min_lr": 1e-8
-        }
+        } 
     },
     "load_saved_model": false,
     "pretrain": true,
