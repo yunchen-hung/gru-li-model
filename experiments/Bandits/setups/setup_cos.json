@@ -1,0 +1,39 @@
+{
+    "model": {
+        "class": "ValueMemoryLSTM",
+        "input_dim": 4,
+        "hidden_dim": 256,
+        "decision_dim": 128,
+        "output_dim": 5,
+        "subclasses": [{
+            "name":"memory_module",
+            "class": "ValueMemory",
+            "value_dim": 256,
+            "capacity": 10,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity"
+                }
+            ]
+        }]
+    },
+    "env": {
+        "class": "BarcodeBandits",
+        "num_arms": 4,
+        "context_len": 4
+    },
+    "training": {
+        "num_iter": 10000,
+        "test_iter": 10,
+        "save_iter": 100,
+        "optimizer": {
+            "class": "Adam",
+            "lr": 5e-5,
+            "lr_decay_factor": 0.5,
+            "lr_decay_patience": 10,
+            "lr_decay_threshold": 1e-3,
+            "min_lr": 1e-8
+        }
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "model": {
+        "class": "KeyValueLSTM",
+        "input_dim": 6,
+        "other_input_dim": 2,
+        "context_embedding_dim": 16,
+        "hidden_dim": 256,
+        "decision_dim": 128,
+        "output_dim": 5,
+        "subclasses": [{
+            "name":"memory_module",
+            "class": "KeyValueMemory",
+            "key_dim": 16,
+            "value_dim": 256,
+            "capacity": 8,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "find_max": true
+                }
+            ]
+        }]
+    },
+    "env": {
+        "class": "BarcodeBandits",
+        "num_arms": 4,
+        "context_len": 6,
+        "context_num": 4,
+        "trial_per_context_per_batch": 20,
+        "false_reward": 0.0
+    },
+    "training": {
+        "num_iter": 10000,
+        "test_iter": 20,
+        "save_iter": 100,
+        "optimizer": {
+            "class": "Adam",
+            "lr": 5e-4,
+            "lr_decay_factor": 0.5,
+            "lr_decay_patience": 10,
+            "lr_decay_threshold": 1e-3,
+            "min_lr": 1e-8
+        }
+    },
+    "keep_state": true,
+    "regenerate_context": false
+}

@@ -1,0 +1,102 @@
+import numpy as np
+import sklearn.decomposition as decomposition
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+from utils import savefig
+
+
+class PCA:
+    def __init__(self, n_components=2):
+        # super().__init__()
+        self.n_components = n_components
+        self.pca = decomposition.PCA(n_components=n_components)
+
+    def fit(self, dataset: np.ndarray):
+        """
+        dataset: n_trials x n_steps x n_neurons
+        """
+        self.dt = 1
+        act = dataset
+        self.n_steps, self.n_traj = act.shape[1], act.shape[0]
+        X = act.reshape(act.shape[0] * act.shape[1], -1)
+        self.proj_act = self.pca.fit_transform(X).reshape(self.n_traj, self.n_steps, -1)
+        return self
+
+    def fit_transform(self, dataset):
+        self.fit(dataset)
+        return np.transpose(self.proj_act, axes=(1, 0, 2))
+
+    def visualize(self, save_path=None, ax=None, x_labels=None, title="", n_components=None, pdf=False):
+        n_components = n_components if n_components is not None else self.n_components
+        assert n_components <= self.n_components
+        t = np.arange(self.n_steps) * self.dt if x_labels is None else x_labels
+
+        plt.figure(figsize=(2.3, 1.5 * n_components), dpi=180) if ax is None else None
+        proj_act = self.proj_act
+        for component in range(n_components):
+            ax = plt.subplot(n_components, 1, component + 1)
+            for i in range(self.n_traj):
+                plt.plot(t, proj_act[i, :, component])
+
+            plt.ylabel("PC{}".format(component + 1))
+            plt.xlabel("timesteps") if component + 1 == n_components else None
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.spines['bottom'].set_visible(False) if component + 1 < n_components else None
+            plt.xticks([]) if component + 1 < n_components else None
+            plt.yticks([])
+        plt.suptitle(title)
+        plt.tight_layout()
+        if save_path is not None:
+            savefig(save_path, "pca_temporal", pdf=pdf)
+        # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
+
+    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None):
+        if start_step is None:
+            start_step = 0
+        if end_step is None:
+            end_step = self.n_steps
+        n_steps = end_step - start_step
+        colors = np.array([plt.cm.winter(i) for i in np.linspace(0, 1, n_steps)])
+
+        plt.figure(figsize=(3, 3), dpi=180)
+        ax = plt.axes(projection='3d') if show_3d else plt.gca()
+
+        proj_act = self.proj_act
+        for i in range(self.n_traj):
+            if not show_3d:
+                ax.plot(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], color="grey", zorder=1)
+            else:
+                ax.plot3D(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], proj_act[i, start_step:end_step, 2], color="grey")
+        for i in range(start_step, end_step):
+            if not show_3d:
+                ax.scatter(proj_act[:, i, 0], proj_act[:, i, 1], color=colors[i-start_step], zorder=2)
+            else:
+                ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step])
+
+        ax.set_xlabel("PC1")
+        ax.set_xticks([])
+        ax.set_ylabel("PC2")
+        ax.set_yticks([])
+        if show_3d:
+            ax.set_zlabel("PC3")
+            ax.set_zticks([])
+
+        handles = []
+        handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
+        handles.append(mpatches.Patch(color=colors[-1], label="last timestep"))
+        plt.legend(handles=handles, frameon=False)
+
+        plt.tight_layout()
+        if save_path is not None:
+            savefig(save_path, "pca_state_space", pdf=pdf)
+
+
+def plot_capture_var(captured_var, save_path=None, pdf=False):
+    plt.figure(figsize=(3, 2))
+    plt.plot(np.arange(len(captured_var))+1, captured_var, marker=".")
+    plt.ylabel("Captured variance")
+    plt.xlabel("Number of PCs")
+    savefig(save_path, "captured_var", pdf=pdf)

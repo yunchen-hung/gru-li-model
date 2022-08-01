@@ -1,0 +1,59 @@
+{
+    "model": {
+        "class": "ValueMemoryCTRNN",
+        "hidden_dim": 256,
+        "output_dim": 21,
+        "use_memory": true,
+        "subclasses": [{
+            "name": "planning_module",
+            "class": "CTRNN",
+            "input_dim": 22,
+            "hidden_dim": 256,
+            "act_fn": "Tanh",
+            "dt": 50,
+            "tau": 100
+        },{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 256,
+            "capacity": 5,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "find_max": false
+                }
+            ]
+        }]
+    },
+    "supervised_env": {
+        "class": "FreeRecall",
+        "vocabulary_num": 20,
+        "memory_num": 5,
+        "retrieve_time_limit": 5,
+        "start_recall_cue": true,
+        "reset_state_before_test": true
+    },
+    "supervised_training": {
+        "num_iter": 60000,
+        "test": false,
+        "test_iter": 500,
+        "save_iter": 2000,
+        "stop_test_accu": 0.99,
+        "use_memory": true,
+        "criterion": {
+            "class": "FreeRecallSumMSELoss"
+        },
+        "optimizer": {
+            "class": "Adam",
+            "lr": 1e-3,
+            "lr_decay_factor": 0.5,
+            "lr_decay_patience": 10,
+            "lr_decay_threshold": 1e-3,
+            "min_lr": 1e-8
+        } 
+    },
+    "load_saved_model": false,
+    "pretrain": true,
+    "context_num": 1000
+}
