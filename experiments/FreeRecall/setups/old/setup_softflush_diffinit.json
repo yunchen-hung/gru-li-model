@@ -1,0 +1,76 @@
+{
+    "model": {
+        "class": "ValueMemoryLSTM",
+        "input_dim": 22,
+        "hidden_dim": 256,
+        "decision_dim": 128,
+        "output_dim": 21,
+        "use_memory": true,
+        "init_state_type": "train_diff",
+        "subclasses": [{
+            "name":"memory_module",
+            "class": "ValueMemory",
+            "value_dim": 256,
+            "capacity": 5,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity"
+                }
+            ]
+        }]
+    },
+    "env": {
+        "class": "FreeRecall",
+        "vocabulary_num": 20,
+        "memory_num": 5,
+        "retrieve_time_limit": 5,
+        "start_recall_cue": true,
+        "reset_state_before_test": true
+    },
+    "training": {
+        "num_iter": 200000,
+        "test": false,
+        "test_iter": 1000,
+        "save_iter": 2000,
+        "use_memory": true,
+        "soft_flush": true,
+        "soft_flush_iter": 20000,
+        "soft_flush_accuracy": 0.8,
+        "optimizer": {
+            "class": "Adam",
+            "lr": 1e-4,
+            "lr_decay_factor": 0.5,
+            "lr_decay_patience": 10,
+            "lr_decay_threshold": 1e-3,
+            "min_lr": 1e-8
+        }
+    },
+    "supervised_env": {
+        "class": "FreeRecall",
+        "vocabulary_num": 20,
+        "memory_num": 5,
+        "retrieve_time_limit": 5,
+        "start_recall_cue": true,
+        "reset_state_before_test": false
+    },
+    "supervised_training": {
+        "num_iter": 50000,
+        "test": false,
+        "test_iter": 500,
+        "save_iter": 2000,
+        "stop_test_accu": 0.99,
+        "use_memory": false,
+        "criterion": "FreeRecallSumMSELoss",
+        "optimizer": {
+            "class": "Adam",
+            "lr": 1e-3,
+            "lr_decay_factor": 0.5,
+            "lr_decay_patience": 10,
+            "lr_decay_threshold": 1e-3,
+            "min_lr": 1e-8
+        }
+    },
+    "load_saved_model": false,
+    "pretrain": true
+}
