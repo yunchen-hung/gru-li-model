@@ -2,21 +2,21 @@
     "model": {
         "class": "ValueMemoryLSTM",
         "input_dim": 22,
-        "hidden_dim": 256,
-        "decision_dim": 128,
+        "hidden_dim": 5,
+        "decision_dim": 5,
         "output_dim": 21,
         "use_memory": true,
         "use_mem_gate": true,
         "subclasses": [{
             "name":"memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
+            "value_dim": 5,
             "capacity": 5,
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "find_max": true
+                    "find_max": false
                 }
             ]
         }]
@@ -50,5 +50,5 @@
     },
     "load_saved_model": false,
     "pretrain": true,
-    "context_num": 1000
+    "context_num": 20
 }

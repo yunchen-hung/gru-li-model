@@ -184,7 +184,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
     min_test_loss = torch.inf
     for i in range(num_iter):
         state = agent.init_state(1)  # TODO: possibly add batch size here
-        agent.memory_module.reset_memory()
+        agent.reset_memory()
         agent.set_encoding(False)
         agent.set_retrieval(False)
         for batch in range(batch_size):

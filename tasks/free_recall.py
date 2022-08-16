@@ -3,7 +3,8 @@ import gym
 
 
 class FreeRecall(gym.Env):
-    def __init__(self, vocabulary_num=100, memory_num=10, retrieve_time_limit=15, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, reset_state_before_test=False, start_recall_cue=False):
+    def __init__(self, vocabulary_num=100, memory_num=10, retrieve_time_limit=15, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
+    reset_state_before_test=False, start_recall_cue=False):
         self.vocabulary_num = vocabulary_num
         self.memory_num = memory_num
         self.true_reward = true_reward

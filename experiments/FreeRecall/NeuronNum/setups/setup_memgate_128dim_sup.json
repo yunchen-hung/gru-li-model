@@ -1,24 +1,22 @@
 {
     "model": {
-        "class": "ValueEncodeLSTM",
+        "class": "ValueMemoryLSTM",
         "input_dim": 22,
-        "hidden_dim": 256,
-        "decision_dim": 128,
+        "hidden_dim": 128,
+        "decision_dim": 64,
         "output_dim": 21,
         "use_memory": true,
-        "encode_mem": false,
-        "decode_mem": true,
-        "init_state_type": "train_diff",
+        "use_mem_gate": true,
         "subclasses": [{
             "name":"memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
+            "value_dim": 128,
             "capacity": 5,
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "find_max": true
+                    "find_max": false
                 }
             ]
         }]
@@ -32,7 +30,7 @@
         "reset_state_before_test": true
     },
     "supervised_training": {
-        "num_iter": 150000,
+        "num_iter": 60000,
         "test": false,
         "test_iter": 500,
         "save_iter": 2000,
@@ -52,5 +50,5 @@
     },
     "load_saved_model": false,
     "pretrain": true,
-    "context_num": 1000
+    "context_num": 20
 }

@@ -10,7 +10,6 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
 
     if hasattr(env, "regenerate_contexts"):
         env.regenerate_contexts()
-    agent.memory_module.reset_memory()
     agent.set_retrieval(True)
     
     if get_memory:
@@ -45,6 +44,7 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                 obs_, info = env.reset(regenerate_contexts=True)
             else:
                 obs_, info = env.reset(regenerate_contexts=False)
+            agent.reset_memory()
             obs = torch.Tensor(obs_).to(device)
             done = False
             state = agent.init_state(1)

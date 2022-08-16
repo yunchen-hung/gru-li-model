@@ -1,20 +1,21 @@
 {
     "model": {
-        "class": "ValueMemoryLSTM",
+        "class": "SimpleValueMemoryLSTM",
         "input_dim": 22,
-        "hidden_dim": 256,
-        "decision_dim": 128,
+        "hidden_dim": 128,
         "output_dim": 21,
         "use_memory": true,
+        "use_mem_gate": true,
         "subclasses": [{
             "name":"memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
+            "value_dim": 128,
             "capacity": 5,
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "BasicSimilarity"
+                    "class": "BasicSimilarity",
+                    "find_max": false
                 }
             ]
         }]
@@ -28,16 +29,15 @@
         "reset_state_before_test": true
     },
     "supervised_training": {
-        "num_iter": 50000,
+        "num_iter": 60000,
         "test": false,
         "test_iter": 500,
         "save_iter": 2000,
         "stop_test_accu": 0.99,
         "use_memory": true,
-        "criterion": "FreeRecallSumMSELoss",
-        "soft_flush": true,
-        "soft_flush_iter": 10000,
-        "soft_flush_accuracy": 0.8,
+        "criterion": {
+            "class": "FreeRecallSumMSELoss"
+        },
         "optimizer": {
             "class": "Adam",
             "lr": 1e-3,
@@ -45,8 +45,9 @@
             "lr_decay_patience": 10,
             "lr_decay_threshold": 1e-3,
             "min_lr": 1e-8
-        }
+        } 
     },
-    "load_saved_model": true,
-    "pretrain": true
+    "load_saved_model": false,
+    "pretrain": true,
+    "context_num": 20
 }
