@@ -25,7 +25,7 @@
         "class": "SequentialMemory",
         "vocabulary_num": 20,
         "memory_num": 5,
-        "retrieve_time_limit": 10,
+        "retrieve_time_limit": 5,
         "reset_state_before_test": false
     },
     "training": {
@@ -46,15 +46,17 @@
         "class": "SequentialMemory",
         "vocabulary_num": 20,
         "memory_num": 5,
-        "retrieve_time_limit": 10,
-        "reset_state_before_test": false
+        "retrieve_time_limit": 5,
+        "reset_state_before_test": true
     },
     "supervised_training": {
         "num_iter": 50000,
         "test": false,
         "test_iter": 500,
         "save_iter": 1000,
-        "criterion": "CrossEntropyLoss",
+        "criterion": {
+            "class": "CrossEntropyLoss"
+        },
         "optimizer": {
             "class": "Adam",
             "lr": 1e-3,
@@ -64,6 +66,6 @@
             "min_lr": 1e-8
         }
     },
-    "load_saved_model": true,
-    "pretrain": false
+    "load_saved_model": false,
+    "pretrain": true
 }

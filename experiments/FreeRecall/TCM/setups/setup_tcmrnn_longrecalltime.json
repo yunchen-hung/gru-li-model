@@ -1,13 +1,14 @@
 {
     "model": {
         "class": "TCMRNN",
-        "hidden_dim": 21
+        "hidden_dim": 21,
+        "output_type": "recalled_item"
     },
     "supervised_env": {
         "class": "FreeRecall",
         "vocabulary_num": 20,
         "memory_num": 5,
-        "retrieve_time_limit": 5,
+        "retrieve_time_limit": 10,
         "start_recall_cue": false,
         "reset_state_before_test": false
     },

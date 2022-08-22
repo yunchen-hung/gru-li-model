@@ -1,7 +1,8 @@
 {
     "model": {
         "class": "TCMRNN",
-        "hidden_dim": 21
+        "hidden_dim": 21,
+        "tau": 100
     },
     "supervised_env": {
         "class": "FreeRecall",
@@ -16,7 +17,7 @@
         "test": false,
         "test_iter": 1000,
         "save_iter": 2000,
-        "stop_test_accu": 1.01,
+        "stop_test_accu": 0.99,
         "use_memory": true,
         "criterion": {
             "class": "FreeRecallSumMSELoss"

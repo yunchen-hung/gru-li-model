@@ -89,16 +89,19 @@ class FreeRecall(gym.Env):
     def get_batch(self):
         if self.start_recall_cue:
             stim = np.eye(self.vocabulary_num+2)[self.memory_sequence]
-            stim_blank = np.zeros((self.memory_num, self.vocabulary_num+2))
+            stim_blank = np.zeros((self.retrieve_time_limit, self.vocabulary_num+2))
             stim_blank[0, self.vocabulary_num+1] = 1
             data = np.concatenate((stim, stim_blank), axis=0)
             gt_blank = np.zeros((self.memory_num, self.vocabulary_num+1))
-            gt = np.concatenate((gt_blank, stim[:, 0:self.vocabulary_num+1]), axis=0)
+            gt_blank2 = np.zeros((self.retrieve_time_limit - self.memory_num, self.vocabulary_num+1))
+            gt = np.concatenate((gt_blank, stim[:, 0:self.vocabulary_num+1], gt_blank2), axis=0)
         else:
             stim = np.eye(self.vocabulary_num+1)[self.memory_sequence]
-            blank = np.zeros((self.memory_num, self.vocabulary_num+1))
-            data = np.concatenate((stim, blank), axis=0)
-            gt = np.concatenate((blank, stim), axis=0)
+            stim_blank = np.zeros((self.retrieve_time_limit, self.vocabulary_num+1))
+            gt_blank = np.zeros((self.memory_num, self.vocabulary_num+1))
+            gt_blank2 = np.zeros((self.retrieve_time_limit - self.memory_num, self.vocabulary_num+1))
+            data = np.concatenate((stim, stim_blank), axis=0)
+            gt = np.concatenate((gt_blank, stim, gt_blank2), axis=0)
         return data, gt
 
     def compute_accuracy(self, actions):

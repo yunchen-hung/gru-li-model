@@ -28,7 +28,7 @@ def entropy(probs):
     """
     return - torch.stack([pi * torch.log2(pi) for pi in probs]).sum()
 
-def softmax(z, beta):
+def softmax(z, beta=1.0):
     """helper function, softmax with beta
 
     Parameters
@@ -49,5 +49,6 @@ def softmax(z, beta):
     pi_a = F.softmax(torch.squeeze(z / beta), dim=0)
     # make sure the output is valid
     if torch.any(torch.isnan(pi_a)):
+        print(z)
         raise ValueError(f'Softmax produced nan: {z} -> {pi_a}')
     return pi_a

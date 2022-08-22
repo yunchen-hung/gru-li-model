@@ -83,6 +83,9 @@ class ValueMemoryLSTM(BasicModule):
     def set_retrieval(self, status):
         self.memory_module.retrieving = status
 
+    def reset_memory(self):
+        self.memory_module.reset_memory()
+
 
 class SimpleValueMemoryLSTM(BasicModule):
     def __init__(self, memory_module: ValueMemory, input_dim: int, hidden_dim: int, output_dim: int, em_gate_type='scalar', act_fn='ReLU', 

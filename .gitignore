@@ -1,6 +1,8 @@
 saved_models/
 figures/
 todo.md
+upload.sh
+upload_run.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

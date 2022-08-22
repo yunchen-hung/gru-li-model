@@ -38,7 +38,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         state = agent.init_state(1)  # TODO: possibly add batch size here
         if regenerate_context and hasattr(env, "regenerate_contexts"):
             env.regenerate_contexts()
-        agent.memory_module.reset_memory()
+        agent.reset_memory()
         agent.set_retrieval(True)
         for batch in range(batch_size):
             actions, probs, rewards, values, entropys = [], [], [], [], []
@@ -236,7 +236,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
             # print(outputs, gt)
             # print(actions, gt)
             # loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])  # TODO: add an attr in env to specify how long output to use for loss
-            loss = criterion(outputs[env.memory_num:], gt[env.memory_num:], values, rewards, device)
+            loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])
 
             optimizer.zero_grad()
             # loss.backward(retain_graph=True)
@@ -244,7 +244,6 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
             optimizer.step()
 
             total_loss += loss.item()
-            
             
         if i % test_iter == 0:
             print(actions[env.memory_num:], env.memory_sequence)
@@ -273,7 +272,8 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                 test_accuracy = accuracy
                 test_mean_loss = mean_loss
 
-            scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
+            if i != 0:
+                scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
 
             if test_error - test_accuracy < min_test_loss:
                 min_test_loss = test_error - test_accuracy

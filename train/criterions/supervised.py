@@ -10,7 +10,7 @@ class FreeRecallSumMSELoss(nn.Module):
     def __init__(self) -> None:
         super().__init__()
     
-    def forward(self, output, gt, values, rewards, device):
+    def forward(self, output, gt):
         loss = torch.sum((torch.sum(output, dim=0) - torch.sum(gt, dim=0)) ** 2)
         gt_argmax = list(torch.argmax(gt, dim=1).cpu().numpy())
         loss -= torch.sum(torch.var(output[:, gt_argmax], dim=0))
