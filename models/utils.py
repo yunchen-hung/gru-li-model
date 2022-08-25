@@ -11,7 +11,7 @@ def load_act_fn(act_fn: str):
         return import_attr("torch.nn.{}".format(act_fn))()
 
 
-def entropy(probs):
+def entropy(probs, device):
     """calculate entropy.
     I'm using log base 2!
 
@@ -26,7 +26,7 @@ def entropy(probs):
         the entropy of the distribution
 
     """
-    return - torch.stack([pi * torch.log2(pi) for pi in probs]).sum()
+    return - torch.stack([pi * torch.log2(pi) if pi != 0 else torch.tensor(0, device=device) for pi in probs]).sum()
 
 def softmax(z, beta=1.0):
     """helper function, softmax with beta

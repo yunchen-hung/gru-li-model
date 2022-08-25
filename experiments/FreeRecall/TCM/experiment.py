@@ -62,7 +62,7 @@ def run(data, model, env, paths):
                 position1 = position1[0][0]
                 position2 = position2[0][0]
                 recalled_times[position1][position2] += 1
-    times_sum = np.sum(recalled_times, axis=0)
+    times_sum = np.expand_dims(np.sum(recalled_times, axis=1), axis=1)
     times_sum[times_sum == 0] = 1
     recalled_times = recalled_times / times_sum
     for t in range(env.memory_num):
@@ -85,6 +85,7 @@ def run(data, model, env, paths):
     pca.fit(lstm_states)
     pca.visualize_state_space(save_path=paths["fig"]/"pca"/"memorizing", end_step=env.memory_num)
     pca.visualize_state_space(save_path=paths["fig"]/"pca"/"recalling", start_step=env.memory_num)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca")
 
     # SVM
     c_memorizing = np.stack([readouts[i][0]['state'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)

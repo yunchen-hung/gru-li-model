@@ -41,7 +41,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         agent.reset_memory()
         agent.set_retrieval(True)
         for batch in range(batch_size):
-            actions, probs, rewards, values, entropys = [], [], [], [], []
+            actions, probs, rewards, values, entropys, actions_max = [], [], [], [], [], []
 
             if keep_state:
                 new_state = []
@@ -76,8 +76,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 probs.append(log_prob_action)
                 rewards.append(reward)
                 values.append(value)
-                entropys.append(entropy(action_distribution))
+                entropys.append(entropy(action_distribution, device))
                 actions.append(action)
+                actions_max.append(action_max)
                 total_reward += reward
 
             correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions)
@@ -86,7 +87,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             actions_correct_num += correct_actions
             actions_wrong_num += wrong_actions
 
-            loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, device=device)
+            loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], device=device)
 
             optimizer.zero_grad()
             # loss.backward(retain_graph=True)
@@ -102,7 +103,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 flush_iter += 1
             
         if i % test_iter == 0:
-            print(torch.tensor(actions[env.memory_num:]).cpu().detach().numpy(), env.memory_sequence)
+            print(env.memory_sequence, torch.tensor(actions[env.memory_num:]).cpu().detach().numpy(), 
+                torch.tensor(actions_max[env.memory_num:]).cpu().detach().numpy())
 
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
@@ -138,6 +140,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 save_model(agent, model_save_path, filename="model.pt")
             
             if test_accuracy >= stop_test_accu and i != 0:
+                print("training end")
                 break
 
             test_accuracies.append(test_accuracy)

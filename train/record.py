@@ -64,10 +64,10 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                     
                     action_distribution, value, state = agent(obs, state)
                     action, log_prob_action, action_max = pick_action(action_distribution)
-                    obs_, reward, done, info = env.step(action_max)
+                    obs_, reward, done, info = env.step(action)
                     obs = torch.Tensor(obs_).to(device)
 
-                    actions_trial.append(int(action_max))
+                    actions_trial.append(int(action))
                     probs_trial.append(log_prob_action)
                     rewards_trial.append(reward)
                     values_trial.append(value)

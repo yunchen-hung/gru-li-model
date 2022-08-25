@@ -8,7 +8,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 class A2CLoss(nn.Module):
-    def __init__(self, returns_normalize=True, use_V=True, eta=0.01) -> None:
+    def __init__(self, returns_normalize=True, use_V=True, eta=0.1) -> None:
         """
         compute the objective node for policy/value networks
 
@@ -44,7 +44,7 @@ class A2CLoss(nn.Module):
                 )
             else:
                 A_t = R_t
-                value_losses.append(torch.FloatTensor(0).data)
+                value_losses.append(torch.tensor(0.0).data)
             # accumulate policy gradient
             policy_grads.append(-prob_t * A_t)
         policy_gradient = torch.stack(policy_grads).mean()
