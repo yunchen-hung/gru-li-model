@@ -50,6 +50,10 @@ class SVM:
         plt.xlabel("memories")
         plt.ylabel("decoding accuracy")
 
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
         plt.tight_layout()
         if save_path is not None:
             savefig(save_path, "svm_accuracy", pdf=pdf)

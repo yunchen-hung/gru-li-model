@@ -1,36 +1,18 @@
 {
     "model": {
-        "class": "ValueMemoryLSTM",
-        "input_dim": 22,
-        "hidden_dim": 128,
-        "decision_dim": 64,
-        "output_dim": 21,
-        "use_memory": true,
-        "use_mem_gate": true,
-        "subclasses": [{
-            "name":"memory_module",
-            "class": "ValueMemory",
-            "value_dim": 128,
-            "capacity": 5,
-            "subclasses": [
-                {
-                    "name":"similarity_measure",
-                    "class": "BasicSimilarity",
-                    "find_max": false
-                }
-            ]
-        }]
+        "class": "TCM",
+        "dim": 21
     },
     "supervised_env": {
         "class": "FreeRecall",
         "vocabulary_num": 20,
         "memory_num": 5,
         "retrieve_time_limit": 5,
-        "start_recall_cue": true,
-        "reset_state_before_test": true
+        "start_recall_cue": false,
+        "reset_state_before_test": false
     },
     "supervised_training": {
-        "num_iter": 60000,
+        "num_iter": 0,
         "test": false,
         "test_iter": 500,
         "save_iter": 2000,
@@ -50,5 +32,5 @@
     },
     "load_saved_model": false,
     "pretrain": true,
-    "context_num": 1000
+    "context_num": 1
 }

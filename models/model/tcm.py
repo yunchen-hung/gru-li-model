@@ -50,8 +50,8 @@ class TCM(BasicModule):
             f_in = torch.mv(self.W_cf, state.squeeze())
             f_in_filtered = (F.relu(f_in - torch.max(f_in) * self.threshold)) * self.not_recalled
             # print(f_in, f_in_filtered)
-            # retrieved_idx = torch.argmax(f_in * self.not_recalled)
-            retrieved_idx = Categorical(f_in_filtered).sample()
+            retrieved_idx = torch.argmax(f_in * self.not_recalled)
+            # retrieved_idx = Categorical(f_in_filtered).sample()
             retrieved_memory = torch.zeros(self.dim, device=self.device)
             retrieved_memory[retrieved_idx] = 1
             c_in = torch.mv(self.W_fc, retrieved_memory)

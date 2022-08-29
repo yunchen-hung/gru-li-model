@@ -51,5 +51,5 @@
     },
     "load_saved_model": false,
     "pretrain": true,
-    "context_num":20
+    "context_num":1000
 }

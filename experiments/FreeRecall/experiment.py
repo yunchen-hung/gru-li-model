@@ -46,49 +46,64 @@ def run(data, model, env, paths):
     pca.visualize_state_space(save_path=paths["fig"]/"pca"/"memorizing", end_step=env.memory_num)
     pca.visualize_state_space(save_path=paths["fig"]/"pca"/"recalling", start_step=env.memory_num)
 
-    print(model.lstm.init_state_type)
     h0_mem, c0_mem = model.init_state(1, recall=False)
     h0_rec, c0_rec = model.init_state(1, recall=True)
-    print(c0_mem)
-    print(c0_rec)
+    plt.figure(figsize=(4, 3), dpi=250)
     for i in range(context_num):
         readout = readouts[i][0]
         similarity_initstate = pairwise.cosine_similarity(readouts[i][0]["c"][:, 0], c0_mem.detach().cpu().numpy())
         plt.scatter(np.arange(similarity_initstate.shape[0]), similarity_initstate, c='b', alpha=0.1)
     plt.xlabel("timesteps")
     plt.ylabel("similarity")
-    plt.title("similarity of initial state of memorizing phase with each timestep")
+    plt.title("similarity of initial state of\n memorizing phase with each timestep")
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.tight_layout()
     savefig(paths["fig"], "similarity_init_mem")
 
+    plt.figure(figsize=(4, 3), dpi=250)
     for i in range(context_num):
         readout = readouts[i][0]
         similarity_initstate = pairwise.cosine_similarity(readouts[i][0]["c"][:, 0], c0_rec.detach().cpu().numpy())
         plt.scatter(np.arange(similarity_initstate.shape[0]), similarity_initstate, c='b', alpha=0.1)
     plt.xlabel("timesteps")
     plt.ylabel("similarity")
-    plt.title("similarity of initial state of recalling phase with each timestep")
+    plt.title("similarity of initial state of\n recalling phase with each timestep")
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.tight_layout()
     savefig(paths["fig"], "similarity_init_rec")
 
     if "em_gate" in readouts[0][0].keys():
+        plt.figure(figsize=(4, 3), dpi=250)
         # specific analysis for models using episodic memory
         for i in range(context_num):
             readout = readouts[i][0]
             em_gates = readout['em_gate']
             plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[env.memory_num:], label="context {}".format(i))
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
         plt.xlabel("timesteps of recalling phase")
-        plt.ylabel("em_gate")
+        plt.ylabel("memory gate")
+        plt.tight_layout()
         savefig(paths["fig"], "em_gate")
         # plt.show()
 
+        plt.figure(figsize=(4, 3), dpi=250)
         for i in range(context_num):
             readout = readouts[i][0]
             recc_gates = readout['LSTM']['z_f']
             # print(recc_gates.shape)
             plt.plot(np.mean(recc_gates.squeeze(1), axis=-1)[env.memory_num:], label="context {}".format(i))
         plt.xlabel("timesteps of recalling phase")
-        plt.ylabel("recc_gate")
+        plt.ylabel("memory gate")
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout()
         savefig(paths["fig"], "recc_gate")
 
         ratios = []
@@ -102,8 +117,12 @@ def run(data, model, env, paths):
             ratios.append(ratio)
         plt.xlabel("timesteps of recalling phase")
         plt.ylabel("recurrent activation : memory activation")
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
         savefig(paths["fig"], "recc_mem_rate")
         ratios = np.array(ratios)
+        plt.tight_layout()
         print("recurrent activation : memory activation {}".format(np.mean(ratios, axis=0)))
 
         for i in range(context_num):
@@ -122,15 +141,23 @@ def run(data, model, env, paths):
             plt.ylabel("chosen memory")
             plt.ylim(-0.5, 4.5)
             plt.suptitle("memory-query similarity\nmemory sequence {}, recall sequence {}".format(memory_contexts[i][0], actions[i][0][env.memory_num:]))
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
             plt.tight_layout()
             savefig(paths["fig"], "similarity_memory_{}".format(i))
         
+        plt.figure(figsize=(4, 3), dpi=250)
         for i in range(context_num):
             readout = readouts[i][0]
             similarity = readout['ValueMemory']['BasicSimilarity']['similarities']
             plt.plot(np.argmax(similarity, axis=1), c='b', alpha=0.1)
         plt.xlabel("recall timesteps")
         plt.ylabel("chosen memory")
+        plt.ylim(-0.5, 4.5)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
         plt.tight_layout()
         savefig(paths["fig"], "chosen_memory")
 
@@ -145,25 +172,25 @@ def run(data, model, env, paths):
         # plt.show()
 
     """ SVM decoding """
-    # c_memorizing = np.stack([readouts[i][0]['c'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    # c_recalling = np.stack([readouts[i][0]['c'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    # dec_act_memorizing = np.stack([readouts[i][0]['dec_act'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    # dec_act_recalling = np.stack([readouts[i][0]['dec_act'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    # memories = np.stack([readouts[i][0]['memory'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    # memory_sequence = np.stack([memory_contexts[i][0] for i in range(all_context_num)]).transpose(1, 0) - 1
+    c_memorizing = np.stack([readouts[i][0]['c'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    c_recalling = np.stack([readouts[i][0]['c'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    dec_act_memorizing = np.stack([readouts[i][0]['dec_act'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    dec_act_recalling = np.stack([readouts[i][0]['dec_act'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    memories = np.stack([readouts[i][0]['memory'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    memory_sequence = np.stack([memory_contexts[i][0] for i in range(all_context_num)]).transpose(1, 0) - 1
     
-    # svm = SVM()
-    # svm.fit(c_memorizing, memory_sequence)
-    # svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
+    svm = SVM()
+    svm.fit(c_memorizing, memory_sequence)
+    svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
 
-    # svm.fit(c_recalling, memory_sequence)
-    # svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")
+    svm.fit(c_recalling, memory_sequence)
+    svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")
 
-    # svm.fit(dec_act_memorizing, memory_sequence)
-    # svm.visualize(save_path=paths["fig"]/"svm"/"dec_act_mem")
+    svm.fit(dec_act_memorizing, memory_sequence)
+    svm.visualize(save_path=paths["fig"]/"svm"/"dec_act_mem")
 
-    # svm.fit(dec_act_recalling, memory_sequence)
-    # svm.visualize(save_path=paths["fig"]/"svm"/"dec_act_rec")
+    svm.fit(dec_act_recalling, memory_sequence)
+    svm.visualize(save_path=paths["fig"]/"svm"/"dec_act_rec")
 
-    # svm.fit(memories, memory_sequence)
-    # svm.visualize(save_path=paths["fig"]/"svm"/"memory")
+    svm.fit(memories, memory_sequence)
+    svm.visualize(save_path=paths["fig"]/"svm"/"memory")

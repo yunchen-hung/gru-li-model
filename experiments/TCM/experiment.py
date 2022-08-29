@@ -47,34 +47,34 @@ def run(data, model, env, paths):
     plt.colorbar()
     plt.xlabel("encoding timestep")
     plt.ylabel("recall timestep")
-    plt.title("stimuli-recall similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[i][0], actions[i][0][env.memory_num:]))
+    plt.title("stimuli-recall similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
     savefig(paths["fig"], "similarity_state")
 
     # recalled probability
-    recalled_times = np.zeros((env.memory_num, env.memory_num))
-    actions = np.array(actions)
-    for i in range(all_context_num):
-        for t in range(env.memory_num - 1):
-            position1 = np.where(memory_contexts[i][0] == actions[i][0][env.memory_num+t])
-            position2 = np.where(memory_contexts[i][0] == actions[i][0][env.memory_num+t+1])
-            if position1[0].shape[0] != 0 and position2[0].shape[0] != 0:
-                # print(position1[0].shape[0], position2[0].shape[0])
-                position1 = position1[0][0]
-                position2 = position2[0][0]
-                recalled_times[position1][position2] += 1
-    times_sum = np.expand_dims(np.sum(recalled_times, axis=1), axis=1)
-    times_sum[times_sum == 0] = 1
-    recalled_times = recalled_times / times_sum
-    for t in range(env.memory_num):
-        if t != 0:
-            plt.scatter(np.arange(1, t+1), recalled_times[t][:t], c='b')
-        if t != env.memory_num-1:
-            plt.scatter(np.arange(t+2, env.memory_num+1), recalled_times[t][t+1:], c='b')
-        plt.scatter(np.array([t+1]), recalled_times[t][t], c='r')
-        plt.xlabel("item position")
-        plt.ylabel("possibility of next recalling")
-        plt.title("current position: {}".format(t+1))
-        savefig(paths["fig"]/"recall_prob", "timestep_{}".format(t+1))
+    # recalled_times = np.zeros((env.memory_num, env.memory_num))
+    # actions = np.array(actions)
+    # for i in range(all_context_num):
+    #     for t in range(env.memory_num - 1):
+    #         position1 = np.where(memory_contexts[i][0] == actions[i][0][env.memory_num+t])
+    #         position2 = np.where(memory_contexts[i][0] == actions[i][0][env.memory_num+t+1])
+    #         if position1[0].shape[0] != 0 and position2[0].shape[0] != 0:
+    #             # print(position1[0].shape[0], position2[0].shape[0])
+    #             position1 = position1[0][0]
+    #             position2 = position2[0][0]
+    #             recalled_times[position1][position2] += 1
+    # times_sum = np.expand_dims(np.sum(recalled_times, axis=1), axis=1)
+    # times_sum[times_sum == 0] = 1
+    # recalled_times = recalled_times / times_sum
+    # for t in range(env.memory_num):
+    #     if t != 0:
+    #         plt.scatter(np.arange(1, t+1), recalled_times[t][:t], c='b')
+    #     if t != env.memory_num-1:
+    #         plt.scatter(np.arange(t+2, env.memory_num+1), recalled_times[t][t+1:], c='b')
+    #     plt.scatter(np.array([t+1]), recalled_times[t][t], c='r')
+    #     plt.xlabel("item position")
+    #     plt.ylabel("possibility of next recalling")
+    #     plt.title("current position: {}".format(t+1))
+    #     savefig(paths["fig"]/"recall_prob", "timestep_{}".format(t+1))
 
     # PCA
     lstm_states = []
@@ -88,13 +88,13 @@ def run(data, model, env, paths):
     pca.visualize_state_space(save_path=paths["fig"]/"pca")
 
     # SVM
-    c_memorizing = np.stack([readouts[i][0]['state'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    c_recalling = np.stack([readouts[i][0]['state'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    memory_sequence = np.stack([memory_contexts[i][0] for i in range(all_context_num)]).transpose(1, 0) - 1
+    # c_memorizing = np.stack([readouts[i][0]['state'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    # c_recalling = np.stack([readouts[i][0]['state'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    # memory_sequence = np.stack([memory_contexts[i][0] for i in range(all_context_num)]).transpose(1, 0) - 1
     
-    svm = SVM()
-    svm.fit(c_memorizing, memory_sequence)
-    svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
+    # svm = SVM()
+    # svm.fit(c_memorizing, memory_sequence)
+    # svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
 
-    svm.fit(c_recalling, memory_sequence)
-    svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")
+    # svm.fit(c_recalling, memory_sequence)
+    # svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")

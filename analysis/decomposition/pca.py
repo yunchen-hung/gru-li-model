@@ -18,8 +18,12 @@ class PCA:
         """
         self.dt = 1
         act = dataset
-        self.n_steps, self.n_traj = act.shape[1], act.shape[0]
-        X = act.reshape(act.shape[0] * act.shape[1], -1)
+        if len(act.shape) == 3:
+            self.n_steps, self.n_traj = act.shape[1], act.shape[0]
+            X = act.reshape(act.shape[0] * act.shape[1], -1)
+        else:
+            self.n_steps, self.n_traj = act.shape[0], 1
+            X = act
         self.proj_act = self.pca.fit_transform(X).reshape(self.n_traj, self.n_steps, -1)
         return self
 
@@ -61,7 +65,7 @@ class PCA:
         n_steps = end_step - start_step
         colors = np.array([plt.cm.winter(i) for i in np.linspace(0, 1, n_steps)])
 
-        plt.figure(figsize=(3, 3), dpi=180)
+        plt.figure(figsize=(3.5, 3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
         proj_act = self.proj_act
@@ -77,17 +81,18 @@ class PCA:
                 ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step])
 
         ax.set_xlabel("PC1")
-        ax.set_xticks([])
         ax.set_ylabel("PC2")
-        ax.set_yticks([])
         if show_3d:
             ax.set_zlabel("PC3")
-            ax.set_zticks([])
 
         handles = []
         handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
         handles.append(mpatches.Patch(color=colors[-1], label="last timestep"))
         plt.legend(handles=handles, frameon=False)
+
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
         if save_path is not None:

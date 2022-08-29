@@ -35,7 +35,7 @@
         "class": "SequentialMemory",
         "vocabulary_num": 20,
         "memory_num": 5,
-        "retrieve_time_limit": 10,
+        "retrieve_time_limit": 5,
         "reset_state_before_test": false
     },
     "supervised_training": {

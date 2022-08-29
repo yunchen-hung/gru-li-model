@@ -6,7 +6,6 @@
         "decision_dim": 128,
         "output_dim": 21,
         "use_memory": true,
-        "init_state_type": "train_diff",
         "subclasses": [{
             "name":"memory_module",
             "class": "ValueMemory",
@@ -29,13 +28,14 @@
         "reset_state_before_test": true
     },
     "supervised_training": {
-        "num_iter": 60000,
+        "num_iter": 50000,
         "test": false,
         "test_iter": 500,
         "save_iter": 2000,
-        "stop_test_accu": 0.99,
-        "use_memory": true,
-        "criterion": "FreeRecallSumMSELoss",
+        "stop_test_accu": 0.999,
+        "criterion": {
+            "class": "FreeRecallSumMSELoss"
+        },
         "optimizer": {
             "class": "Adam",
             "lr": 1e-3,
