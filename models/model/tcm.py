@@ -109,12 +109,12 @@ class TCMRNN(BasicModule):
         self.fc_decision = nn.Linear(hidden_dim, hidden_dim)
         self.fc_critic = nn.Linear(hidden_dim, 1)
 
-        self.W_cf = torch.zeros((hidden_dim, hidden_dim), device=device, requires_grad=True)
-        self.W_fc = torch.eye(hidden_dim, device=device, requires_grad=True) * (1 - lr_fc)
+        self.W_cf = torch.zeros((1, hidden_dim, hidden_dim), device=device, requires_grad=True)
+        self.W_fc = (torch.eye(hidden_dim, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
 
         self.hidden_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
 
-        self.not_recalled = torch.ones(hidden_dim, device=device)
+        # self.not_recalled = torch.ones(hidden_dim, device=device)
     
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
@@ -123,20 +123,22 @@ class TCMRNN(BasicModule):
         else:
             self.hidden_state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
+        self.W_cf = torch.zeros((batch_size, self.hidden_dim, self.hidden_dim), device=self.device, requires_grad=True)
+        self.W_fc = (torch.eye(self.hidden_dim, device=self.device, requires_grad=True) * (1 - self.lr_fc)).repeat(batch_size, 1, 1)
         return state
     
     def forward(self, inp, state):
         if self.encoding:
-            c_in = torch.mv(self.W_fc, inp)
-            c_in = c_in / torch.norm(c_in, p=2)
+            c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
+            c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
             if self.mem_gate_type == "constant":
                 gate = self.mem_gate
             else:
                 gate = self.mem_gate(state).sigmoid()
             self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) * (1 - gate) + c_in * gate) * self.alpha
             state = self.act_fn(self.hidden_state)
-            self.W_fc = self.W_fc + self.lr_fc * torch.outer(state.squeeze(), inp.squeeze())    # each column is a state
-            self.W_cf = self.W_cf + self.lr_cf * torch.outer(inp.squeeze(), state.squeeze())    # store memory, each row is a state
+            self.W_fc = self.W_fc + self.lr_fc * torch.einsum("ik,ij->ikj", [state, inp])    # each column is a state
+            self.W_cf = self.W_cf + self.lr_cf * torch.einsum("ik,ij->ikj", [inp, state])    # store memory, each row is a state
             # print(self.hidden_state)
             # print(state)
             decision = softmax(self.fc_decision(state))
@@ -156,14 +158,15 @@ class TCMRNN(BasicModule):
             return output, value, state
         elif self.retrieving:
             # print(state.shape, self.W_cf.shape)
-            f_in = softmax(torch.mv(self.W_cf, state.squeeze()))
-            f_in_inhibit_recall = f_in * self.not_recalled
-            retrieved_idx = torch.argmax(f_in_inhibit_recall)
+            f_in_raw = torch.bmm(self.W_cf, torch.unsqueeze(state, dim=2)).squeeze(2)
+            f_in = softmax(f_in_raw)
+            # f_in_inhibit_recall = f_in * self.not_recalled
+            retrieved_idx = torch.argmax(f_in, dim=1)
             # retrieved_idx = Categorical(f_in_inhibit_recall).sample()
             retrieved_memory = F.one_hot(retrieved_idx, self.hidden_dim).float()
             retrieved_memory.requires_grad = True
-            c_in = torch.mv(self.W_fc, retrieved_memory)
-            c_in = c_in / torch.norm(c_in, p=2)
+            c_in = torch.bmm(self.W_fc, torch.unsqueeze(retrieved_memory, dim=2)).squeeze(2)
+            c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
             if self.mem_gate_type == "constant":
                 gate = self.mem_gate
             else:
@@ -178,7 +181,7 @@ class TCMRNN(BasicModule):
             if self.output_type == "decision":
                 output = decision
             elif self.output_type == "recalled_item":
-                output = f_in_inhibit_recall
+                output = f_in
             else:
                 raise AttributeError("Invalid output type, should be decision or recalled_item")
             value = self.fc_critic(state)

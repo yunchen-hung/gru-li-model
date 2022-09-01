@@ -26,7 +26,10 @@ def entropy(probs, device):
         the entropy of the distribution
 
     """
-    return - torch.stack([pi * torch.log2(pi) if pi != 0 else torch.tensor(0, device=device) for pi in probs]).sum()
+    entropys = []
+    for prob in probs:
+        entropys.append(- torch.stack([pi * torch.log2(pi) if pi != 0 else torch.tensor(0, device=device) for pi in prob]).sum())
+    return entropys
 
 def softmax(z, beta=1.0):
     """helper function, softmax with beta
@@ -46,7 +49,7 @@ def softmax(z, beta=1.0):
     """
     assert beta > 0
     # softmax the input to a valid PMF
-    pi_a = F.softmax(torch.squeeze(z / beta), dim=0)
+    pi_a = F.softmax(z / beta, dim=1)
     # make sure the output is valid
     if torch.any(torch.isnan(pi_a)):
         print(z)

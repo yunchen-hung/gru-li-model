@@ -12,27 +12,27 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
         env.regenerate_contexts()
     agent.set_retrieval(True)
     
-    if get_memory:
-        batch_size = env.batch_size
-        memory_contexts = []
-        capacity = agent.memory_module.capacity
-        for batch in range(batch_size):
-            actions, probs, rewards, values = [], [], [], []
-            obs = torch.Tensor(env.reset()).to(device)
-            done = False
-            agent.set_encoding(False)
-            state = agent.init_state(1)
-            while not done:
-                action_distribution, value, state = agent(obs, state)
-                action, log_prob_action, action_max = pick_action(action_distribution)
-                obs_, reward, done, info = env.step(action_max)
-                obs = torch.Tensor(obs_).to(device)
+    # if get_memory:
+    #     batch_size = env.batch_size
+    #     memory_contexts = []
+    #     capacity = agent.memory_module.capacity
+    #     for batch in range(batch_size):
+    #         actions, probs, rewards, values = [], [], [], []
+    #         obs = torch.Tensor(env.reset()).to(device)
+    #         done = False
+    #         agent.set_encoding(False)
+    #         state = agent.init_state(1)
+    #         while not done:
+    #             action_distribution, value, state = agent(obs, state)
+    #             action, log_prob_action, action_max = pick_action(action_distribution)
+    #             obs_, reward, done, info = env.step(action_max)
+    #             obs = torch.Tensor(obs_).to(device)
 
-                if info.get("encoding_on", False):
-                    agent.set_encoding(True)
-            memory_contexts.append(env.current_context_num)
-            if len(memory_contexts) > capacity:
-                memory_contexts.pop(0)
+    #             if info.get("encoding_on", False):
+    #                 agent.set_encoding(True)
+    #         memory_contexts.append(env.current_context_num)
+    #         if len(memory_contexts) > capacity:
+    #             memory_contexts.pop(0)
 
     data = {'actions': [], 'probs': [], 'rewards': [], 'values': [], 'readouts': [],
     'memory_contexts': []}
@@ -41,15 +41,15 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
         actions, probs, rewards, values, readouts, mem_contexts = [], [], [], [], [], []
         for j in range(trials_per_condition):
             if j == 0:
-                obs_, info = env.reset(regenerate_contexts=True)
+                obs_, info = env.reset(regenerate_contexts=True, batch_size=1)
             else:
-                obs_, info = env.reset(regenerate_contexts=False)
+                obs_, info = env.reset(regenerate_contexts=False, batch_size=1)
             agent.reset_memory()
             obs = torch.Tensor(obs_).to(device)
             done = False
             state = agent.init_state(1)
             with analyze(agent):
-                actions_trial, probs_trial, rewards_trial, values_trial = [], [], [], []
+                actions_trial, probs_trial, rewards_trial, values_trial, actions_for_accuracy = [], [], [], [], []
                 while not done:
                     if info.get("encoding_on", False):
                         agent.set_encoding(True)
@@ -64,10 +64,11 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                     
                     action_distribution, value, state = agent(obs, state)
                     action, log_prob_action, action_max = pick_action(action_distribution)
-                    obs_, reward, done, info = env.step(action)
+                    obs_, reward, done, info = env.step(action, batch_size=1)
                     obs = torch.Tensor(obs_).to(device)
 
-                    actions_trial.append(int(action))
+                    actions_trial.append(int(action[0].detach().cpu()))
+                    actions_for_accuracy.append([int(action[0].detach().cpu())])
                     probs_trial.append(log_prob_action)
                     rewards_trial.append(reward)
                     values_trial.append(value)
@@ -78,7 +79,7 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                 readouts.append(agent.readout())
                 mem_contexts.append(env.memory_sequence)
                 # print(actions_trial)
-                correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions_trial)
+                correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions_for_accuracy)
                 actions_total_num += correct_actions + wrong_actions + not_know_actions
                 actions_correct_num += correct_actions
         data['actions'].append(actions)

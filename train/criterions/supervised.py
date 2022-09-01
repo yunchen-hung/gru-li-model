@@ -4,8 +4,6 @@ import torch.nn as nn
 from torch.nn.functional import mse_loss
 from .rl import compute_returns
 
-eps = np.finfo(np.float32).eps.item()
-
 
 class FreeRecallSumMSELoss(nn.Module):
     def __init__(self, var_weight=1.0) -> None:
@@ -14,8 +12,10 @@ class FreeRecallSumMSELoss(nn.Module):
     
     def forward(self, output, gt):
         loss = torch.sum((torch.sum(output, dim=0) - torch.sum(gt, dim=0)) ** 2)
-        gt_argmax = list(torch.argmax(gt, dim=1).cpu().numpy())
-        loss -= torch.sum(torch.var(output[:, gt_argmax], dim=0) / (torch.mean(output[:, gt_argmax], dim=0) + eps)) * self.var_weight
+        gt_argmax = torch.argmax(gt, dim=2)
+        for i in range(gt_argmax.shape[1]):
+            loss -= torch.sum(torch.var(output[:, i, gt_argmax[:, i]], dim=0) / (torch.mean(output[:, i, gt_argmax[:, i]], dim=0) 
+                + torch.finfo(torch.float32).eps)) * self.var_weight
         return loss
 
 
