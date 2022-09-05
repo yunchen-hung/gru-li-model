@@ -62,7 +62,11 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                     if info.get("reset_state", False):
                         state = agent.init_state(1, recall=True)
                     
-                    action_distribution, value, state = agent(obs, state)
+                    output, value, state = agent(obs, state)
+                    if isinstance(output, tuple):
+                        action_distribution = output[0]
+                    else:
+                        action_distribution = output
                     action, log_prob_action, action_max = pick_action(action_distribution)
                     obs_, reward, done, info = env.step(action, batch_size=1)
                     obs = torch.Tensor(obs_).to(device)

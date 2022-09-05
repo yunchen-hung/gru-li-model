@@ -68,7 +68,11 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             # print(agent.memory_module.stored_memory)
 
             # torch.autograd.set_detect_anomaly(True)
-            action_distribution, value, state = agent(obs, state)
+            output, value, state = agent(obs, state)
+            if isinstance(output, tuple):
+                action_distribution = output[0]
+            else:
+                action_distribution = output
             action, log_prob_action, action_max = pick_action(action_distribution)
             obs_, reward, done, info = env.step(action)
             obs = torch.Tensor(obs_).to(device)
@@ -223,9 +227,21 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
             output, value, state = agent(data[t], state)
 
             values.append(value)
-            actions.append(list(torch.argmax(output, dim=1).detach().cpu().numpy()))
+            if isinstance(output, tuple):
+                actions.append(list(torch.argmax(output[0], dim=1).detach().cpu().numpy()))
+            else:
+                actions.append(list(torch.argmax(output, dim=1).detach().cpu().numpy()))
             outputs.append(output)
-        outputs = torch.stack(outputs)
+        if isinstance(outputs[0], tuple):
+            outputs_ts = [[] for _ in range(len(outputs[0]))]
+            for output in outputs:
+                for j, o in enumerate(output):
+                    outputs_ts[j].append(o)
+            for j in range(len(outputs_ts)):
+                outputs_ts[j] = torch.stack(outputs_ts[j])
+            outputs = tuple(outputs_ts)
+        else:
+            outputs = torch.stack(outputs)
 
         correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions)
         # rewards = env.compute_rewards(actions)
@@ -237,8 +253,11 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         # print(outputs[env.memory_num:].shape, gt[env.memory_num:].shape)
         # print(outputs, gt)
         # print(actions, gt)
-        # loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])  # TODO: add an attr in env to specify how long output to use for loss
-        loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])
+        # loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])  # TODO: add an attr in env to specify how long output to use for loss4
+        if isinstance(outputs, tuple):
+            loss = criterion(tuple([output[env.memory_num:] for output in outputs]), gt[env.memory_num:])
+        else:
+            loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
@@ -248,7 +267,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         total_loss += loss.item()
 
         if i % test_iter == 0:
-            print(np.array(actions)[env.memory_num:,0], env.memory_sequence[0])
+            print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0])
             # print(outputs)
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num

@@ -8,7 +8,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 class A2CLoss(nn.Module):
-    def __init__(self, returns_normalize=True, use_V=True, eta=0.1) -> None:
+    def __init__(self, returns_normalize=True, use_V=True, eta=0.01) -> None:
         """
         compute the objective node for policy/value networks
 
@@ -40,7 +40,7 @@ class A2CLoss(nn.Module):
         # print(torch.stack(values).shape)
         # print(torch.stack(returns).shape)
         probs, values, rewards, entropys = torch.stack([torch.stack(prob_t).to(device) for prob_t in probs]).transpose(1, 0).to(device), \
-                                torch.stack(values).squeeze().transpose(1, 0).to(device), \
+                                torch.stack(values).squeeze(2).transpose(1, 0).to(device), \
                                 torch.stack(returns).to(device), \
                                 torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
         # print(probs)

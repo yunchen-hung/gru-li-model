@@ -19,6 +19,21 @@ class FreeRecallSumMSELoss(nn.Module):
         return loss
 
 
+class FreeRecallSumMSEMultipleOutputLoss(nn.Module):
+    def __init__(self, var_weight=1.0, output_weight=[0.5, 0.5]) -> None:
+        super().__init__()
+        self.var_weight = var_weight
+        self.output_weight = output_weight
+    
+    def forward(self, output, gt):
+        loss = 0.0
+        assert len(output) == len(self.output_weight)
+        for i in range(len(output)):
+            loss_class = FreeRecallSumMSELoss(self.var_weight)
+            loss += loss_class(output[i], gt) * self.output_weight[i]
+        return loss
+
+
 class FreeRecallSumMSEValueLoss(nn.Module):
     def __init__(self, normalize=True) -> None:
         super().__init__()

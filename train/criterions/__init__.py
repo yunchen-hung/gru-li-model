@@ -1,2 +1,2 @@
-from .supervised import FreeRecallSumMSELoss, FreeRecallSumMSEValueLoss
+from .supervised import FreeRecallSumMSELoss, FreeRecallSumMSEValueLoss, FreeRecallSumMSEMultipleOutputLoss
 from .rl import A2CLoss
