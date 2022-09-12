@@ -6,6 +6,14 @@ from analysis.decomposition import PCA
 from analysis.decoding import SVM
 
 
+def softmax_np(x):
+    return(np.exp(x - np.max(x)) / np.exp(x - np.max(x)).sum())
+
+
+def normalize(x):
+    return (x - np.min(x)) / (np.max(x) - np.min(x))
+
+
 def run(data, model, env, paths):
     readouts = data['readouts']
     actions = data['actions']
@@ -47,8 +55,33 @@ def run(data, model, env, paths):
     plt.colorbar()
     plt.xlabel("encoding timestep")
     plt.ylabel("recall timestep")
-    plt.title("stimuli-recall similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
-    savefig(paths["fig"], "similarity_state")
+    plt.title("recalling state-memory similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
+    savefig(paths["fig"], "similarity_memory")
+
+    # similarity of states
+    states = readouts[0][0]["state"].squeeze()
+    print(np.mean(states, axis=1))
+    similarity = np.dot(states, states.T)
+    for i in range(similarity.shape[0]):
+        similarity[i, :env.memory_num] = normalize(similarity[i, :env.memory_num])
+        similarity[i, env.memory_num:] = normalize(similarity[i, env.memory_num:])
+
+    plt.imshow(similarity[:env.memory_num, :env.memory_num], cmap="Blues")
+    plt.colorbar()
+    plt.title("encoding state similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
+    savefig(paths["fig"], "similarity_state_encode")
+
+    plt.imshow(similarity[env.memory_num:, env.memory_num:], cmap="Blues")
+    plt.colorbar()
+    plt.title("recalling state similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
+    savefig(paths["fig"], "similarity_state_recall")
+
+    plt.imshow(similarity[env.memory_num:, :env.memory_num], cmap="Blues")
+    plt.colorbar()
+    plt.xlabel("encoding timestep")
+    plt.ylabel("recalling timestep")
+    plt.title("encoding-recalling state similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
+    savefig(paths["fig"], "similarity_state_encode_recall")
 
     # mem gate
     # plt.figure(figsize=(4, 3), dpi=250)

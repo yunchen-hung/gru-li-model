@@ -1,5 +1,4 @@
-from importlib.metadata import requires
-from tkinter import Variable
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -77,8 +76,9 @@ class TCM(BasicModule):
 
 
 class TCMRNN(BasicModule):
-    def __init__(self, hidden_dim: int, act_fn='ReLU', lr_cf: float = 1.0, lr_fc: float = 0.9, dt: float = 10, tau: float = 20, record_recalled: bool = False, 
-    mem_gate_type="constant", output_type="recalled_item", init_state_type="zeros", evolve_state_before_recall=False, flush_weight=1.0, device: str = 'cpu'):
+    def __init__(self, hidden_dim: int, slot_num=21, act_fn='ReLU', lr_cf: float = 1.0, lr_fc: float = 0.9, dt: float = 10, tau: float = 20, record_recalled: bool = False, 
+    mem_gate_type="constant", output_type="recalled_item", init_state_type="zeros", evolve_state_before_recall=False, flush_weight=1.0, noise_std=0.0,
+    evolve_state_between_phases=False, input_layer=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -87,12 +87,17 @@ class TCMRNN(BasicModule):
 
         self.lr_cf = lr_cf
         self.lr_fc = lr_fc
+        self.dt = dt
         self.alpha = float(dt) / float(tau)
         self.record_recalled = record_recalled
         self.evolve_state_before_recall = evolve_state_before_recall
         self.flush_weight = flush_weight
+        self.noise_std = noise_std
+        self.evolve_state_between_phases = evolve_state_between_phases
+        self.last_encoding = False  # last step is encoding, flag for one more iteration between encoding and retrieval
 
         self.hidden_dim = hidden_dim
+        self.slot_num = slot_num
         self.act_fn = load_act_fn(act_fn)
 
         self.mem_gate_type = mem_gate_type
@@ -107,12 +112,15 @@ class TCMRNN(BasicModule):
         self.output_type = output_type
 
         # self.fc_in = nn.Linear(hidden_dim, hidden_dim)
+        self.input_layer = input_layer
+        if input_layer:
+            self.fc_in = nn.Linear(hidden_dim, hidden_dim)
         self.fc_hidden = nn.Linear(hidden_dim, hidden_dim)
-        self.fc_decision = nn.Linear(hidden_dim, hidden_dim)
+        self.fc_decision = nn.Linear(hidden_dim, slot_num)
         self.fc_critic = nn.Linear(hidden_dim, 1)
 
-        self.W_cf = torch.zeros((1, hidden_dim, hidden_dim), device=device, requires_grad=True)
-        self.W_fc = (torch.eye(hidden_dim, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
+        self.W_cf = torch.zeros((1, slot_num, hidden_dim), device=device, requires_grad=True)
+        self.W_fc = (torch.eye(slot_num, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
 
         self.hidden_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
 
@@ -128,7 +136,11 @@ class TCMRNN(BasicModule):
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
             if self.init_state_type == 'zeros':
+                # print(torch.mean(self.hidden_state))
                 self.hidden_state = self.hidden_state + torch.randn(self.hidden_state.shape).to(self.device) * max(torch.mean(self.hidden_state) * flush_level * self.flush_weight, torch.tensor(0.1))
+            elif self.init_state_type == 'all_zeros':
+                self.hidden_state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
+                state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == 'train':
                 self.hidden_state = self.h0.repeat(batch_size, 1)
             elif self.init_state_type == 'train_diff':
@@ -137,7 +149,7 @@ class TCMRNN(BasicModule):
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
             state = self.act_fn(self.hidden_state)
         else:
-            if self.init_state_type == "zeros":
+            if self.init_state_type == "zeros" or self.init_state_type == 'all_zeros':
                 self.hidden_state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == "train" or self.init_state_type == "train_diff":
@@ -145,12 +157,35 @@ class TCMRNN(BasicModule):
                 state = self.act_fn(self.hidden_state)
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
-            self.W_cf = torch.zeros((batch_size, self.hidden_dim, self.hidden_dim), device=self.device, requires_grad=True)
-        self.W_fc = (torch.eye(self.hidden_dim, device=self.device, requires_grad=True) * (1 - self.lr_fc)).repeat(batch_size, 1, 1)
+            self.W_cf = torch.zeros((batch_size, self.slot_num, self.hidden_dim), device=self.device, requires_grad=True)
+        if self.hidden_dim == self.slot_num:
+            self.W_fc = (torch.eye(self.hidden_dim, device=self.device, requires_grad=True) * (1 - self.lr_fc)).repeat(batch_size, 1, 1)
+        else:
+            self.W_fc = (torch.cat((torch.eye(self.slot_num, device=self.device, requires_grad=True) * (1 - self.lr_fc), \
+                        torch.zeros((self.hidden_dim-self.slot_num, self.slot_num), device=self.device, requires_grad=True)), 0)).repeat(batch_size, 1, 1)
         self.write(state, 'init_state')
         return state
     
     def forward(self, inp, state):
+        # if self.encoding:
+        #     c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
+        #     c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
+        # elif self.retrieving:
+        #     if self.mem_gate_type == "constant":
+        #         gate = self.mem_gate
+        #     else:
+        #         gate = self.mem_gate(state).sigmoid()
+        #     f_in_raw = torch.bmm(self.W_cf, torch.unsqueeze(state, dim=2)).squeeze(2)
+        #     f_in = softmax(f_in_raw)
+        #     retrieved_idx = torch.argmax(f_in, dim=1)
+        #     retrieved_memory = F.one_hot(retrieved_idx, self.hidden_dim).float()
+        #     retrieved_memory.requires_grad = True
+        #     c_in = torch.bmm(self.W_fc, torch.unsqueeze(retrieved_memory, dim=2)).squeeze(2)
+        #     c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1) * gate
+        # else:
+        #     c_in = torch.zeros(inp.shape)
+        # self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha
+
         if self.encoding:
             c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
             c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
@@ -158,7 +193,13 @@ class TCMRNN(BasicModule):
             #     gate = self.mem_gate
             # else:
             #     gate = self.mem_gate(state).sigmoid()
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha
+            if self.noise_std > 0:
+                noise = math.sqrt(2*self.dt)*self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
+            else:
+                noise = 0
+            if self.input_layer:
+                c_in = self.fc_in(c_in)
+            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
             state = self.act_fn(self.hidden_state)
             self.W_fc = self.W_fc + self.lr_fc * torch.einsum("ik,ij->ikj", [state, inp])    # each column is a state
             self.W_cf = self.W_cf + self.lr_cf * torch.einsum("ik,ij->ikj", [inp, state])    # store memory, each row is a state
@@ -178,6 +219,8 @@ class TCMRNN(BasicModule):
                 raise AttributeError("Invalid output type, should be decision or recalled_item")
             value = self.fc_critic(state)
 
+            self.last_encoding = True
+
             self.write(self.W_fc, 'W_fc')
             self.write(self.W_cf, 'W_cf')
             self.write(state, 'state')
@@ -185,27 +228,45 @@ class TCMRNN(BasicModule):
 
             return output, value, state
         elif self.retrieving:
-            if self.mem_gate_type == "constant":
-                gate = self.mem_gate
-            else:
-                gate = self.mem_gate(state).sigmoid()
+            if self.last_encoding and self.evolve_state_between_phases:
+                if self.noise_std > 0:
+                    noise = math.sqrt(2*self.dt)*self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
+                else:
+                    noise = 0
+                self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state)) * self.alpha + noise
+                state = self.act_fn(self.hidden_state)
+                self.write(state, 'state')
+            self.last_encoding = False
+
             if self.evolve_state_before_recall:
-                state_for_recall = self.hidden_state * (1 - self.alpha) + self.fc_hidden(state) * self.alpha
+                state_for_recall = self.act_fn(self.hidden_state * (1 - self.alpha) + self.fc_hidden(state) * self.alpha)
             # print(state.shape, self.W_cf.shape)
             else:
                 state_for_recall = state
+
+            if self.mem_gate_type == "constant":
+                gate = self.mem_gate
+            else:
+                gate = self.mem_gate(state_for_recall).sigmoid()
+
             f_in_raw = torch.bmm(self.W_cf, torch.unsqueeze(state_for_recall, dim=2)).squeeze(2)
             f_in = softmax(f_in_raw)
             # f_in_inhibit_recall = f_in * self.not_recalled
             retrieved_idx = torch.argmax(f_in, dim=1)
             # retrieved_idx = Categorical(f_in_inhibit_recall).sample()
-            retrieved_memory = F.one_hot(retrieved_idx, self.hidden_dim).float()
+            retrieved_memory = F.one_hot(retrieved_idx, self.slot_num).float()
             retrieved_memory.requires_grad = True
             c_in = torch.bmm(self.W_fc, torch.unsqueeze(retrieved_memory, dim=2)).squeeze(2)
             c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) * (1 - gate) + c_in * gate) * self.alpha
+
+            if self.noise_std > 0:
+                noise = math.sqrt(2*self.dt)*self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
+            else:
+                noise = 0
+            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in * gate) * self.alpha + noise
             state = self.act_fn(self.hidden_state)
             decision = softmax(self.fc_decision(state))
+
             # self.W_fc = self.W_fc - self.lr_fc * torch.outer(state.squeeze(), retrieved_memory.squeeze())
             # self.not_recalled[retrieved_idx] = 0
             if self.record_recalled:

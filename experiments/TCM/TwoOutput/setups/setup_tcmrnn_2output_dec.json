@@ -1,4 +1,5 @@
 {
+    "run_num": [2],
     "model": {
         "class": "TCMRNN",
         "hidden_dim": 21,

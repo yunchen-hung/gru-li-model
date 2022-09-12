@@ -1,12 +1,12 @@
 {
+    "run_num": [1],
     "model": {
         "class": "TCMRNN",
-        "hidden_dim": 64,
+        "hidden_dim": 21,
         "tau": 10,
-        "act_fn": "Tanh",
         "mem_gate_type": "scalar",
         "output_type": "both_dec",
-        "init_state_type": "train"
+        "evolve_state_between_phases": true
     },
     "supervised_env": {
         "class": "FreeRecall",

@@ -6,7 +6,7 @@
         "act_fn": "Tanh",
         "mem_gate_type": "scalar",
         "output_type": "both_dec",
-        "init_state_type": "train"
+        "init_state_type": "train_diff"
     },
     "supervised_env": {
         "class": "FreeRecall",

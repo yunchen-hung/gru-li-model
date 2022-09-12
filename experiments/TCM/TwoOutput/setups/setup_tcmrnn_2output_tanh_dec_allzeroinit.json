@@ -6,7 +6,8 @@
         "act_fn": "Tanh",
         "mem_gate_type": "scalar",
         "output_type": "both_dec",
-        "init_state_type": "train"
+        "init_state_type": "all_zeros",
+        "evolve_state_between_phases": true
     },
     "supervised_env": {
         "class": "FreeRecall",

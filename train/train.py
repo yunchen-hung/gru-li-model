@@ -158,8 +158,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
     return test_accuracies, test_errors
 
 
-def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, 
-    stop_test_accu=1.0, device='cpu', model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9):
+def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
+    train_all_time=False, device='cpu', model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9):
     actions_correct_num, actions_wrong_num, actions_total_num, total_loss = 0, 0, 0, 0.0
     test_accuracies = []
     test_errors = []
@@ -255,9 +255,17 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         # print(actions, gt)
         # loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])  # TODO: add an attr in env to specify how long output to use for loss4
         if isinstance(outputs, tuple):
-            loss = criterion(tuple([output[env.memory_num:] for output in outputs]), gt[env.memory_num:])
+            if train_all_time:
+                outputs_list = [output[env.memory_num:] for output in outputs]
+                outputs_list.extend([output[:env.memory_num] for output in outputs])
+                loss = criterion(tuple(outputs_list), gt[env.memory_num:])
+            else:
+                loss = criterion(tuple([output[env.memory_num:] for output in outputs]), gt[env.memory_num:])
         else:
-            loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])
+            if train_all_time:
+                loss = criterion(tuple([outputs[env.memory_num:], outputs[:env.memory_num]]), gt[env.memory_num:])
+            else:
+                loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
@@ -267,7 +275,11 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         total_loss += loss.item()
 
         if i % test_iter == 0:
-            print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0])
+            if isinstance(outputs, tuple):
+                print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
+                    list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)))
+            else:
+                print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0])
             # print(outputs)
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num

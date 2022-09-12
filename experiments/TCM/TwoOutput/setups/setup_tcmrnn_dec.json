@@ -1,12 +1,11 @@
 {
     "model": {
         "class": "TCMRNN",
-        "hidden_dim": 64,
+        "hidden_dim": 21,
         "tau": 10,
-        "act_fn": "Tanh",
         "mem_gate_type": "scalar",
-        "output_type": "both_dec",
-        "init_state_type": "train"
+        "output_type": "decision",
+        "evolve_state_before_recall": true
     },
     "supervised_env": {
         "class": "FreeRecall",
@@ -24,9 +23,8 @@
         "stop_test_accu": 0.99,
         "use_memory": true,
         "criterion": {
-            "class": "FreeRecallSumMSEMultipleOutputLoss",
-            "var_weight": 2.0,
-            "output_weight": [0.95, 0.05]
+            "class": "FreeRecallSumMSELoss",
+            "var_weight": 5.0
         },
         "optimizer": {
             "class": "Adam",
