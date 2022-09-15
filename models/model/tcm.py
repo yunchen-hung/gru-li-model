@@ -78,7 +78,7 @@ class TCM(BasicModule):
 class TCMRNN(BasicModule):
     def __init__(self, hidden_dim: int, slot_num=21, act_fn='ReLU', lr_cf: float = 1.0, lr_fc: float = 0.9, dt: float = 10, tau: float = 20, record_recalled: bool = False, 
     mem_gate_type="constant", output_type="recalled_item", init_state_type="zeros", evolve_state_before_recall=False, flush_weight=1.0, noise_std=0.0,
-    evolve_state_between_phases=False, input_layer=False, start_recall_with_first_item_init=False, use_input_gate=False, device: str = 'cpu'):
+    evolve_state_between_phases=False, input_layer=False, start_recall_with_ith_item_init=0, use_input_gate=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -95,7 +95,8 @@ class TCMRNN(BasicModule):
         self.noise_std = noise_std
         self.evolve_state_between_phases = evolve_state_between_phases
         self.last_encoding = False  # last step is encoding, flag for one more iteration between encoding and retrieval
-        self.start_recall_with_first_item_init = start_recall_with_first_item_init
+        self.start_recall_with_ith_item_init = start_recall_with_ith_item_init
+        self.current_timestep = 0
         
         self.hidden_dim = hidden_dim
         self.slot_num = slot_num
@@ -123,12 +124,14 @@ class TCMRNN(BasicModule):
         self.fc_hidden = nn.Linear(hidden_dim, hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, slot_num)
         self.fc_critic = nn.Linear(hidden_dim, 1)
+        if self.output_type == "dec2" or self.output_type == "both_dec2":
+            self.fc_decision2 = nn.Linear(hidden_dim, slot_num)
 
         self.W_cf = torch.zeros((1, slot_num, hidden_dim), device=device, requires_grad=True)
         self.W_fc = (torch.eye(slot_num, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
 
         self.hidden_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
-        self.first_item_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
+        self.ith_item_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
 
         self.init_state_type = init_state_type
         if init_state_type == "train":
@@ -141,8 +144,8 @@ class TCMRNN(BasicModule):
     
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
-            if self.start_recall_with_first_item_init:
-                self.hidden_state = self.first_item_state.clone()
+            if self.start_recall_with_ith_item_init:
+                self.hidden_state = self.ith_item_state.clone()
             elif self.init_state_type == 'zeros':
                 # print(torch.mean(self.hidden_state))
                 self.hidden_state = self.hidden_state + torch.randn(self.hidden_state.shape).to(self.device) * max(torch.mean(self.hidden_state) * flush_level * self.flush_weight, torch.tensor(0.1))
@@ -172,28 +175,10 @@ class TCMRNN(BasicModule):
             self.W_fc = (torch.cat((torch.eye(self.slot_num, device=self.device, requires_grad=True) * (1 - self.lr_fc), \
                         torch.zeros((self.hidden_dim-self.slot_num, self.slot_num), device=self.device, requires_grad=True)), 0)).repeat(batch_size, 1, 1)
         self.write(state, 'init_state')
+        self.current_timestep = 0
         return state
     
     def forward(self, inp, state):
-        # if self.encoding:
-        #     c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
-        #     c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
-        # elif self.retrieving:
-        #     if self.mem_gate_type == "constant":
-        #         gate = self.mem_gate
-        #     else:
-        #         gate = self.mem_gate(state).sigmoid()
-        #     f_in_raw = torch.bmm(self.W_cf, torch.unsqueeze(state, dim=2)).squeeze(2)
-        #     f_in = softmax(f_in_raw)
-        #     retrieved_idx = torch.argmax(f_in, dim=1)
-        #     retrieved_memory = F.one_hot(retrieved_idx, self.hidden_dim).float()
-        #     retrieved_memory.requires_grad = True
-        #     c_in = torch.bmm(self.W_fc, torch.unsqueeze(retrieved_memory, dim=2)).squeeze(2)
-        #     c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1) * gate
-        # else:
-        #     c_in = torch.zeros(inp.shape)
-        # self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha
-
         if self.encoding:
             c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
             c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
@@ -225,12 +210,19 @@ class TCMRNN(BasicModule):
                 output = (inp, decision)
             elif self.output_type == "both_dec":
                 output = (decision, inp)
+            elif self.output_type == "dec2":
+                decision2 = softmax(self.fc_decision2(state))
+                output = (decision, decision2)
+            elif self.output_type == "both_dec2":
+                decision2 = softmax(self.fc_decision2(state))
+                output = (decision, inp, decision2)
             else:
                 raise AttributeError("Invalid output type, should be decision or recalled_item")
             value = self.fc_critic(state)
 
-            if self.last_encoding == False:
-                self.first_item_state = self.hidden_state.detach().clone()
+            self.current_timestep += 1
+            if self.current_timestep == self.start_recall_with_ith_item_init:
+                self.ith_item_state = self.hidden_state.detach().clone()
             self.last_encoding = True
 
             self.write(self.W_fc, 'W_fc')
@@ -291,6 +283,12 @@ class TCMRNN(BasicModule):
                 output = (f_in, decision)
             elif self.output_type == "both_dec":
                 output = (decision, f_in)
+            elif self.output_type == "dec2":
+                decision2 = softmax(self.fc_decision2(state))
+                output = (decision, decision2)
+            elif self.output_type == "both_dec2":
+                decision2 = softmax(self.fc_decision2(state))
+                output = (decision, f_in, decision2)
             else:
                 raise AttributeError("Invalid output type, should be decision or recalled_item")
             value = self.fc_critic(state)
@@ -314,6 +312,26 @@ class TCMRNN(BasicModule):
         self.W_cf = torch.zeros((self.hidden_dim, self.hidden_dim), device=self.device)
         self.W_fc = torch.eye(self.hidden_dim, device=self.device) * (1 - self.lr_fc)
         self.not_recalled = torch.ones(self.hidden_dim, device=self.device)
+
+
+        # if self.encoding:
+        #     c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
+        #     c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
+        # elif self.retrieving:
+        #     if self.mem_gate_type == "constant":
+        #         gate = self.mem_gate
+        #     else:
+        #         gate = self.mem_gate(state).sigmoid()
+        #     f_in_raw = torch.bmm(self.W_cf, torch.unsqueeze(state, dim=2)).squeeze(2)
+        #     f_in = softmax(f_in_raw)
+        #     retrieved_idx = torch.argmax(f_in, dim=1)
+        #     retrieved_memory = F.one_hot(retrieved_idx, self.hidden_dim).float()
+        #     retrieved_memory.requires_grad = True
+        #     c_in = torch.bmm(self.W_fc, torch.unsqueeze(retrieved_memory, dim=2)).squeeze(2)
+        #     c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1) * gate
+        # else:
+        #     c_in = torch.zeros(inp.shape)
+        # self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha
 
 
 class TCMLSTM(BasicModule):

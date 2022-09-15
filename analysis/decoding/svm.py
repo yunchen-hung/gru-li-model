@@ -66,7 +66,7 @@ class SVM:
         for i in range(self.results.shape[1]):
             plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="memory {}".format(i+1))
         plt.legend()
-        plt.xlim(0.5, 5.5)
+        plt.xlim(0.5, 0.5 + self.results.shape[0])
         plt.title("SVM decoding accuracy")
         plt.xlabel("timesteps")
         plt.ylabel("decoding accuracy")

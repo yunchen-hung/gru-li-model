@@ -276,8 +276,15 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
 
         if i % test_iter == 0:
             if isinstance(outputs, tuple):
-                print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
-                    list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)))
+                if len(outputs) == 3:
+                    print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
+                        list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
+                        list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)),
+                        list(torch.argmax(outputs[2][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)))
+                else:
+                    print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
+                        list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
+                        list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)))
             else:
                 print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0])
             # print(outputs)
