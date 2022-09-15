@@ -25,6 +25,10 @@ class PCA:
             self.n_steps, self.n_traj = act.shape[0], 1
             X = act
         self.proj_act = self.pca.fit_transform(X).reshape(self.n_traj, self.n_steps, -1)
+        self.max_x = np.max(self.proj_act[:, :, 0])
+        self.min_x = np.min(self.proj_act[:, :, 0])
+        self.max_y = np.max(self.proj_act[:, :, 1])
+        self.min_y = np.min(self.proj_act[:, :, 1])
         return self
 
     def fit_transform(self, dataset):
@@ -79,6 +83,9 @@ class PCA:
                 ax.scatter(proj_act[:, i, 0], proj_act[:, i, 1], color=colors[i-start_step], zorder=2)
             else:
                 ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step])
+
+        plt.xlim(self.min_x - 0.5, self.max_x + 0.5)
+        plt.ylim(self.min_y - 0.5, self.max_y + 0.5)
 
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")

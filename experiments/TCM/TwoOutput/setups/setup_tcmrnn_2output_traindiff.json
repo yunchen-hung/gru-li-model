@@ -6,7 +6,8 @@
         "act_fn": "Tanh",
         "mem_gate_type": "scalar",
         "output_type": "both_dec",
-        "init_state_type": "train_diff"
+        "init_state_type": "train_diff",
+        "evolve_state_between_phases": true
     },
     "supervised_env": {
         "class": "FreeRecall",
@@ -25,8 +26,8 @@
         "use_memory": true,
         "criterion": {
             "class": "FreeRecallSumMSEMultipleOutputLoss",
-            "var_weight": 2.0,
-            "output_weight": [0.95, 0.05]
+            "var_weight": 1.0,
+            "output_weight": [0.99, 0.01]
         },
         "optimizer": {
             "class": "Adam",

@@ -78,7 +78,7 @@ class TCM(BasicModule):
 class TCMRNN(BasicModule):
     def __init__(self, hidden_dim: int, slot_num=21, act_fn='ReLU', lr_cf: float = 1.0, lr_fc: float = 0.9, dt: float = 10, tau: float = 20, record_recalled: bool = False, 
     mem_gate_type="constant", output_type="recalled_item", init_state_type="zeros", evolve_state_before_recall=False, flush_weight=1.0, noise_std=0.0,
-    evolve_state_between_phases=False, input_layer=False, device: str = 'cpu'):
+    evolve_state_between_phases=False, input_layer=False, start_recall_with_first_item_init=False, use_input_gate=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -95,10 +95,15 @@ class TCMRNN(BasicModule):
         self.noise_std = noise_std
         self.evolve_state_between_phases = evolve_state_between_phases
         self.last_encoding = False  # last step is encoding, flag for one more iteration between encoding and retrieval
-
+        self.start_recall_with_first_item_init = start_recall_with_first_item_init
+        
         self.hidden_dim = hidden_dim
         self.slot_num = slot_num
         self.act_fn = load_act_fn(act_fn)
+
+        self.use_input_gate = use_input_gate
+        if use_input_gate:
+            self.input_gate = torch.nn.Parameter(torch.ones(1, device=device), requires_grad=True)
 
         self.mem_gate_type = mem_gate_type
         if mem_gate_type == "vector":
@@ -123,6 +128,7 @@ class TCMRNN(BasicModule):
         self.W_fc = (torch.eye(slot_num, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
 
         self.hidden_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
+        self.first_item_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
 
         self.init_state_type = init_state_type
         if init_state_type == "train":
@@ -135,7 +141,9 @@ class TCMRNN(BasicModule):
     
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
-            if self.init_state_type == 'zeros':
+            if self.start_recall_with_first_item_init:
+                self.hidden_state = self.first_item_state.clone()
+            elif self.init_state_type == 'zeros':
                 # print(torch.mean(self.hidden_state))
                 self.hidden_state = self.hidden_state + torch.randn(self.hidden_state.shape).to(self.device) * max(torch.mean(self.hidden_state) * flush_level * self.flush_weight, torch.tensor(0.1))
             elif self.init_state_type == 'all_zeros':
@@ -199,6 +207,8 @@ class TCMRNN(BasicModule):
                 noise = 0
             if self.input_layer:
                 c_in = self.fc_in(c_in)
+            if self.use_input_gate:
+                c_in = c_in * torch.min(self.input_gate, torch.tensor(5.0))
             self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
             state = self.act_fn(self.hidden_state)
             self.W_fc = self.W_fc + self.lr_fc * torch.einsum("ik,ij->ikj", [state, inp])    # each column is a state
@@ -219,6 +229,8 @@ class TCMRNN(BasicModule):
                 raise AttributeError("Invalid output type, should be decision or recalled_item")
             value = self.fc_critic(state)
 
+            if self.last_encoding == False:
+                self.first_item_state = self.hidden_state.detach().clone()
             self.last_encoding = True
 
             self.write(self.W_fc, 'W_fc')

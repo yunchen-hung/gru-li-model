@@ -36,16 +36,17 @@ class SVM:
                 decode_accuracy /= self.n_splits
                 data_accuracy.append(decode_accuracy)
             results.append(data_accuracy)
-        self.results = results
+        self.results = np.array(results)
         return results
 
     def visualize(self, save_path, pdf=False):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(1.0 * len(self.results[0]), 4.0), dpi=180)
+        plt.figure(figsize=(1.0 * self.results.shape[0], 4.0), dpi=180)
         for i, result in enumerate(self.results):
-            plt.plot(result, label="timestep {}".format(i))
+            plt.plot(np.arange(1, self.results.shape[1]+1), result, label="timestep {}".format(i+1))
         plt.legend()
+        plt.xlim(0.5, 5.5)
         plt.title("SVM decoding accuracy")
         plt.xlabel("memories")
         plt.ylabel("decoding accuracy")
@@ -57,3 +58,23 @@ class SVM:
         plt.tight_layout()
         if save_path is not None:
             savefig(save_path, "svm_accuracy", pdf=pdf)
+
+    def visualize_by_memory(self, save_path, pdf=False):
+        if self.results is None:
+            raise Exception("Please run fit() first")
+        plt.figure(figsize=(1.0 * self.results.shape[1], 4.0), dpi=180)
+        for i in range(self.results.shape[1]):
+            plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="memory {}".format(i+1))
+        plt.legend()
+        plt.xlim(0.5, 5.5)
+        plt.title("SVM decoding accuracy")
+        plt.xlabel("timesteps")
+        plt.ylabel("decoding accuracy")
+
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.tight_layout()
+        if save_path is not None:
+            savefig(save_path, "svm_accuracy_by_memory", pdf=pdf)

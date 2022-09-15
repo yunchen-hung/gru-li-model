@@ -35,18 +35,20 @@ class FreeRecallSumMSEMultipleOutputLoss(nn.Module):
 
 
 class FreeRecallSumMSETrainEncodeLoss(nn.Module):
-    def __init__(self, var_weight=1.0, output_weight=[0.5, 0.5], encode_weight=1.0) -> None:
+    def __init__(self, var_weight=1.0, output_weight=[0.5, 0.5], encode_weight=1.0, only_encode=False) -> None:
         super().__init__()
         self.var_weight = var_weight
         self.output_weight = output_weight
         self.encode_weight = encode_weight
+        self.only_encode = only_encode
     
     def forward(self, output, gt):
         loss = 0.0
         assert len(output) > len(self.output_weight)
-        for i in range(2):
-            loss_class = FreeRecallSumMSELoss(self.var_weight)
-            loss += loss_class(output[i], gt) * self.output_weight[i]
+        if not self.only_encode:
+            for i in range(2):
+                loss_class = FreeRecallSumMSELoss(self.var_weight)
+                loss += loss_class(output[i], gt) * self.output_weight[i]
         loss += mse_loss(output[2], gt) * self.encode_weight
         return loss
 
