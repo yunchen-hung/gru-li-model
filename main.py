@@ -51,7 +51,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         print("run {}".format(i))
         setup = deepcopy(setup_origin)
 
-        model, env, optimizer, scheduler, criterion, sup_env, sup_optimizer, sup_scheduler, sup_criterion, setup = parse_setup(setup, device)
+        model, envs, optimizers, schedulers, criterions, training_setups, setup = parse_setup(setup, device)
 
         run_name = setup.get("run_name", setup_name.split(".")[0]) + "-{}".format(i)
         print("run_name: {}".format(run_name))
@@ -68,24 +68,30 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         model.to(device)
 
         if train or not os.path.exists(model_save_path/"model.pt"):
-            if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler and sup_criterion:
-                sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, sup_criterion, device=device, model_save_path=model_save_path, **setup["supervised_training"])
-            if env and optimizer and scheduler and criterion:
-                test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, criterion, device=device, model_save_path=model_save_path, **setup["training"])
-                plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
+            training_session = 1
+            for env, optimizer, scheduler, criterion, training_setup in zip(envs, optimizers, schedulers, criterions, training_setups):
+                if env and optimizer and scheduler and criterion:
+                    print("\ntraining session {}".format(training_session))
+                    training_session += 1
+                    training_func = training_setup["trainer"].pop("training_function", "supervised_train_model")
+                    accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, device=device, 
+                        model_save_path=model_save_path, **training_setup["trainer"])
+                plot_accuracy_and_error(accuracies, errors, model_save_path)
+            # if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler and sup_criterion:
+            #     sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, sup_criterion, device=device, model_save_path=model_save_path, **setup["supervised_training"])
+            # if env and optimizer and scheduler and criterion:
+            #     test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, criterion, device=device, model_save_path=model_save_path, **setup["training"])
+            #     plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
 
+        env = envs[-1]
         if env:
             data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
-        else:
-            data = record_model(model, sup_env, device=device, context_num=setup.get("context_num", 20))
 
         paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup["model_name"]/run_name}
 
         run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
         if env:
             run_exp(data, model, env, paths)
-        else:
-            run_exp(data, model, sup_env, paths)
 
 
 if __name__ == "__main__":

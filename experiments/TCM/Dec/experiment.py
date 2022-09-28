@@ -95,7 +95,7 @@ def run(data, model, env, paths):
     # plt.xlabel("timesteps of recalling phase")
     # plt.ylabel("memory gate")
     # plt.tight_layout()
-    # savefig(paths["fig"], "em_gate_encode")`
+    # savefig(paths["fig"], "em_gate_encode")
 
     plt.figure(figsize=(4, 3), dpi=250)
     for i in range(context_num):
@@ -111,30 +111,30 @@ def run(data, model, env, paths):
     savefig(paths["fig"], "em_gate_recall")
 
     # recalled probability
-    # recalled_times = np.zeros((env.memory_num, env.memory_num))
-    # actions = np.array(actions)
-    # for i in range(all_context_num):
-    #     for t in range(env.memory_num - 1):
-    #         position1 = np.where(memory_contexts[i][0][0] == actions[i][0][env.memory_num+t])
-    #         position2 = np.where(memory_contexts[i][0][0] == actions[i][0][env.memory_num+t+1])
-    #         if position1[0].shape[0] != 0 and position2[0].shape[0] != 0:
-    #             # print(position1[0].shape[0], position2[0].shape[0])
-    #             position1 = position1[0][0]
-    #             position2 = position2[0][0]
-    #             recalled_times[position1][position2] += 1
-    # times_sum = np.expand_dims(np.sum(recalled_times, axis=1), axis=1)
-    # times_sum[times_sum == 0] = 1
-    # recalled_times = recalled_times / times_sum
-    # for t in range(env.memory_num):
-    #     if t != 0:
-    #         plt.scatter(np.arange(1, t+1), recalled_times[t][:t], c='b')
-    #     if t != env.memory_num-1:
-    #         plt.scatter(np.arange(t+2, env.memory_num+1), recalled_times[t][t+1:], c='b')
-    #     plt.scatter(np.array([t+1]), recalled_times[t][t], c='r')
-    #     plt.xlabel("item position")
-    #     plt.ylabel("possibility of next recalling")
-    #     plt.title("current position: {}".format(t+1))
-    #     savefig(paths["fig"]/"recall_prob", "timestep_{}".format(t+1))
+    recalled_times = np.zeros((env.memory_num, env.memory_num))
+    actions = np.array(actions)
+    for i in range(all_context_num):
+        for t in range(env.memory_num - 1):
+            position1 = np.where(memory_contexts[i][0][0] == actions[i][0][env.memory_num+t])
+            position2 = np.where(memory_contexts[i][0][0] == actions[i][0][env.memory_num+t+1])
+            if position1[0].shape[0] != 0 and position2[0].shape[0] != 0:
+                # print(position1[0].shape[0], position2[0].shape[0])
+                position1 = position1[0][0]
+                position2 = position2[0][0]
+                recalled_times[position1][position2] += 1
+    times_sum = np.expand_dims(np.sum(recalled_times, axis=1), axis=1)
+    times_sum[times_sum == 0] = 1
+    recalled_times = recalled_times / times_sum
+    for t in range(env.memory_num):
+        if t != 0:
+            plt.scatter(np.arange(1, t+1), recalled_times[t][:t], c='b')
+        if t != env.memory_num-1:
+            plt.scatter(np.arange(t+2, env.memory_num+1), recalled_times[t][t+1:], c='b')
+        plt.scatter(np.array([t+1]), recalled_times[t][t], c='r')
+        plt.xlabel("item position")
+        plt.ylabel("possibility of next recalling")
+        plt.title("current position: {}".format(t+1))
+        savefig(paths["fig"]/"recall_prob", "timestep_{}".format(t+1))
 
     # PCA
     lstm_states = []
@@ -144,7 +144,7 @@ def run(data, model, env, paths):
     pca = PCA()
     pca.fit(lstm_states)
     pca.visualize_state_space(save_path=paths["fig"]/"pca"/"memorizing", end_step=env.memory_num)
-    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"recalling", start_step=env.memory_num)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"recalling", start_step=env.memory_num, end_step=env.memory_num*2)
     pca.visualize_state_space(save_path=paths["fig"]/"pca")
 
     # SVM
@@ -152,11 +152,11 @@ def run(data, model, env, paths):
     c_recalling = np.stack([readouts[i][0]['state'][-env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
     memory_sequence = np.stack([memory_contexts[i][0][0] for i in range(all_context_num)]).transpose(1, 0) - 1
     
-    # svm = SVM()
-    # svm.fit(c_memorizing, memory_sequence)
-    # svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
-    # svm.visualize_by_memory(save_path=paths["fig"]/"svm"/"c_mem")
+    svm = SVM()
+    svm.fit(c_memorizing, memory_sequence)
+    svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
+    svm.visualize_by_memory(save_path=paths["fig"]/"svm"/"c_mem")
 
-    # svm.fit(c_recalling, memory_sequence)
-    # svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")
-    # svm.visualize_by_memory(save_path=paths["fig"]/"svm"/"c_rec")
+    svm.fit(c_recalling, memory_sequence)
+    svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")
+    svm.visualize_by_memory(save_path=paths["fig"]/"svm"/"c_rec")

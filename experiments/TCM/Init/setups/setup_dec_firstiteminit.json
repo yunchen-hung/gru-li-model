@@ -1,12 +1,12 @@
 {
-    "run_num": 3,
+    "run_num": [3],
     "model": {
         "class": "TCMRNN",
         "hidden_dim": 64,
         "tau": 10,
         "act_fn": "Tanh",
         "mem_gate_type": "scalar",
-        "output_type": "both_dec2",
+        "output_type": "decision",
         "start_recall_with_ith_item_init": 1
     },
     "supervised_env": {
@@ -18,17 +18,17 @@
         "reset_state_before_test": true
     },
     "supervised_training": {
-        "num_iter": 20000,
+        "num_iter": 100000,
         "test": false,
         "test_iter": 1000,
         "save_iter": 2000,
-        "stop_test_accu": 1.01,
+        "stop_test_accu": 0.99,
         "use_memory": true,
         "train_all_time": true,
         "criterion": {
-            "class": "FreeRecallSumMSETrainEncodeTwoDecisionLoss",
+            "class": "FreeRecallSumMSETrainEncodeLoss",
             "var_weight": 2.0,
-            "output_weight": [0.95, 0.05],
+            "output_weight": [1.0],
             "encode_weight": 1.0,
             "only_encode": false
         },
@@ -44,5 +44,5 @@
     },
     "load_saved_model": true,
     "pretrain": true,
-    "context_num": 1000
+    "context_num": 1
 }

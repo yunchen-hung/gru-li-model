@@ -4,7 +4,7 @@ import gym
 
 class FreeRecall(gym.Env):
     def __init__(self, vocabulary_num=100, memory_num=10, retrieve_time_limit=15, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
-    reset_state_before_test=False, start_recall_cue=False, no_repeat_items=True, batch_size=1):
+    reset_state_before_test=False, start_recall_cue=False, no_repeat_items=True, encode_reward_weight=0.1, batch_size=1):
         self.vocabulary_num = vocabulary_num
         self.memory_num = memory_num
         self.true_reward = true_reward
@@ -15,6 +15,7 @@ class FreeRecall(gym.Env):
         self.start_recall_cue = start_recall_cue
         self.no_repeat_items = no_repeat_items
         self.batch_size = batch_size
+        self.encode_reward_weight = encode_reward_weight
 
         self.memory_sequence = self.generate_sequence()
         self.current_timestep = 0
@@ -65,6 +66,11 @@ class FreeRecall(gym.Env):
         else:
             rewards = np.zeros(batch_size)
             done = False
+            for i in range(batch_size):
+                if action[i] == self.memory_sequence[i][self.current_timestep]:
+                    rewards[i] = self.true_reward * self.encode_reward_weight
+                else:
+                    rewards[i] = self.false_reward * self.encode_reward_weight
             self.current_timestep += 1
             if self.current_timestep == self.memory_num:
                 self.testing = True

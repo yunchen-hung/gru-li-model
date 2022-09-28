@@ -1,7 +1,8 @@
 {
     "model": {
         "class": "TCMRNN",
-        "hidden_dim": 64,
+        "hidden_dim": 128,
+        "slot_num": 41,
         "tau": 10,
         "act_fn": "Tanh",
         "mem_gate_type": "scalar",
@@ -10,9 +11,9 @@
     },
     "env": {
         "class": "FreeRecall",
-        "vocabulary_num": 20,
-        "memory_num": 5,
-        "retrieve_time_limit": 5,
+        "vocabulary_num": 40,
+        "memory_num": 10,
+        "retrieve_time_limit": 10,
         "start_recall_cue": false,
         "reset_state_before_test": true,
         "repeat_penalty": -1.0

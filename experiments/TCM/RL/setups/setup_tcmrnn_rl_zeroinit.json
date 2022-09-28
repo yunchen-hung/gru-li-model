@@ -1,7 +1,13 @@
 {
     "model": {
         "class": "TCMRNN",
-        "hidden_dim": 21
+        "hidden_dim": 64,
+        "tau": 10,
+        "act_fn": "Tanh",
+        "mem_gate_type": "scalar",
+        "output_type": "recalled_item",
+        "init_state_type": "all_zeros",
+        "evolve_state_between_phases": true
     },
     "env": {
         "class": "FreeRecall",
@@ -9,19 +15,19 @@
         "memory_num": 5,
         "retrieve_time_limit": 5,
         "start_recall_cue": false,
-        "reset_state_before_test": false,
+        "reset_state_before_test": true,
         "repeat_penalty": -1.0
     },
     "training": {
-        "num_iter": 200000,
+        "num_iter": 100000,
         "test": false,
         "test_iter": 1000,
-        "save_iter": 5000,
+        "save_iter": 2000,
         "use_memory": true,
+        "stop_test_accu": 0.99,
         "criterion": {
             "class": "A2CLoss",
-            "use_V": false,
-            "returns_normalize": false
+            "use_V": false
         },
         "optimizer": {
             "class": "Adam",
@@ -32,7 +38,7 @@
             "min_lr": 1e-8
         }
     },
-    "load_saved_model": false,
-    "pretrain": true,
+    "load_saved_model": true,
+    "pretrain": false,
     "context_num": 1000
 }

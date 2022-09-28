@@ -8,7 +8,7 @@ from .utils import count_accuracy, save_model
 
 # TODO: support other RL algorithms
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9):
+    model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9, train_all_time=False):
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
     test_accuracies = []
     test_errors = []
@@ -91,7 +91,10 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
 
-        loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], device=device)
+        if train_all_time:
+            loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, device=device)
+        else:
+            loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], device=device)
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
@@ -109,6 +112,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         if i % test_iter == 0:
             print(env.memory_sequence[0], torch.tensor(actions[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.tensor(actions_max[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
+            if train_all_time:
+                print(torch.tensor(actions[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
+                    torch.tensor(actions_max[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
 
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
@@ -277,7 +283,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         if i % test_iter == 0:
             if isinstance(outputs, tuple):
                 if len(outputs) == 3:
-                    print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
+                    print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0],
                         list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
                         list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)),
                         list(torch.argmax(outputs[2][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)))
@@ -286,7 +292,8 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                         list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
                         list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)))
             else:
-                print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0])
+                print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
+                    torch.argmax(outputs[:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1))
             # print(outputs)
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num

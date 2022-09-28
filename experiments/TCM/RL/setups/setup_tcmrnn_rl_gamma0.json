@@ -1,42 +1,38 @@
 {
-    "run_num": 3,
     "model": {
         "class": "TCMRNN",
         "hidden_dim": 64,
         "tau": 10,
         "act_fn": "Tanh",
         "mem_gate_type": "scalar",
-        "output_type": "both_dec2",
+        "output_type": "recalled_item",
         "start_recall_with_ith_item_init": 1
     },
-    "supervised_env": {
+    "env": {
         "class": "FreeRecall",
         "vocabulary_num": 20,
         "memory_num": 5,
         "retrieve_time_limit": 5,
         "start_recall_cue": false,
-        "reset_state_before_test": true
+        "reset_state_before_test": true,
+        "repeat_penalty": -1.0
     },
-    "supervised_training": {
-        "num_iter": 20000,
+    "training": {
+        "num_iter": 100000,
         "test": false,
         "test_iter": 1000,
         "save_iter": 2000,
-        "stop_test_accu": 1.01,
         "use_memory": true,
-        "train_all_time": true,
+        "stop_test_accu": 0.99,
         "criterion": {
-            "class": "FreeRecallSumMSETrainEncodeTwoDecisionLoss",
-            "var_weight": 2.0,
-            "output_weight": [0.95, 0.05],
-            "encode_weight": 1.0,
-            "only_encode": false
+            "class": "A2CLoss",
+            "use_V": false,
+            "gamma": 0.0
         },
         "optimizer": {
             "class": "Adam",
-            "lr": 1e-3,
-            "weight_decay": 2e-5,
-            "lr_decay_factor": 0.5,
+            "lr": 5e-4,
+            "lr_decay_factor": 0.2,
             "lr_decay_patience": 10,
             "lr_decay_threshold": 1e-3,
             "min_lr": 1e-8

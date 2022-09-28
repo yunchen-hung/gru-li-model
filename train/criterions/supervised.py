@@ -44,12 +44,19 @@ class FreeRecallSumMSETrainEncodeLoss(nn.Module):
     
     def forward(self, output, gt):
         loss = 0.0
-        assert len(output) > len(self.output_weight)
+        if len(output) == 2:
+            free_recall_output_index = [0]
+            encode_output_index = 1
+        elif len(output) == 4:
+            free_recall_output_index = [0, 1]
+            encode_output_index = 2
+        else:
+            raise AttributeError("output length must be 2 or 4")
         if not self.only_encode:
-            for i in range(2):
+            for i in free_recall_output_index:
                 loss_class = FreeRecallSumMSELoss(self.var_weight)
                 loss += loss_class(output[i], gt) * self.output_weight[i]
-        loss += mse_loss(output[2], gt) * self.encode_weight
+        loss += mse_loss(output[encode_output_index], gt) * self.encode_weight
         return loss
 
 

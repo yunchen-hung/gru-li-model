@@ -1,3 +1,4 @@
+from math import gamma
 import numpy as np
 import torch
 import torch.nn as nn
@@ -8,7 +9,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 class A2CLoss(nn.Module):
-    def __init__(self, returns_normalize=True, use_V=True, eta=0.01) -> None:
+    def __init__(self, returns_normalize=False, use_V=True, eta=0.001, gamma=0.9) -> None:
         """
         compute the objective node for policy/value networks
 
@@ -31,9 +32,10 @@ class A2CLoss(nn.Module):
         self.returns_normalize = returns_normalize
         self.use_V = use_V
         self.eta = eta
+        self.gamma = gamma
 
     def forward(self, probs, values, rewards, entropys, device='cpu'):
-        returns = compute_returns(rewards, normalize=self.returns_normalize)
+        returns = compute_returns(rewards, gamma=self.gamma, normalize=self.returns_normalize)
         policy_grads, value_losses = [], []
         # print(prob_t, v_t, R_t)
         # print(torch.tensor(probs).shape)
@@ -110,7 +112,7 @@ def compute_returns(rewards, gamma=0, normalize=False):
 
     """
     # compute cumulative discounted reward since t, for all t
-    R = 0
+    R = 0.0
     rewards = np.array(rewards)
     returns_all = []
     for i in range(rewards.shape[1]):

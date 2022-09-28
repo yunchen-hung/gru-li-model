@@ -76,9 +76,11 @@ class TCM(BasicModule):
 
 
 class TCMRNN(BasicModule):
-    def __init__(self, hidden_dim: int, slot_num=21, act_fn='ReLU', lr_cf: float = 1.0, lr_fc: float = 0.9, dt: float = 10, tau: float = 20, record_recalled: bool = False, 
-    mem_gate_type="constant", output_type="recalled_item", init_state_type="zeros", evolve_state_before_recall=False, flush_weight=1.0, noise_std=0.0,
-    evolve_state_between_phases=False, input_layer=False, start_recall_with_ith_item_init=0, use_input_gate=False, device: str = 'cpu'):
+    def __init__(self, hidden_dim: int, slot_num=21, act_fn='ReLU', lr_cf: float = 1.0, lr_fc: float = 0.9, dt: float = 10, tau: float = 20, 
+    record_recalled: bool = False, mem_gate_type="constant", output_type="recalled_item", init_state_type="zeros", evolve_state_before_recall=False, 
+    flush_weight=1.0, noise_std=0.0, evolve_state_between_phases=False, input_layer=False, start_recall_with_ith_item_init=0, use_input_gate=False, 
+    random_recall=False, recurrence_after_adding_memory=False, rec_gate_type="constant", decision_time="after_recurrence", 
+    normalize_state=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -96,6 +98,11 @@ class TCMRNN(BasicModule):
         self.evolve_state_between_phases = evolve_state_between_phases
         self.last_encoding = False  # last step is encoding, flag for one more iteration between encoding and retrieval
         self.start_recall_with_ith_item_init = start_recall_with_ith_item_init
+        self.random_recall = random_recall
+        self.recurrence_after_adding_memory = recurrence_after_adding_memory
+        self.decision_time = decision_time      # after_recurrence or after_recall
+        self.normalize_state = normalize_state
+
         self.current_timestep = 0
         
         self.hidden_dim = hidden_dim
@@ -115,6 +122,17 @@ class TCMRNN(BasicModule):
             self.mem_gate = 0.5
         else:
             raise AttributeError("Invalid memory gate type, should be vector or scalar")
+
+        self.rec_gate_type = rec_gate_type
+        if rec_gate_type == "vector":
+            self.rec_gate = nn.Linear(hidden_dim, hidden_dim)
+        elif rec_gate_type == "scalar":
+            self.rec_gate = nn.Linear(hidden_dim, 1)
+        elif rec_gate_type == "constant":
+            self.rec_gate = 1.0
+        else:
+            raise AttributeError("Invalid memory gate type, should be vector or scalar")
+
         self.output_type = output_type
 
         # self.fc_in = nn.Linear(hidden_dim, hidden_dim)
@@ -142,6 +160,11 @@ class TCMRNN(BasicModule):
 
         # self.not_recalled = torch.ones(hidden_dim, device=device)
     
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.hidden_dim)
+        self.fc_hidden.weight.data.uniform_(-stdv, stdv)
+        self.fc_hidden.bias.data.zero_()
+
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
             if self.start_recall_with_ith_item_init:
@@ -159,6 +182,7 @@ class TCMRNN(BasicModule):
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
             state = self.act_fn(self.hidden_state)
+            self.write(state, 'state')
         else:
             if self.init_state_type == "zeros" or self.init_state_type == 'all_zeros':
                 self.hidden_state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
@@ -194,13 +218,21 @@ class TCMRNN(BasicModule):
                 c_in = self.fc_in(c_in)
             if self.use_input_gate:
                 c_in = c_in * torch.min(self.input_gate, torch.tensor(5.0))
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
+            if self.decision_time == "after_recall":
+                decision = softmax(self.fc_decision(state + c_in))
+            if self.recurrence_after_adding_memory:
+                self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state + c_in)) * self.alpha + noise
+            else:
+                self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
             state = self.act_fn(self.hidden_state)
+            if self.normalize_state:
+                state = F.normalize(state, p=2)
             self.W_fc = self.W_fc + self.lr_fc * torch.einsum("ik,ij->ikj", [state, inp])    # each column is a state
             self.W_cf = self.W_cf + self.lr_cf * torch.einsum("ik,ij->ikj", [inp, state])    # store memory, each row is a state
             # print(self.hidden_state)
             # print(state)
-            decision = softmax(self.fc_decision(state))
+            if self.decision_time == "after_recurrence":
+                decision = softmax(self.fc_decision(state))
             # print(inp, c_in, state, self.W_fc, self.W_cf)
             if self.output_type == "decision":
                 output = decision
@@ -249,15 +281,21 @@ class TCMRNN(BasicModule):
                 state_for_recall = state
 
             if self.mem_gate_type == "constant":
-                gate = self.mem_gate
+                mem_gate = self.mem_gate
             else:
-                gate = self.mem_gate(state_for_recall).sigmoid()
+                mem_gate = self.mem_gate(state_for_recall).sigmoid()
+            if self.rec_gate_type == "constant":
+                rec_gate = self.rec_gate
+            else:
+                rec_gate = self.rec_gate(state_for_recall).sigmoid()
 
-            f_in_raw = torch.bmm(self.W_cf, torch.unsqueeze(state_for_recall, dim=2)).squeeze(2)
+            f_in_raw = torch.bmm(F.normalize(self.W_cf, p=2, dim=2), F.normalize(torch.unsqueeze(state_for_recall, dim=2), p=2)).squeeze(2)
             f_in = softmax(f_in_raw)
             # f_in_inhibit_recall = f_in * self.not_recalled
-            retrieved_idx = torch.argmax(f_in, dim=1)
-            # retrieved_idx = Categorical(f_in_inhibit_recall).sample()
+            if self.random_recall:
+                retrieved_idx = Categorical(f_in).sample()
+            else:
+                retrieved_idx = torch.argmax(f_in, dim=1)
             retrieved_memory = F.one_hot(retrieved_idx, self.slot_num).float()
             retrieved_memory.requires_grad = True
             c_in = torch.bmm(self.W_fc, torch.unsqueeze(retrieved_memory, dim=2)).squeeze(2)
@@ -267,9 +305,18 @@ class TCMRNN(BasicModule):
                 noise = math.sqrt(2*self.dt)*self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
             else:
                 noise = 0
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in * gate) * self.alpha + noise
+            if self.decision_time == "after_recall":
+                decision = softmax(self.fc_decision(state * rec_gate + c_in * mem_gate))
+            if self.recurrence_after_adding_memory:
+                self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state * rec_gate + c_in * mem_gate)) * self.alpha + noise
+            else:
+                self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) * rec_gate + c_in * mem_gate) * self.alpha + noise
             state = self.act_fn(self.hidden_state)
-            decision = softmax(self.fc_decision(state))
+            if self.normalize_state:
+                state = F.normalize(state, p=2)
+                
+            if self.decision_time == "after_recurrence":
+                decision = softmax(self.fc_decision(state))
 
             # self.W_fc = self.W_fc - self.lr_fc * torch.outer(state.squeeze(), retrieved_memory.squeeze())
             # self.not_recalled[retrieved_idx] = 0
@@ -298,7 +345,9 @@ class TCMRNN(BasicModule):
             self.write(retrieved_memory, 'retrieved_memory')
             self.write(state, 'state')
             self.write(decision, 'decision')
-            self.write(gate, 'mem_gate_recall')
+            self.write(mem_gate, 'mem_gate_recall')
+            if self.rec_gate_type != "constant":
+                self.write(rec_gate, 'rec_gate_recall')
 
             return output, value, state
     

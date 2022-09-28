@@ -29,6 +29,7 @@ class PCA:
         self.min_x = np.min(self.proj_act[:, :, 0])
         self.max_y = np.max(self.proj_act[:, :, 1])
         self.min_y = np.min(self.proj_act[:, :, 1])
+        print("PCA explained variance: ", self.pca.explained_variance_ratio_)
         return self
 
     def fit_transform(self, dataset):
@@ -67,7 +68,7 @@ class PCA:
         if end_step is None:
             end_step = self.n_steps
         n_steps = end_step - start_step
-        colors = np.array([plt.cm.winter(i) for i in np.linspace(0, 1, n_steps)])
+        colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
 
         plt.figure(figsize=(3.5, 3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
@@ -80,9 +81,9 @@ class PCA:
                 ax.plot3D(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], proj_act[i, start_step:end_step, 2], color="grey")
         for i in range(start_step, end_step):
             if not show_3d:
-                ax.scatter(proj_act[:, i, 0], proj_act[:, i, 1], color=colors[i-start_step], zorder=2)
+                ax.scatter(proj_act[:, i, 0], proj_act[:, i, 1], s=10, marker='o', facecolors='none', edgecolors=colors[i-start_step], zorder=2)
             else:
-                ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step])
+                ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step], marker='o', markerfacecolor='none')
 
         plt.xlim(self.min_x - 0.5, self.max_x + 0.5)
         plt.ylim(self.min_y - 0.5, self.max_y + 0.5)
@@ -92,10 +93,15 @@ class PCA:
         if show_3d:
             ax.set_zlabel("PC3")
 
-        handles = []
-        handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
-        handles.append(mpatches.Patch(color=colors[-1], label="last timestep"))
-        plt.legend(handles=handles, frameon=False)
+        cmap = plt.cm.rainbow.reversed()
+        norm = plt.Normalize(start_step+1, end_step)
+        cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="timesteps")
+        cb.set_ticks(np.arange(start_step+1, end_step+1))
+
+        # handles = []
+        # handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
+        # handles.append(mpatches.Patch(color=colors[-1], label="last timestep"))
+        # plt.legend(handles=handles, frameon=False)
 
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
