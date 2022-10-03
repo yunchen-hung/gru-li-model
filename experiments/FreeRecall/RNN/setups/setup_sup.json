@@ -1,21 +1,22 @@
 {
     "model": {
         "class": "ValueMemoryCTRNN",
-        "hidden_dim": 256,
+        "hidden_dim": 128,
+        "decision_dim": 64,
         "output_dim": 21,
         "use_memory": true,
         "subclasses": [{
             "name": "planning_module",
             "class": "CTRNN",
             "input_dim": 22,
-            "hidden_dim": 256,
+            "hidden_dim": 128,
             "act_fn": "Tanh",
             "dt": 50,
             "tau": 100
         },{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
+            "value_dim": 128,
             "capacity": 5,
             "subclasses": [
                 {
@@ -53,7 +54,7 @@
             "min_lr": 1e-8
         } 
     },
-    "load_saved_model": false,
+    "load_saved_model": true,
     "pretrain": true,
     "context_num": 1000
 }

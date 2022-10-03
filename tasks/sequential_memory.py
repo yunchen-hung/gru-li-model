@@ -8,13 +8,15 @@ import gym
 
 
 class SequentialMemory(gym.Env):
-    def __init__(self, vocabulary_num=100, memory_num=10, retrieve_time_limit=15, true_reward=1.0, false_reward=-0.1, reset_state_before_test=False):
+    def __init__(self, vocabulary_num=100, memory_num=10, retrieve_time_limit=15, true_reward=1.0, false_reward=-0.1, 
+    reset_state_before_test=False, start_recall_cue=False):
         self.vocabulary_num = vocabulary_num
         self.memory_num = memory_num
         self.true_reward = true_reward
         self.false_reward = false_reward
         self.retrieve_time_limit = max(retrieve_time_limit, memory_num)
         self.reset_state_before_test = reset_state_before_test
+        self.start_recall_cue = start_recall_cue
         self.batch_size = 1
 
         self.memory_sequence = self.generate_sequence()
@@ -28,7 +30,10 @@ class SequentialMemory(gym.Env):
         return rand_index[:self.memory_num]
     
     def step(self, action):
+        start_recall = 0
         if self.testing:
+            if self.current_timestep == 0:
+                start_recall = 1
             if action == self.memory_sequence[self.reported_memory]:
                 reward = self.true_reward
                 self.reported_memory += 1
@@ -59,26 +64,40 @@ class SequentialMemory(gym.Env):
             else:
                 observation = np.eye(self.vocabulary_num+1)[self.memory_sequence[self.current_timestep]]
                 info = {"encoding_on": True, "retrieval_off": True}
+        if self.start_recall_cue:
+            observation = np.concatenate((observation, np.array([start_recall])))
         return observation, reward, done, info
 
-    def reset(self):
-        self.memory_sequence = self.generate_sequence()
+    def reset(self, regenerate_contexts=True):
+        if regenerate_contexts:
+            self.memory_sequence = self.generate_sequence()
         self.current_timestep = 0
         self.testing = False
         self.reported_memory = 0
         info = {"encoding_on": True, "retrieval_off": True}
-        return np.eye(self.vocabulary_num+1)[self.memory_sequence[self.current_timestep]], info
+        observation = np.eye(self.vocabulary_num+1)[self.memory_sequence[self.current_timestep]]
+        if self.start_recall_cue:
+            observation = np.concatenate((observation, np.array([0])))
+        return observation, info
 
     def render(self, mode='human'):
         pass
     
     def get_batch(self):
-        stim = np.eye(self.vocabulary_num+1)[self.memory_sequence]
-        blank = np.zeros((self.memory_num, self.vocabulary_num+1))
-        data = np.concatenate((stim, blank), axis=0)
-        gt = np.concatenate((blank, stim), axis=0)
-        # blank_gt = np.zeros(self.memory_num)
-        # gt = np.concatenate((blank_gt, self.memory_sequence), axis=0)
+        if self.start_recall_cue:
+            stim = np.eye(self.vocabulary_num+2)[self.memory_sequence]
+            stim_blank = np.zeros((self.memory_num, self.vocabulary_num+2))
+            stim_blank[0, self.vocabulary_num+1] = 1
+            data = np.concatenate((stim, stim_blank), axis=0)
+            gt_blank = np.zeros((self.memory_num, self.vocabulary_num+1))
+            gt = np.concatenate((gt_blank, stim[:, 0:self.vocabulary_num+1]), axis=0)
+        else:
+            stim = np.eye(self.vocabulary_num+1)[self.memory_sequence]
+            blank = np.zeros((self.memory_num, self.vocabulary_num+1))
+            data = np.concatenate((stim, blank), axis=0)
+            gt = np.concatenate((blank, stim), axis=0)
+            # blank_gt = np.zeros(self.memory_num)
+            # gt = np.concatenate((blank_gt, self.memory_sequence), axis=0)
         return data, gt
 
     def compute_accuracy(self, actions):
@@ -99,6 +118,19 @@ class SequentialMemory(gym.Env):
                 break
         return correct_actions, wrong_actions, not_know_actions
 
+    def compute_rewards(self, actions):
+        rewards = []
+        for t, action in enumerate(actions):
+            if t < self.memory_num:
+                rewards.append(0.0)
+            else:
+                if action == self.memory_sequence[t - self.memory_num]:
+                    rewards.append(self.true_reward)
+                elif action == 0:
+                    rewards.append(0.0)
+                else:
+                    rewards.append(self.false_reward)
+        return rewards
 
 
 # class SequentialMemory(gym.Env):

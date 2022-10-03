@@ -40,26 +40,26 @@ def load_setup(setup_path):
 
 def parse_setup(setup, device):
     model = load_model(setup.pop("model"), device)
-    if "env" in setup:
-        env = load_environment(setup.pop("env"))
-    else:
-        env = None
-    if "supervised_env" in setup:
-        sup_env = load_environment(setup.pop("supervised_env"))
-    else:
-        sup_env = None
-    if "training" in setup:
-        optimizer, scheduler = load_optimizer(setup["training"].pop("optimizer"), model)
-        criterion = load_criterion(setup["training"].pop("criterion"))
-    else:
-        optimizer, scheduler, criterion = None, None, None
-    if "supervised_training" in setup:
-        sup_optimizer, sup_scheduler = load_optimizer(setup["supervised_training"].pop("optimizer"), model)
-        sup_criterion = load_criterion(setup["supervised_training"].pop("criterion"))
-    else:
-        sup_optimizer, sup_scheduler, sup_criterion = None, None, None
     setup["model_name"] = model.__class__.__name__
-    return model, env, optimizer, scheduler, criterion, sup_env, sup_optimizer, sup_scheduler, sup_criterion, setup
+
+    training_setups = setup.pop("training")
+    envs, optimizers, schedulers, criterions = [], [], [], []
+    for training_setup in training_setups:
+        if "env" in training_setup:
+            env = load_environment(training_setup.pop("env"))
+        else:
+            env = None
+        if "trainer" in training_setup:
+            optimizer, scheduler = load_optimizer(training_setup["trainer"].pop("optimizer"), model)
+            criterion = load_criterion(training_setup["trainer"].pop("criterion"))
+        else:
+            optimizer, scheduler, criterion = None, None, None
+        envs.append(env)
+        optimizers.append(optimizer)
+        schedulers.append(scheduler)
+        criterions.append(criterion)
+    
+    return model, envs, optimizers, schedulers, criterions, training_setups, setup
 
 
 def load_model(setup, device):
@@ -85,7 +85,7 @@ def load_environment(setup):
 
 def load_optimizer(setup, model):
     optimizer_class = setup.pop("class")
-    optimizer = import_attr("torch.optim.{}".format(optimizer_class))(model.parameters(), lr=setup["lr"])
+    optimizer = import_attr("torch.optim.{}".format(optimizer_class))(model.parameters(), lr=setup["lr"], weight_decay=setup.get("weight_decay", 0))
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=setup.get("lr_decay_factor", 1e-3), patience=setup.get("lr_decay_patience", 30), 
         threshold=setup.get("lr_decay_threshold", 1e-3), min_lr=setup.get("min_lr", 1e-8), verbose=True)
     return optimizer, scheduler

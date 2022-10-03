@@ -1,22 +1,22 @@
 {
     "model": {
         "class": "ValueMemoryLSTM",
-        "input_dim": 21,
-        "hidden_dim": 256,
-        "decision_dim": 128,
+        "input_dim": 22,
+        "hidden_dim": 128,
+        "decision_dim": 64,
         "output_dim": 21,
+        "use_memory": true,
+        "use_mem_gate": true,
         "subclasses": [{
             "name":"memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
-            "capacity": 6,
+            "value_dim": 128,
+            "capacity": 5,
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "LCASimilarity",
-                    "lca_cycles": 5,
-                    "input_size": 6,
-                    "lateral_inhibition": 0.1
+                    "class": "BasicSimilarity",
+                    "find_max": false
                 }
             ]
         }]
@@ -25,18 +25,23 @@
         "class": "SequentialMemory",
         "vocabulary_num": 20,
         "memory_num": 5,
-        "retrieve_time_limit": 10,
-        "reset_state_before_test": false
+        "retrieve_time_limit": 5,
+        "reset_state_before_test": true,
+        "start_recall_cue": true
     },
     "training": {
-        "num_iter": 5000,
+        "num_iter": 200000,
         "test": false,
-        "test_iter": 100,
-        "save_iter": 500,
+        "test_iter": 1000,
+        "save_iter": 2000,
+        "use_memory": true,
+        "criterion": {
+            "class": "A2CLoss"
+        },
         "optimizer": {
             "class": "Adam",
             "lr": 5e-4,
-            "lr_decay_factor": 0.5,
+            "lr_decay_factor": 0.2,
             "lr_decay_patience": 10,
             "lr_decay_threshold": 1e-3,
             "min_lr": 1e-8
@@ -46,15 +51,18 @@
         "class": "SequentialMemory",
         "vocabulary_num": 20,
         "memory_num": 5,
-        "retrieve_time_limit": 10,
-        "reset_state_before_test": false
+        "retrieve_time_limit": 5,
+        "reset_state_before_test": false,
+        "start_recall_cue": true
     },
     "supervised_training": {
         "num_iter": 50000,
         "test": false,
         "test_iter": 500,
         "save_iter": 1000,
-        "criterion": "CrossEntropyLoss",
+        "criterion": {
+            "class": "MSELoss"
+        },
         "optimizer": {
             "class": "Adam",
             "lr": 1e-3,
@@ -64,6 +72,6 @@
             "min_lr": 1e-8
         }
     },
-    "load_saved_model": true,
-    "pretrain": false
+    "load_saved_model": false,
+    "pretrain": true
 }

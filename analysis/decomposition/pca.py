@@ -18,9 +18,18 @@ class PCA:
         """
         self.dt = 1
         act = dataset
-        self.n_steps, self.n_traj = act.shape[1], act.shape[0]
-        X = act.reshape(act.shape[0] * act.shape[1], -1)
+        if len(act.shape) == 3:
+            self.n_steps, self.n_traj = act.shape[1], act.shape[0]
+            X = act.reshape(act.shape[0] * act.shape[1], -1)
+        else:
+            self.n_steps, self.n_traj = act.shape[0], 1
+            X = act
         self.proj_act = self.pca.fit_transform(X).reshape(self.n_traj, self.n_steps, -1)
+        self.max_x = np.max(self.proj_act[:, :, 0])
+        self.min_x = np.min(self.proj_act[:, :, 0])
+        self.max_y = np.max(self.proj_act[:, :, 1])
+        self.min_y = np.min(self.proj_act[:, :, 1])
+        print("PCA explained variance: ", self.pca.explained_variance_ratio_)
         return self
 
     def fit_transform(self, dataset):
@@ -53,15 +62,15 @@ class PCA:
             savefig(save_path, "pca_temporal", pdf=pdf)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None):
+    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, display_start_step=None, display_end_step=None):
         if start_step is None:
             start_step = 0
         if end_step is None:
             end_step = self.n_steps
         n_steps = end_step - start_step
-        colors = np.array([plt.cm.winter(i) for i in np.linspace(0, 1, n_steps)])
+        colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
 
-        plt.figure(figsize=(3, 3), dpi=180)
+        plt.figure(figsize=(3.5, 3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
         proj_act = self.proj_act
@@ -72,22 +81,33 @@ class PCA:
                 ax.plot3D(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], proj_act[i, start_step:end_step, 2], color="grey")
         for i in range(start_step, end_step):
             if not show_3d:
-                ax.scatter(proj_act[:, i, 0], proj_act[:, i, 1], color=colors[i-start_step], zorder=2)
+                ax.scatter(proj_act[:, i, 0], proj_act[:, i, 1], s=10, marker='o', facecolors='none', edgecolors=colors[i-start_step], zorder=2)
             else:
-                ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step])
+                ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step], marker='o', markerfacecolor='none')
+
+        plt.xlim(self.min_x - 0.5, self.max_x + 0.5)
+        plt.ylim(self.min_y - 0.5, self.max_y + 0.5)
 
         ax.set_xlabel("PC1")
-        ax.set_xticks([])
         ax.set_ylabel("PC2")
-        ax.set_yticks([])
         if show_3d:
             ax.set_zlabel("PC3")
-            ax.set_zticks([])
 
-        handles = []
-        handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
-        handles.append(mpatches.Patch(color=colors[-1], label="last timestep"))
-        plt.legend(handles=handles, frameon=False)
+        display_start_step = display_start_step if display_start_step is not None else start_step
+        display_end_step = display_end_step if display_end_step is not None else end_step
+        cmap = plt.cm.rainbow.reversed()
+        norm = plt.Normalize(display_start_step+1, display_end_step)
+        cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="timesteps")
+        cb.set_ticks(np.arange(display_start_step+1, display_end_step+1))
+
+        # handles = []
+        # handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
+        # handles.append(mpatches.Patch(color=colors[-1], label="last timestep"))
+        # plt.legend(handles=handles, frameon=False)
+
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
         if save_path is not None:
