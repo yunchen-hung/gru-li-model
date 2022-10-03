@@ -1,5 +1,5 @@
 {
-    "run_num": [2, 3],
+    "run_num": 3,
     "model": {
         "class": "TCMRNN",
         "hidden_dim": 64,
@@ -7,8 +7,7 @@
         "act_fn": "Tanh",
         "mem_gate_type": "scalar",
         "output_type": "decision",
-        "start_recall_with_ith_item_init": 1,
-        "decision_time": "after_recall"
+        "start_recall_with_ith_item_init": 5
     },
     "training": [{
         "env": {
@@ -54,11 +53,11 @@
             "reset_state_before_test": true
         },
         "trainer": {
-            "num_iter": 20000,
+            "num_iter": 100000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
-            "stop_test_accu": 1.01,
+            "stop_test_accu": 0.99,
             "use_memory": true,
             "train_all_time": true,
             "criterion": {

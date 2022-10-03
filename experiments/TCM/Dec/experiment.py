@@ -50,7 +50,31 @@ def run(data, model, env, paths):
         savefig(paths["fig"]/"recall_behavior", "timestep_{}".format(i))
 
     # f_in imshow
-    similarity = readouts[0][0]["f_in"][:, 0, memory_contexts[0][0][0]]
+    similarity = readouts[0][0]["f_in_raw"][:, 0, memory_contexts[0][0][0]]
+    for i in range(similarity.shape[0]):
+        similarity[i] = softmax_np(similarity[i])
+    plt.imshow(similarity, cmap="Blues")
+    plt.colorbar()
+    plt.xlabel("encoding timestep")
+    plt.ylabel("recall timestep")
+    plt.title("recalling state-memory similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
+    savefig(paths["fig"], "similarity_memory")
+
+    similarities = []
+    for i in range(context_num):
+        similarity = readouts[i][0]["f_in_raw"][:, 0, memory_contexts[i][0][0]]
+        for j in range(similarity.shape[0]):
+            similarity[j] = softmax_np(similarity[j])
+        similarities.append(similarity)
+    similarities = np.stack(similarities)
+    similarity = np.mean(similarities, axis=0)
+    plt.imshow(similarity, cmap="Blues")
+    plt.colorbar()
+    plt.xlabel("encoding timestep")
+    plt.ylabel("recall timestep")
+    plt.title("recalling state-memory similarity\nmean of 20 trials")
+    savefig(paths["fig"], "similarity_memory_mean")
+    
     plt.imshow(similarity, cmap="Blues")
     plt.colorbar()
     plt.xlabel("encoding timestep")
@@ -137,15 +161,25 @@ def run(data, model, env, paths):
         savefig(paths["fig"]/"recall_prob", "timestep_{}".format(t+1))
 
     # PCA
-    lstm_states = []
+    states = []
     for i in range(context_num):
-        lstm_states.append(readouts[i][0]['state'])
-    lstm_states = np.stack(lstm_states).squeeze()
+        states.append(readouts[i][0]['state'])
+    states = np.stack(states).squeeze()
     pca = PCA()
-    pca.fit(lstm_states)
+    pca.fit(states)
     pca.visualize_state_space(save_path=paths["fig"]/"pca"/"memorizing", end_step=env.memory_num)
     pca.visualize_state_space(save_path=paths["fig"]/"pca"/"recalling", start_step=env.memory_num, end_step=env.memory_num*2)
     pca.visualize_state_space(save_path=paths["fig"]/"pca")
+
+    half_states = []
+    for i in range(context_num):
+        half_states.append(readouts[i][0]['half_state'])
+    half_states = np.stack(half_states).squeeze()
+    pca = PCA()
+    pca.fit(half_states)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"half_state"/"memorizing", end_step=env.memory_num)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"half_state"/"recalling", start_step=env.memory_num, end_step=env.memory_num*2)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"half_state")
 
     # SVM
     c_memorizing = np.stack([readouts[i][0]['state'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
@@ -160,3 +194,29 @@ def run(data, model, env, paths):
     svm.fit(c_recalling, memory_sequence)
     svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")
     svm.visualize_by_memory(save_path=paths["fig"]/"svm"/"c_rec")
+
+    # PCA combining states and half_states
+    states = []
+    for i in range(context_num):
+        states.append(readouts[i][0]['state'])
+    states = np.stack(states).squeeze()
+
+    half_states = []
+    for i in range(context_num):
+        half_states.append(readouts[i][0]['half_state'])
+    half_states = np.stack(half_states).squeeze()
+
+    all_states = np.concatenate([states, half_states], axis=1)
+    timesteps = states.shape[1]
+
+    pca = PCA()
+    pca.fit(all_states)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"all_together"/"memorizing", end_step=env.memory_num)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"all_together"/"recalling", start_step=env.memory_num, end_step=env.memory_num*2)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"all_together", end_step=env.memory_num*2)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"all_together"/"half_state"/"memorizing", start_step=timesteps, end_step=timesteps+env.memory_num,
+        display_start_step=0, display_end_step=env.memory_num)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"all_together"/"half_state"/"recalling", start_step=timesteps+env.memory_num, end_step=timesteps+env.memory_num*2,
+        display_start_step=env.memory_num, display_end_step=env.memory_num*2)
+    pca.visualize_state_space(save_path=paths["fig"]/"pca"/"all_together"/"half_state", start_step=timesteps, end_step=timesteps+env.memory_num*2,
+        display_start_step=0, display_end_step=env.memory_num*2)

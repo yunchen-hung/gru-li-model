@@ -9,7 +9,8 @@ from ..basic_module import BasicModule
 
 
 class TCM(BasicModule):
-    def __init__(self, dim: int, lr_cf: float = 1.0, lr_fc: float = 0.9, alpha: float = 0.5, threshold = 0.0, device: str = 'cpu'):
+    def __init__(self, dim: int, lr_cf: float = 1.0, lr_fc: float = 0.9, alpha: float = 0.5, threshold = 0.0, start_recall_with_ith_item_init=0, 
+    rand_mem=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -21,47 +22,71 @@ class TCM(BasicModule):
         self.alpha = alpha
         self.threshold = threshold
         self.dim = dim
+        self.rand_mem = rand_mem
 
         self.W_cf = torch.zeros((dim, dim), device=device)
         self.W_fc = torch.eye(dim, device=device) * (1 - lr_fc)
+        # self.W_cf = torch.zeros((1, dim, dim), device=device, requires_grad=True)
+        # self.W_fc = (torch.eye(dim, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
 
         self.not_recalled = torch.ones(dim, device=device)
 
         self.empty_parameter = nn.Parameter(torch.zeros(1, device=device))
+
+        self.start_recall_with_ith_item_init = start_recall_with_ith_item_init
+        self.ith_item_state = torch.zeros((1, self.dim), device=self.device, requires_grad=True)
     
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
+        self.current_timestep = 0
+        if recall and self.start_recall_with_ith_item_init:
+            return self.ith_item_state.clone()
         return torch.zeros((batch_size, self.dim), device=self.device)
     
     def forward(self, inp, state):
         if self.encoding:
-            c_in = torch.mv(self.W_fc, inp)
+            c_in = torch.mv(self.W_fc, inp.squeeze())
+            # c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
             c_in = c_in / torch.norm(c_in, p=2)
-            state = F.relu(state * self.alpha + c_in * (1 - self.alpha))
+            state = state * self.alpha + c_in * (1 - self.alpha)
+            state = F.normalize(state, p=2, dim=1)
             self.W_fc = self.W_fc + self.lr_fc * torch.outer(state.squeeze(), inp.squeeze())
             self.W_cf = self.W_cf + self.lr_cf * torch.outer(inp.squeeze(), state.squeeze())
+            # self.W_fc = self.W_fc + self.lr_fc * torch.einsum("ik,ij->ikj", [state, inp])    # each column is a state
+            # self.W_cf = self.W_cf + self.lr_cf * torch.einsum("ik,ij->ikj", [inp, state])    # store memory, each row is a state
             # print(inp, c_in, state, self.W_fc, self.W_cf)
             self.write(self.W_fc, 'W_fc')
             self.write(self.W_cf, 'W_cf')
             self.write(state, 'state')
-            return inp, torch.zeros(self.dim), state
+
+            self.current_timestep += 1
+            if self.current_timestep == self.start_recall_with_ith_item_init:
+                self.ith_item_state = state.detach().clone()
+
+            return inp, torch.zeros((1, self.dim)), state
         elif self.retrieving:
             # print(state.shape, self.W_cf.shape)
-            f_in = torch.mv(self.W_cf, state.squeeze())
-            f_in_filtered = (F.relu(f_in - torch.max(f_in) * self.threshold)) * self.not_recalled
+            # f_in_raw = torch.bmm(F.normalize(self.W_cf, p=2, dim=2), F.normalize(torch.unsqueeze(state, dim=2), p=2)).squeeze(2)
+            f_in_raw = torch.mv(self.W_cf, state.squeeze())
+            # f_in_filtered = (F.relu(f_in_raw - torch.max(f_in_raw) * self.threshold)) * self.not_recalled
+            f_in = softmax(f_in_raw.unsqueeze(0) * self.not_recalled).squeeze(0)
             # print(f_in, f_in_filtered)
-            retrieved_idx = torch.argmax(f_in * self.not_recalled)
-            # retrieved_idx = Categorical(f_in_filtered).sample()
+            if self.rand_mem:
+                retrieved_idx = Categorical(f_in).sample()
+            else:
+                retrieved_idx = torch.argmax(f_in)
             retrieved_memory = torch.zeros(self.dim, device=self.device)
             retrieved_memory[retrieved_idx] = 1
             c_in = torch.mv(self.W_fc, retrieved_memory)
+            # c_in = torch.bmm(self.W_fc, torch.unsqueeze(retrieved_memory, dim=2)).squeeze(2)
             state = F.relu(state * self.alpha + c_in * (1 - self.alpha))
+            state = F.normalize(state, p=2, dim=1)
             self.not_recalled = self.not_recalled * (1 - retrieved_memory)
             # print(f_in, retrieved_idx, retrieved_memory, c_in, state)
             self.write(f_in, 'f_in')
             self.write(retrieved_idx, 'retrieved_idx')
             self.write(retrieved_memory, 'retrieved_memory')
             self.write(state, 'state')
-            return retrieved_memory, torch.zeros(self.dim), state
+            return retrieved_memory.unsqueeze(0), torch.zeros((1, self.dim)), state
     
     def set_encoding(self, status):
         self.encoding = status
@@ -79,7 +104,7 @@ class TCMRNN(BasicModule):
     def __init__(self, hidden_dim: int, slot_num=21, act_fn='ReLU', lr_cf: float = 1.0, lr_fc: float = 0.9, dt: float = 10, tau: float = 20, 
     record_recalled: bool = False, mem_gate_type="constant", output_type="recalled_item", init_state_type="zeros", evolve_state_before_recall=False, 
     flush_weight=1.0, noise_std=0.0, evolve_state_between_phases=False, input_layer=False, start_recall_with_ith_item_init=0, use_input_gate=False, 
-    random_recall=False, recurrence_after_adding_memory=False, rec_gate_type="constant", decision_time="after_recurrence", 
+    random_recall=False, recurrence_after_adding_memory=False, rec_gate_type="constant", decision_time="after_recurrence", small_init_weight=False,
     normalize_state=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
@@ -102,6 +127,7 @@ class TCMRNN(BasicModule):
         self.recurrence_after_adding_memory = recurrence_after_adding_memory
         self.decision_time = decision_time      # after_recurrence or after_recall
         self.normalize_state = normalize_state
+        self.small_init_weight = small_init_weight
 
         self.current_timestep = 0
         
@@ -159,6 +185,8 @@ class TCMRNN(BasicModule):
             self.h0_recall = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
 
         # self.not_recalled = torch.ones(hidden_dim, device=device)
+        if self.small_init_weight:
+            self.reset_parameters()
     
     def reset_parameters(self):
         stdv = 1. / math.sqrt(self.hidden_dim)
@@ -222,8 +250,10 @@ class TCMRNN(BasicModule):
                 decision = softmax(self.fc_decision(state + c_in))
             if self.recurrence_after_adding_memory:
                 self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state + c_in)) * self.alpha + noise
+                self.write(state + c_in, "half_state")
             else:
                 self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
+                self.write(self.fc_hidden(state), "half_state")
             state = self.act_fn(self.hidden_state)
             if self.normalize_state:
                 state = F.normalize(state, p=2)
@@ -309,8 +339,10 @@ class TCMRNN(BasicModule):
                 decision = softmax(self.fc_decision(state * rec_gate + c_in * mem_gate))
             if self.recurrence_after_adding_memory:
                 self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state * rec_gate + c_in * mem_gate)) * self.alpha + noise
+                self.write(state * rec_gate + c_in * mem_gate, "half_state")
             else:
                 self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) * rec_gate + c_in * mem_gate) * self.alpha + noise
+                self.write(self.fc_hidden(state) * rec_gate, "half_state")
             state = self.act_fn(self.hidden_state)
             if self.normalize_state:
                 state = F.normalize(state, p=2)
@@ -341,6 +373,7 @@ class TCMRNN(BasicModule):
             value = self.fc_critic(state)
 
             self.write(f_in, 'f_in')
+            self.write(f_in_raw, 'f_in_raw')
             self.write(retrieved_idx, 'retrieved_idx')
             self.write(retrieved_memory, 'retrieved_memory')
             self.write(state, 'state')

@@ -34,7 +34,7 @@ def run(data, model, env, paths):
             item = item[0]
             recalled_items.append(item)
         f = readouts[0][0]["f_in"][i]
-        plt.plot(f[0][memory_contexts[0][0][0]], zorder=1, label="context-memory similarity")
+        plt.plot(f[memory_contexts[0][0][0]], zorder=1, label="context-memory similarity")
         if len(recalled_items) > 1:
             plt.scatter(np.array(recalled_items[:-1]), np.zeros(len(recalled_items)-1), zorder=2, c='g', s=100, label="previously recalled items")
         if len(recalled_items) > 0:
@@ -42,7 +42,7 @@ def run(data, model, env, paths):
         savefig(paths["fig"]/"recall_behavior", "timestep_{}".format(i))
 
     # f_in imshow
-    similarity = readouts[0][0]["f_in"][:, 0, memory_contexts[0][0][0]]
+    similarity = readouts[0][0]["f_in"][:, memory_contexts[0][0][0]]
     plt.imshow(similarity, cmap="Blues")
     plt.colorbar()
     plt.xlabel("encoding timestep")
@@ -64,18 +64,18 @@ def run(data, model, env, paths):
     # plt.tight_layout()
     # savefig(paths["fig"], "em_gate_encode")`
 
-    plt.figure(figsize=(4, 3), dpi=250)
-    for i in range(context_num):
-        readout = readouts[i][0]
-        em_gates = readout['mem_gate_recall']
-        plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:env.memory_num], label="context {}".format(i))
-    ax = plt.gca()
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    plt.xlabel("timesteps of recalling phase")
-    plt.ylabel("memory gate")
-    plt.tight_layout()
-    savefig(paths["fig"], "em_gate_recall")
+    # plt.figure(figsize=(4, 3), dpi=250)
+    # for i in range(context_num):
+    #     readout = readouts[i][0]
+    #     em_gates = readout['mem_gate_recall']
+    #     plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:env.memory_num], label="context {}".format(i))
+    # ax = plt.gca()
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # plt.xlabel("timesteps of recalling phase")
+    # plt.ylabel("memory gate")
+    # plt.tight_layout()
+    # savefig(paths["fig"], "em_gate_recall")
 
     # recalled probability
     recalled_times = np.zeros((env.memory_num, env.memory_num))
@@ -115,13 +115,13 @@ def run(data, model, env, paths):
     pca.visualize_state_space(save_path=paths["fig"]/"pca")
 
     # SVM
-    c_memorizing = np.stack([readouts[i][0]['state'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    c_recalling = np.stack([readouts[i][0]['state'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-    memory_sequence = np.stack([memory_contexts[i][0][0] for i in range(all_context_num)]).transpose(1, 0) - 1
+    # c_memorizing = np.stack([readouts[i][0]['state'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    # c_recalling = np.stack([readouts[i][0]['state'][env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+    # memory_sequence = np.stack([memory_contexts[i][0][0] for i in range(all_context_num)]).transpose(1, 0) - 1
     
-    svm = SVM()
-    svm.fit(c_memorizing, memory_sequence)
-    svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
+    # svm = SVM()
+    # svm.fit(c_memorizing, memory_sequence)
+    # svm.visualize(save_path=paths["fig"]/"svm"/"c_mem")
 
-    svm.fit(c_recalling, memory_sequence)
-    svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")
+    # svm.fit(c_recalling, memory_sequence)
+    # svm.visualize(save_path=paths["fig"]/"svm"/"c_rec")

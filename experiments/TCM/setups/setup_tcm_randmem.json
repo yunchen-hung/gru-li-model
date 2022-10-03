@@ -1,10 +1,9 @@
 {
     "run_num": 1,
     "model": {
-        "class": "TCMRNN",
-        "hidden_dim": 21,
-        "tau": 10,
-        "mem_gate_type": "scalar"
+        "class": "TCM",
+        "dim": 21,
+        "rand_mem": true
     },
     "training": [{
         "env": {
@@ -16,25 +15,23 @@
             "reset_state_before_test": false
         },
         "trainer": {
-            "num_iter": 200000,
+            "num_iter": 0,
             "test": false,
-            "test_iter": 1000,
+            "test_iter": 500,
             "save_iter": 2000,
             "stop_test_accu": 0.99,
             "use_memory": true,
             "criterion": {
-                "class": "FreeRecallSumMSELoss",
-                "var_weight": 3.0
+                "class": "FreeRecallSumMSELoss"
             },
             "optimizer": {
                 "class": "Adam",
                 "lr": 1e-3,
-                "weight_decay": 2e-5,
                 "lr_decay_factor": 0.5,
                 "lr_decay_patience": 10,
                 "lr_decay_threshold": 1e-3,
                 "min_lr": 1e-8
-            }
+            } 
         }
     }],
     "load_saved_model": false,

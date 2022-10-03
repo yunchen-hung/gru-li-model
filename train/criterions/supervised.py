@@ -70,13 +70,19 @@ class FreeRecallSumMSETrainEncodeTwoDecisionLoss(nn.Module):
     
     def forward(self, output, gt):
         loss = 0.0
-        assert len(output) == 6
-        if not self.only_encode:
-            for i in range(2):
+        if len(output) == 6:
+            if not self.only_encode:
+                for i in range(2):
+                    loss_class = FreeRecallSumMSELoss(self.var_weight)
+                    loss += loss_class(output[i], gt) * self.output_weight[i]
+            loss += mse_loss(output[3], gt) * self.encode_weight
+            loss += mse_loss(output[5][1:], gt[:-1]) * self.encode_weight
+        if len(output) == 4:
+            if not self.only_encode:
                 loss_class = FreeRecallSumMSELoss(self.var_weight)
-                loss += loss_class(output[i], gt) * self.output_weight[i]
-        loss += mse_loss(output[3], gt) * self.encode_weight
-        loss += mse_loss(output[5][1:], gt[:-1]) * self.encode_weight
+                loss += loss_class(output[0], gt) * self.output_weight[0]
+            loss += mse_loss(output[2], gt) * self.encode_weight
+            loss += mse_loss(output[3][1:], gt[:-1]) * self.encode_weight
         return loss
 
 

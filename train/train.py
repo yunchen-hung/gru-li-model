@@ -290,7 +290,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                 else:
                     print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
                         list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
-                        list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)))
+                        list(torch.argmax(outputs[1], dim=2).detach().cpu().numpy().reshape(-1)))
             else:
                 print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
                     torch.argmax(outputs[:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1))

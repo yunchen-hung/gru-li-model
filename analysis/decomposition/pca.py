@@ -62,7 +62,7 @@ class PCA:
             savefig(save_path, "pca_temporal", pdf=pdf)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None):
+    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, display_start_step=None, display_end_step=None):
         if start_step is None:
             start_step = 0
         if end_step is None:
@@ -93,10 +93,12 @@ class PCA:
         if show_3d:
             ax.set_zlabel("PC3")
 
+        display_start_step = display_start_step if display_start_step is not None else start_step
+        display_end_step = display_end_step if display_end_step is not None else end_step
         cmap = plt.cm.rainbow.reversed()
-        norm = plt.Normalize(start_step+1, end_step)
+        norm = plt.Normalize(display_start_step+1, display_end_step)
         cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="timesteps")
-        cb.set_ticks(np.arange(start_step+1, end_step+1))
+        cb.set_ticks(np.arange(display_start_step+1, display_end_step+1))
 
         # handles = []
         # handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
