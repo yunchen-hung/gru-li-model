@@ -1,12 +1,24 @@
 {
     "model": {
-        "class": "TCMRNN",
+        "class": "ValueMemoryCTRNN",
         "hidden_dim": 64,
-        "tau": 10,
-        "act_fn": "Tanh",
-        "mem_gate_type": "scalar",
-        "output_type": "decision",
-        "start_recall_with_ith_item_init": 1
+        "input_dim": 21,
+        "output_dim": 21,
+        "em_gate_type": "scalar",
+        "start_recall_with_ith_item_init": 1,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 64,
+            "capacity": 5,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax"
+                }
+            ]
+        }]
     },
     "training": [{
         "env": {
@@ -26,6 +38,7 @@
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
+            "train_all_time": true,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": false

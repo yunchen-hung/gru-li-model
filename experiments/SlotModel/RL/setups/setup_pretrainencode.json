@@ -1,13 +1,24 @@
 {
-    "run_num": 3,
     "model": {
-        "class": "TCMRNN",
+        "class": "ValueMemoryCTRNN",
         "hidden_dim": 64,
-        "tau": 10,
-        "act_fn": "Tanh",
-        "mem_gate_type": "scalar",
-        "output_type": "decision",
-        "start_recall_with_ith_item_init": 1
+        "input_dim": 21,
+        "output_dim": 21,
+        "em_gate_type": "scalar",
+        "start_recall_with_ith_item_init": 1,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 64,
+            "capacity": 5,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax"
+                }
+            ]
+        }]
     },
     "training": [{
         "env": {
@@ -50,28 +61,26 @@
             "memory_num": 5,
             "retrieve_time_limit": 5,
             "start_recall_cue": false,
-            "reset_state_before_test": true
+            "reset_state_before_test": true,
+            "repeat_penalty": -1.0
         },
         "trainer": {
+            "training_function": "train_model",
             "num_iter": 100000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
-            "stop_test_accu": 0.99,
             "use_memory": true,
+            "stop_test_accu": 0.99,
             "train_all_time": true,
             "criterion": {
-                "class": "FreeRecallSumMSETrainEncodeLoss",
-                "var_weight": 2.0,
-                "output_weight": [1.0],
-                "encode_weight": 1.0,
-                "only_encode": false
+                "class": "A2CLoss",
+                "use_V": false
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
-                "weight_decay": 2e-5,
-                "lr_decay_factor": 0.5,
+                "lr": 5e-4,
+                "lr_decay_factor": 0.2,
                 "lr_decay_patience": 10,
                 "lr_decay_threshold": 1e-3,
                 "min_lr": 1e-8
@@ -79,5 +88,6 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 20
+    "pretrain": true,
+    "context_num": 1000
 }

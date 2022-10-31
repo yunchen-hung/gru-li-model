@@ -1,22 +1,39 @@
 {
     "model": {
-        "class": "TCMRNN",
+        "class": "ValueMemoryCTRNN",
         "hidden_dim": 64,
-        "tau": 10,
-        "act_fn": "Tanh",
-        "mem_gate_type": "scalar",
-        "output_type": "decision",
-        "start_recall_with_ith_item_init": 1
+        "input_dim": 13,
+        "output_dim": 11,
+        "em_gate_type": "scalar",
+        "start_recall_with_ith_item_init": 1,
+        "softmax_beta": 0.5,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 64,
+            "capacity": 3,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax"
+                }
+            ]
+        }]
     },
     "training": [{
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 20,
-            "memory_num": 5,
-            "retrieve_time_limit": 5,
+            "vocabulary_num": 10,
+            "memory_num": 3,
+            "retrieve_time_limit": 3,
             "start_recall_cue": false,
             "reset_state_before_test": true,
-            "repeat_penalty": -1.0
+            "repeat_penalty": -1.0,
+            "true_reward": 1.0,
+            "false_reward": -0.2,
+            "return_action": true,
+            "return_reward": true
         },
         "trainer": {
             "training_function": "train_model",
@@ -28,7 +45,7 @@
             "stop_test_accu": 0.99,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": false
+                "use_V": true
             },
             "optimizer": {
                 "class": "Adam",

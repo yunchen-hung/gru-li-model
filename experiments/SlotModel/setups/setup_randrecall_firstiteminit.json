@@ -1,13 +1,26 @@
 {
-    "run_num": 3,
+    "run_num": 1,
     "model": {
-        "class": "TCMRNN",
+        "class": "ValueMemoryCTRNN",
         "hidden_dim": 64,
-        "tau": 10,
-        "act_fn": "Tanh",
-        "mem_gate_type": "scalar",
-        "output_type": "decision",
-        "start_recall_with_ith_item_init": 1
+        "input_dim": 21,
+        "output_dim": 21,
+        "em_gate_type": "scalar",
+        "start_recall_with_ith_item_init": 1,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 64,
+            "capacity": 5,
+            "random_recall": true,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax"
+                }
+            ]
+        }]
     },
     "training": [{
         "env": {
@@ -79,5 +92,5 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 20
+    "context_num": 1000
 }

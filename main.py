@@ -47,6 +47,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     else:
         run_nums = list(range(1, run_num+1))
 
+    model_all, data_all = {}, {}
     for i in run_nums:
         print("run {}".format(i))
         setup = deepcopy(setup_origin)
@@ -87,11 +88,14 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         if env:
             data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
 
-        paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup["model_name"]/run_name}
+        model_all[run_name] = model
+        data_all[run_name] = data
 
-        run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
-        if env:
-            run_exp(data, model, env, paths)
+    paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup["model_name"]}
+
+    run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
+    if env:
+        run_exp(data_all, model_all, env, paths)
 
 
 if __name__ == "__main__":

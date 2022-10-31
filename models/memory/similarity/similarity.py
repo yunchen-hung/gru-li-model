@@ -4,34 +4,36 @@ import torch.nn.functional as F
 
 from .lca import LCA
 from models.basic_module import BasicModule
+from models.utils import softmax
 
 SIMILARITY_MEASURES = ['cosine', 'l1', 'l2']
 
 
 class BasicSimilarity(BasicModule):
-    def __init__(self, similarity_measure='cosine', find_max=False, device: str = 'cpu'):
+    def __init__(self, similarity_measure='cosine', process_similarity='normalize', device: str = 'cpu'):
         super().__init__()
         self.measure = similarity_measure
-        self.find_max = find_max
+        self.process_similarity = process_similarity
         self.device = device
 
     def forward(self, query, values, input_weight=1.0):
         if self.measure == 'cosine':
-            similarities = F.cosine_similarity(query.to(self.device), values.to(self.device))
+            # print(query.shape, values.shape)
+            similarities = F.cosine_similarity(query.to(self.device), values.permute(1, 0, 2).to(self.device), dim=-1).permute(1, 0)
         elif self.measure == 'l1':
-            similarities = - F.pairwise_distance(query.to(self.device), values.to(self.device), p=1)
+            similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=1, dim=-1).permute(1, 0)
         elif self.measure == 'l2':
-            similarities = - F.pairwise_distance(query.to(self.device), values.to(self.device), p=2)
+            similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=2, dim=-1).permute(1, 0)
         else:
             raise Exception(f'Unrecognizable self.measure: {self.measure}')
         self.write(similarities, 'similarities')
-        if self.find_max:
-            similarities = F.one_hot(torch.argmax(similarities, dim=-1), num_classes=similarities.shape[-1]).to(self.device)
-            self.write(similarities, 'max_similarities')
-        else:
+        if self.process_similarity == 'normalize':
             # normalize
             similarities = similarities / torch.sum(similarities, dim=-1, keepdim=True)
-        # print(similarities.shape, input_weight.shape)
+        elif self.process_similarity == 'softmax':
+            similarities = softmax(similarities)
+        elif self.process_similarity == 'none':
+            pass
         return similarities * input_weight
 
 

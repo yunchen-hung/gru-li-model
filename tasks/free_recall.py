@@ -4,7 +4,8 @@ import gym
 
 class FreeRecall(gym.Env):
     def __init__(self, vocabulary_num=100, memory_num=10, retrieve_time_limit=15, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
-    reset_state_before_test=False, start_recall_cue=False, no_repeat_items=True, encode_reward_weight=0.1, batch_size=1):
+    reset_state_before_test=False, start_recall_cue=False, no_repeat_items=True, encode_reward_weight=0.1,
+    return_action=False, return_reward=False, batch_size=1):
         self.vocabulary_num = vocabulary_num
         self.memory_num = memory_num
         self.true_reward = true_reward
@@ -16,6 +17,8 @@ class FreeRecall(gym.Env):
         self.no_repeat_items = no_repeat_items
         self.batch_size = batch_size
         self.encode_reward_weight = encode_reward_weight
+        self.return_action = return_action
+        self.return_reward = return_reward
 
         self.memory_sequence = self.generate_sequence()
         self.current_timestep = 0
@@ -39,6 +42,11 @@ class FreeRecall(gym.Env):
         assert batch_size <= self.batch_size
         assert len(action) == batch_size
         start_recall = 0
+        if self.return_action:
+            if self.current_timestep == 0:
+                returned_actions = np.zeros((batch_size, 1))
+            else:
+                returned_actions = np.array([a.cpu().detach().item() for a in action]).reshape(-1, 1)
         if self.testing:
             if self.current_timestep == 0:
                 start_recall = 1
@@ -85,6 +93,10 @@ class FreeRecall(gym.Env):
                 info = {"encoding_on": True, "retrieval_off": True}
         if self.start_recall_cue:
             observations = np.concatenate((observations, np.array([start_recall for _ in range(batch_size)]).reshape(-1, 1)), axis=1)
+        if self.return_action:
+            observations = np.concatenate((observations, returned_actions), axis=1)
+        if self.return_reward:
+            observations = np.concatenate((observations, rewards.reshape(-1, 1)), axis=1)
         return observations, rewards, done, info
 
     def reset(self, regenerate_contexts=True, batch_size=None):
@@ -100,6 +112,10 @@ class FreeRecall(gym.Env):
         info = {"encoding_on": True, "retrieval_off": True}
         observations = np.eye(self.vocabulary_num+1)[self.memory_sequence[:, self.current_timestep]]
         if self.start_recall_cue:
+            observations = np.concatenate((observations, np.zeros((self.batch_size, 1))), axis=1)
+        if self.return_action:
+            observations = np.concatenate((observations, np.zeros((self.batch_size, 1))), axis=1)
+        if self.return_reward:
             observations = np.concatenate((observations, np.zeros((self.batch_size, 1))), axis=1)
         return observations, info
 

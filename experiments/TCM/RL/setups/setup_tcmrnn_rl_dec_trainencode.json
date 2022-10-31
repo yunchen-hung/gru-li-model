@@ -26,6 +26,7 @@
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
+            "train_all_time": true,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": false

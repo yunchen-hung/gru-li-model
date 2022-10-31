@@ -28,7 +28,7 @@
             "stop_test_accu": 0.99,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": false
+                "use_V": true
             },
             "optimizer": {
                 "class": "Adam",

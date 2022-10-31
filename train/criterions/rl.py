@@ -9,7 +9,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 class A2CLoss(nn.Module):
-    def __init__(self, returns_normalize=False, use_V=True, eta=0.001, gamma=0.9) -> None:
+    def __init__(self, returns_normalize=False, use_V=True, eta=0.001, gamma=1.0) -> None:
         """
         compute the objective node for policy/value networks
 
@@ -50,14 +50,15 @@ class A2CLoss(nn.Module):
         # print(rewards)
         # print(entropys)
         if self.use_V:
-            A = rewards - values.item()
-            value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device)), torch.squeeze(rewards.to(device)))
+            A = rewards - values.data.double()
+            value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device).float()), torch.squeeze(rewards.to(device).float()))
             # smooth_l1_loss(torch.squeeze(v_t.to(self.device)), torch.squeeze(R_t.to(self.device)))
         else:
             A = rewards
             value_losses = torch.tensor(0.0).to(device)
         # accumulate policy gradient
         policy_grads = -probs * A
+        # print(probs, A)
         policy_gradient = torch.mean(policy_grads)
         value_loss = torch.mean(value_losses)
         pi_ent = torch.mean(entropys)
