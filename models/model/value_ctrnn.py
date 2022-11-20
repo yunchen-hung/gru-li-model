@@ -10,18 +10,22 @@ from ..memory import ValueMemory
 class ValueMemoryCTRNN(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant', act_fn='Tanh', 
     em_gate_act_fn='Sigmoid', init_state_type="zeros", evolve_state_between_phases=False, dt: float = 10, tau: float = 10, noise_std=0,
-    start_recall_with_ith_item_init=0, softmax_beta=1.0, device: str = 'cpu'):
+    start_recall_with_ith_item_init=0, softmax_beta=1.0, use_memory=True, input_gate=1.0, two_decisions=False, step_for_each_timestep=None, 
+    device: str = 'cpu'):
         super().__init__()
         self.device = device
 
         self.memory_module = memory_module
+        self.use_memory = use_memory
         self.encoding = False
         self.retrieving = False
 
         self.dt = dt
         self.alpha = float(dt) / float(tau)
+        self.step_for_each_timestep = step_for_each_timestep if step_for_each_timestep is not None else int(tau / dt)
         self.noise_std = noise_std
         self.softmax_beta = softmax_beta
+        self.input_gate = input_gate
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
@@ -30,6 +34,9 @@ class ValueMemoryCTRNN(BasicModule):
         self.fc_hidden = nn.Linear(hidden_dim, hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, output_dim)
         self.fc_critic = nn.Linear(output_dim, 1)
+        if two_decisions:
+            self.fc_decision2 = nn.Linear(hidden_dim, output_dim)
+        self.two_decisions = two_decisions
 
         self.em_gate_type = em_gate_type
         if em_gate_type == "constant":
@@ -89,10 +96,10 @@ class ValueMemoryCTRNN(BasicModule):
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
         
         if self.hidden_dim == self.input_dim:
-            self.W_in = (torch.eye(self.hidden_dim, device=self.device, requires_grad=True)).repeat(batch_size, 1, 1)
+            self.W_in = (torch.eye(self.hidden_dim, device=self.device, requires_grad=True)).repeat(batch_size, 1, 1) * self.input_gate
         else:
-            self.W_in = (torch.cat((torch.eye(self.input_dim, device=self.device, requires_grad=True), \
-                        torch.zeros((self.hidden_dim-self.input_dim, self.input_dim), device=self.device, requires_grad=True)), 0)).repeat(batch_size, 1, 1)
+            self.W_in = torch.cat((torch.eye(self.input_dim, device=self.device, requires_grad=True), torch.zeros((self.hidden_dim-self.input_dim, 
+                self.input_dim), device=self.device, requires_grad=True)), 0).repeat(batch_size, 1, 1) * self.input_gate
         
         self.write(state, 'init_state')
         self.current_timestep = 0
@@ -103,18 +110,25 @@ class ValueMemoryCTRNN(BasicModule):
             c_in = torch.bmm(self.W_in, torch.unsqueeze(inp, dim=2)).squeeze(2)
             c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
 
-            if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
-            else:
-                noise = 0
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
-            self.write(self.fc_hidden(state), "half_state")
-            state = self.act_fn(self.hidden_state)
+            for _ in range(self.step_for_each_timestep):
+                if self.noise_std > 0:
+                    noise = self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
+                else:
+                    noise = 0
+                self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
+                self.write(self.fc_hidden(state), "half_state")
+                state = self.act_fn(self.hidden_state)
+                self.write(state, 'state')
 
-            self.memory_module.encode(state)
+            if self.use_memory:
+                self.memory_module.encode(state)
 
             decision = softmax(self.fc_decision(state))
+            self.write(decision, 'decision')
+            if self.two_decisions:
+                decision2 = softmax(self.fc_decision2(state))
             value = self.fc_critic(decision)
+            decision = (decision, decision2) if self.two_decisions else decision
 
             self.current_timestep += 1
             if self.current_timestep == self.start_recall_with_ith_item_init:
@@ -139,21 +153,25 @@ class ValueMemoryCTRNN(BasicModule):
 
             c_in = self.memory_module.retrieve(state)
 
-            if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
-            else:
-                noise = 0
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in * mem_gate) * self.alpha + noise
-            self.write(self.fc_hidden(state), "half_state")
-            state = self.act_fn(self.hidden_state)
+            for _ in range(self.step_for_each_timestep):
+                if self.noise_std > 0:
+                    noise = self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
+                else:
+                    noise = 0
+                self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in * mem_gate) * self.alpha + noise
+                self.write(self.fc_hidden(state), "half_state")
+                state = self.act_fn(self.hidden_state)
+                self.write(state, 'state')
                 
             decision = softmax(self.fc_decision(state), beta=self.softmax_beta)
+            self.write(decision, 'decision')
+            if self.two_decisions:
+                decision2 = softmax(self.fc_decision2(state))
             value = self.fc_critic(decision)
+            decision = (decision, decision2) if self.two_decisions else decision
             
             self.write(mem_gate, 'mem_gate_recall')
 
-        self.write(state, 'state')
-        self.write(decision, 'decision')
         # print(decision)
 
         return decision, value, state

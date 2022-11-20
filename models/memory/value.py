@@ -7,7 +7,7 @@ from ..basic_module import BasicModule
 
 
 class ValueMemory(BasicModule):
-    def __init__(self, similarity_measure, value_dim: int, capacity: int, random_recall=False, batch_size=1, device: str = 'cpu') -> None:
+    def __init__(self, similarity_measure, value_dim: int, capacity: int, recall_method="argmax", batch_size=1, device: str = 'cpu') -> None:
         super().__init__()
         self.device = device
         self.similarity_measure = similarity_measure
@@ -22,7 +22,7 @@ class ValueMemory(BasicModule):
         self.encoding = False
         self.retrieving = False
 
-        self.random_recall = random_recall
+        self.recall_method = recall_method
         self.batch_size = batch_size
 
     def reset_memory(self):
@@ -49,11 +49,16 @@ class ValueMemory(BasicModule):
         # values = self.values.detach().clone()
         similarity = self.similarity_measure(query, self.values, input_weight)
         self.write(similarity, "similarity")
-        if self.random_recall:
+        if self.recall_method == "random":
             retrieved_idx = torch.tensor([Categorical(torch.abs(similarity[i])).sample() for i in range(similarity.shape[0])])
-        else:
+            retrieved_memory = F.one_hot(retrieved_idx, self.capacity).float()
+        elif self.recall_method == "argmax":
             retrieved_idx = torch.argmax(similarity, dim=-1)
-        retrieved_memory = F.one_hot(retrieved_idx, self.capacity).float()
+            retrieved_memory = F.one_hot(retrieved_idx, self.capacity).float()
+        elif self.recall_method == "weight_sum":
+            retrieved_memory = similarity
+        else:
+            raise NotImplementedError
         # print(retrieved_memory.shape, self.values.shape)
         return torch.bmm(torch.unsqueeze(retrieved_memory, dim=1), self.values).squeeze(1)
 

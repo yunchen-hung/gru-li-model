@@ -10,10 +10,11 @@ SIMILARITY_MEASURES = ['cosine', 'l1', 'l2']
 
 
 class BasicSimilarity(BasicModule):
-    def __init__(self, similarity_measure='cosine', process_similarity='normalize', device: str = 'cpu'):
+    def __init__(self, similarity_measure='cosine', process_similarity='normalize', softmax_temperature=1.0, device: str = 'cpu'):
         super().__init__()
         self.measure = similarity_measure
         self.process_similarity = process_similarity
+        self.softmax_temperature = softmax_temperature
         self.device = device
 
     def forward(self, query, values, input_weight=1.0):
@@ -24,6 +25,8 @@ class BasicSimilarity(BasicModule):
             similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=1, dim=-1).permute(1, 0)
         elif self.measure == 'l2':
             similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=2, dim=-1).permute(1, 0)
+        elif self.measure == 'inner_product':
+            similarities = torch.bmm(F.normalize(values, p=2, dim=2), F.normalize(torch.unsqueeze(query, dim=2), p=2)).squeeze(2)
         else:
             raise Exception(f'Unrecognizable self.measure: {self.measure}')
         self.write(similarities, 'similarities')
@@ -31,7 +34,7 @@ class BasicSimilarity(BasicModule):
             # normalize
             similarities = similarities / torch.sum(similarities, dim=-1, keepdim=True)
         elif self.process_similarity == 'softmax':
-            similarities = softmax(similarities)
+            similarities = softmax(similarities, beta=self.softmax_temperature)
         elif self.process_similarity == 'none':
             pass
         return similarities * input_weight

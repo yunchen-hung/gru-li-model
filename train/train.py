@@ -4,11 +4,13 @@ import torch
 from .criterions.rl import pick_action
 from models.utils import entropy
 from .utils import count_accuracy, save_model
+from torch.nn.functional import mse_loss
 
 
 # TODO: support other RL algorithms
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9, train_all_time=False):
+    model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9, train_all_time=False, train_encode=False,
+    train_encode_2item=False):
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
     test_accuracies = []
     test_errors = []
@@ -42,6 +44,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         agent.set_retrieval(True)
 
         actions, probs, rewards, values, entropys, actions_max = [], [], [], [], [], []
+        outputs = []
 
         if keep_state:
             new_state = []
@@ -77,6 +80,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             obs_, reward, done, info = env.step(action)
             obs = torch.Tensor(obs_).to(device)
 
+            outputs.append(output)
             probs.append(log_prob_action)
             rewards.append(reward)
             values.append(value)
@@ -95,6 +99,24 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, device=device)
         else:
             loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], device=device)
+
+        if train_encode:
+            if isinstance(outputs[0], tuple):
+                outputs_ts = [[] for _ in range(len(outputs[0]))]
+                for output in outputs:
+                    for j, o in enumerate(output):
+                        outputs_ts[j].append(o)
+                for j in range(len(outputs_ts)):
+                    outputs_ts[j] = torch.stack(outputs_ts[j])
+                outputs = tuple(outputs_ts)
+            else:
+                outputs = torch.stack(outputs)
+                outputs = (outputs,)
+            _, gt = env.get_batch()
+            gt = torch.as_tensor(gt, dtype=torch.float).to(device)
+            loss += mse_loss(outputs[0][:env.memory_num], gt[:env.memory_num])
+            if train_encode_2item:
+                loss += mse_loss(outputs[1][1:env.memory_num], gt[:env.memory_num-1])
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
@@ -124,8 +146,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             mean_actor_loss = total_actor_loss / test_iter
             mean_critic_loss = total_critic_loss / test_iter
 
-            print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.2f}, actor loss: {:.2f}, '
-                'critic loss: {:.2f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss))
+            print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
+                'critic loss: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss))
 
             if soft_flush and (accuracy > soft_flush_accuracy or flush_iter >= soft_flush_iter) and flush_level < 1.0 and i != 0:
                 flush_level = min(1.0, flush_level+0.1)
@@ -143,7 +165,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 test_accuracy = accuracy
                 test_mean_loss = mean_loss
 
-            scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
+            if i != 0:
+                scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
 
             if test_error - test_accuracy < min_test_loss:
                 min_test_loss = test_error - test_accuracy

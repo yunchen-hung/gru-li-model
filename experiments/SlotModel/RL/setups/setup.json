@@ -11,11 +11,13 @@
             "class": "ValueMemory",
             "value_dim": 64,
             "capacity": 5,
+            "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "process_similarity": "softmax"
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.05
                 }
             ]
         }]
@@ -38,6 +40,7 @@
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
+            "train_all_time": true,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": false
@@ -53,6 +56,6 @@
         }
     }],
     "load_saved_model": false,
-    "pretrain": false,
+    "pretrain": true,
     "context_num": 1000
 }
