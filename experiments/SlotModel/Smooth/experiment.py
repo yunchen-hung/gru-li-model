@@ -18,8 +18,14 @@ def normalize(x):
 def run(data_all, model_all, env, paths):
     run_num = len(list(data_all.keys()))
     sim_mem, sim_enc, sim_rec, sim_enc_rec = [], [], [], []
+
+    timestep_each_phase = env.memory_num
     for run_name, data in data_all.items():
         fig_path = paths["fig"]/run_name
+
+        model = model_all[run_name]
+        step_for_each_timestep = model.step_for_each_timestep
+        # timestep_each_phase = step_for_each_timestep * env.memory_num
 
         readouts = data['readouts']
         actions = data['actions']
@@ -78,32 +84,32 @@ def run(data_all, model_all, env, paths):
             # print(states.shape)
             similarity = skp.cosine_similarity(states, states)
             # print(similarity.shape)
-            for i in range(similarity.shape[0]):
-                similarity[i, :env.memory_num] = normalize(similarity[i, :env.memory_num])
-                similarity[i, env.memory_num:] = normalize(similarity[i, env.memory_num:])
+            # for i in range(similarity.shape[0]):
+            #     similarity[i, :env.memory_num] = normalize(similarity[i, :env.memory_num])
+            #     similarity[i, env.memory_num:] = normalize(similarity[i, env.memory_num:])
             similarities.append(similarity)
         similarities = np.stack(similarities)
         similarity = np.mean(similarities, axis=0)
 
-        plt.imshow(similarity[:env.memory_num, :env.memory_num], cmap="Blues")
+        plt.imshow(similarity[:timestep_each_phase, :timestep_each_phase], cmap="Blues")
         plt.colorbar()
         plt.title("encoding state similarity".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
         savefig(fig_path, "similarity_state_encode")
-        sim_enc.append(similarity[:env.memory_num, :env.memory_num])
+        sim_enc.append(similarity[:timestep_each_phase, :timestep_each_phase])
 
-        plt.imshow(similarity[env.memory_num:, env.memory_num:], cmap="Blues")
+        plt.imshow(similarity[timestep_each_phase:, timestep_each_phase:], cmap="Blues")
         plt.colorbar()
         plt.title("recalling state similarity".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
         savefig(fig_path, "similarity_state_recall")
-        sim_rec.append(similarity[env.memory_num:, env.memory_num:])
+        sim_rec.append(similarity[timestep_each_phase:, timestep_each_phase:])
 
-        plt.imshow(similarity[env.memory_num:, :env.memory_num], cmap="Blues")
+        plt.imshow(similarity[timestep_each_phase:, :timestep_each_phase], cmap="Blues")
         plt.colorbar()
         plt.xlabel("encoding timestep")
         plt.ylabel("recalling timestep")
         plt.title("encoding-recalling state similarity".format(memory_contexts[0][0], actions[0][0][env.memory_num:]))
         savefig(fig_path, "similarity_state_encode_recall")
-        sim_enc_rec.append(similarity[env.memory_num:, :env.memory_num])
+        sim_enc_rec.append(similarity[timestep_each_phase:, :timestep_each_phase])
     
         # mem gate
         # plt.figure(figsize=(4, 3), dpi=250)
@@ -163,10 +169,12 @@ def run(data_all, model_all, env, paths):
         for i in range(context_num):
             states.append(readouts[i][0]['state'])
         states = np.stack(states).squeeze()
+        
         pca = PCA()
         pca.fit(states)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"memorizing", end_step=env.memory_num)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=env.memory_num, end_step=env.memory_num*2)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"memorizing", end_step=timestep_each_phase, title="encoding phase")
+        pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
+            title="recall phase")
         pca.visualize_state_space(save_path=fig_path/"pca")
 
         half_states = []
@@ -175,23 +183,24 @@ def run(data_all, model_all, env, paths):
         half_states = np.stack(half_states).squeeze()
         pca = PCA()
         pca.fit(half_states)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"memorizing", end_step=env.memory_num)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"recalling", start_step=env.memory_num, end_step=env.memory_num*2)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"memorizing", end_step=timestep_each_phase, title="encoding phase")
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2, 
+            title="recall phase")
         pca.visualize_state_space(save_path=fig_path/"pca"/"half_state")
 
         # SVM
-        c_memorizing = np.stack([readouts[i][0]['state'][:env.memory_num].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
-        c_recalling = np.stack([readouts[i][0]['state'][-env.memory_num:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+        c_memorizing = np.stack([readouts[i][0]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+        c_recalling = np.stack([readouts[i][0]['state'][-timestep_each_phase:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
         memory_sequence = np.stack([memory_contexts[i][0][0] for i in range(all_context_num)]).transpose(1, 0) - 1
         
         svm = SVM()
         svm.fit(c_memorizing, memory_sequence)
         svm.visualize(save_path=fig_path/"svm"/"c_mem")
-        svm.visualize_by_memory(save_path=fig_path/"svm"/"c_mem")
+        svm.visualize_by_memory(save_path=fig_path/"svm"/"c_mem", title="encoding phase")
 
         svm.fit(c_recalling, memory_sequence)
         svm.visualize(save_path=fig_path/"svm"/"c_rec")
-        svm.visualize_by_memory(save_path=fig_path/"svm"/"c_rec")
+        svm.visualize_by_memory(save_path=fig_path/"svm"/"c_rec", title="recall phase")
 
         # # TDR
         # states = []
@@ -248,26 +257,30 @@ def run(data_all, model_all, env, paths):
 
     mean_fig_path = run_name.split('-')[0]
 
+    plt.figure(figsize=(5, 4), dpi=180)
     plt.imshow(sim_mem, cmap="Blues")
     plt.colorbar()
-    plt.xlabel("encoding timestep")
-    plt.ylabel("recall timestep")
-    plt.title("recalling state-memory similarity\nmean of 10 models")
+    plt.xlabel("item position")
+    plt.ylabel("recalling timestep")
+    plt.title("recalling probability\nmean of {} models".format(run_num))
     savefig(paths['fig']/mean_fig_path, "similarity_memory_mean")
 
+    plt.figure(figsize=(5, 4), dpi=180)
     plt.imshow(sim_enc, cmap="Blues")
     plt.colorbar()
-    plt.title("encoding state similarity\nmean of 10 models")
+    plt.title("encoding state similarity\nmean of {} models".format(run_num))
     savefig(paths['fig']/mean_fig_path, "similarity_state_encode_mean")
 
-    plt.imshow(sim_rec, cmap="Blues")
+    plt.figure(figsize=(5, 4), dpi=180)
+    plt.imshow(sim_rec[:timestep_each_phase, :timestep_each_phase], cmap="Blues")
     plt.colorbar()
-    plt.title("recalling state similarity\nmean of 10 models")
+    plt.title("recalling state similarity\nmean of {} models".format(run_num))
     savefig(paths['fig']/mean_fig_path, "similarity_state_recall_mean")
 
-    plt.imshow(sim_enc_rec, cmap="Blues")
+    plt.figure(figsize=(5, 4), dpi=180)
+    plt.imshow(sim_enc_rec[:timestep_each_phase, :timestep_each_phase], cmap="Blues")
     plt.colorbar()
     plt.xlabel("encoding timestep")
     plt.ylabel("recalling timestep")
-    plt.title("encoding-recalling state similarity\nmean of 10 models")
+    plt.title("encoding-recalling state similarity\nmean of {} models".format(run_num))
     savefig(paths['fig']/mean_fig_path, "similarity_state_encode_recall_mean")

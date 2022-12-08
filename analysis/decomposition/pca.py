@@ -57,7 +57,8 @@ class PCA:
             savefig(save_path, "pca_temporal", pdf=pdf)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, display_start_step=None, display_end_step=None):
+    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, display_start_step=None, 
+        display_end_step=None, title=None):
         if start_step is None:
             start_step = 0
         if end_step is None:
@@ -107,6 +108,9 @@ class PCA:
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+
+        if title:
+            plt.title("{}, {} trials".format(title, self.n_traj))
 
         plt.tight_layout()
         if save_path is not None:

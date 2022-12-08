@@ -1,5 +1,5 @@
 {
-    "run_num": 3,
+    "run_num": 5,
     "model": {
         "class": "ValueMemoryCTRNN",
         "hidden_dim": 64,

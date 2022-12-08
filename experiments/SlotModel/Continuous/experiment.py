@@ -23,7 +23,8 @@ def run(data_all, model_all, env, paths):
 
         model = model_all[run_name]
         step_for_each_timestep = model.step_for_each_timestep
-        timestep_each_phase = step_for_each_timestep * env.memory_num
+        # timestep_each_phase = step_for_each_timestep * env.memory_num
+        timestep_each_phase = env.memory_num
 
         readouts = data['readouts']
         actions = data['actions']

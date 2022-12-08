@@ -10,7 +10,7 @@ from torch.nn.functional import mse_loss
 # TODO: support other RL algorithms
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
     model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9, train_all_time=False, train_encode=False,
-    train_encode_2item=False):
+    train_encode_2item=False, min_iter=0):
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
     test_accuracies = []
     test_errors = []
@@ -168,11 +168,11 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             if i != 0:
                 scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
 
-            if test_error - test_accuracy < min_test_loss:
+            if test_error - test_accuracy <= min_test_loss:
                 min_test_loss = test_error - test_accuracy
                 save_model(agent, model_save_path, filename="model.pt")
             
-            if test_accuracy >= stop_test_accu and i != 0:
+            if test_accuracy >= stop_test_accu and i > min_iter:
                 print("training end")
                 break
 
@@ -188,7 +188,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
 
 def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
-    train_all_time=False, device='cpu', model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9):
+    train_all_time=False, device='cpu', model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9, min_iter=0):
     actions_correct_num, actions_wrong_num, actions_total_num, total_loss = 0, 0, 0, 0.0
     test_accuracies = []
     test_errors = []
@@ -345,11 +345,11 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
             if i != 0:
                 scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
 
-            if test_error - test_accuracy < min_test_loss:
+            if test_error - test_accuracy <= min_test_loss:
                 min_test_loss = test_error - test_accuracy
                 save_model(agent, model_save_path, filename="model.pt")
             
-            if test_accuracy >= stop_test_accu and i != 0:
+            if test_accuracy >= stop_test_accu and i > min_iter:
                 break
 
             test_accuracies.append(test_accuracy)
