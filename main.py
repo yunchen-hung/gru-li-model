@@ -50,52 +50,59 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     model_all, data_all = {}, {}
     for i in run_nums:
         print("run {}".format(i))
-        setup = deepcopy(setup_origin)
+        general_setup = deepcopy(setup_origin)
 
-        model, envs, optimizers, schedulers, criterions, training_setups, setup = parse_setup(setup, device)
+        run_name = general_setup.get("run_name", setup_name.split(".")[0])
+        general_setup["run_name"] = run_name
 
-        run_name = setup.get("run_name", setup_name.split(".")[0]) + "-{}".format(i)
-        print("run_name: {}".format(run_name))
+        model_instances = parse_setup(general_setup, device)
 
-        model_save_path = exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name
-        model_save_path.mkdir(parents=True, exist_ok=True)
+        for run_name, model_instance in model_instances.items():
+            run_name_with_num = run_name + "-{}".format(i)
+            print("run_name: {}".format(run_name_with_num))
 
-        if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_save_path/"model.pt"):
-            if setup.get("load_saved_model", False):
-                print("load saved model")
-            model.load_state_dict(torch.load(model_save_path/"model.pt"))
+            model, envs, optimizers, schedulers, criterions, training_setups, setup = model_instance
 
-        print("device: ", device)
-        model.to(device)
+            model_save_path = exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
+            model_save_path.mkdir(parents=True, exist_ok=True)
 
-        if train or not os.path.exists(model_save_path/"model.pt"):
-            training_session = 1
-            for env, optimizer, scheduler, criterion, training_setup in zip(envs, optimizers, schedulers, criterions, training_setups):
-                if env and optimizer and scheduler and criterion:
-                    print("\ntraining session {}".format(training_session))
-                    training_session += 1
-                    training_func = training_setup["trainer"].pop("training_function", "supervised_train_model")
-                    accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, device=device, 
-                        model_save_path=model_save_path, **training_setup["trainer"])
-                plot_accuracy_and_error(accuracies, errors, model_save_path)
-            # if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler and sup_criterion:
-            #     sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, sup_criterion, device=device, model_save_path=model_save_path, **setup["supervised_training"])
-            # if env and optimizer and scheduler and criterion:
-            #     test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, criterion, device=device, model_save_path=model_save_path, **setup["training"])
-            #     plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
+            if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_save_path/"model.pt"):
+                if setup.get("load_saved_model", False):
+                    print("load saved model")
+                model.load_state_dict(torch.load(model_save_path/"model.pt"))
 
-        env = envs[-1]
-        if env:
-            data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
+            print("device: ", device)
+            model.to(device)
 
-        model_all[run_name] = model
-        data_all[run_name] = data
+            if train or not os.path.exists(model_save_path/"model.pt"):
+                training_session = 1
+                for env, optimizer, scheduler, criterion, training_setup in zip(envs, optimizers, schedulers, criterions, training_setups):
+                    if env and optimizer and scheduler and criterion:
+                        print("\ntraining session {}".format(training_session))
+                        training_session += 1
+                        training_func = training_setup["trainer"].pop("training_function", "supervised_train_model")
+                        accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, device=device, 
+                            model_save_path=model_save_path, **training_setup["trainer"])
+                    plot_accuracy_and_error(accuracies, errors, model_save_path)
+                # if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler and sup_criterion:
+                #     sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, sup_criterion, device=device, model_save_path=model_save_path, **setup["supervised_training"])
+                # if env and optimizer and scheduler and criterion:
+                #     test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, criterion, device=device, model_save_path=model_save_path, **setup["training"])
+                #     plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
 
-    paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup["model_name"]}
+            env = envs[-1]
+            if env:
+                data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
+
+            model_all[run_name] = model
+            data_all[run_name] = data
+
+    paths = {"fig": exp_dir/consts.FIGURE_FOLDER/general_setup["model"]["class"]}
 
     run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
     if env:
-        run_exp(data_all, model_all, env, paths)
+        exp_name = setup_name.split(".")[0]
+        run_exp(data_all, model_all, env, paths, exp_name)
 
 
 if __name__ == "__main__":

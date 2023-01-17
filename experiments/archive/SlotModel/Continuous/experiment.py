@@ -83,9 +83,9 @@ def run(data_all, model_all, env, paths):
             # print(states.shape)
             similarity = skp.cosine_similarity(states, states)
             # print(similarity.shape)
-            for i in range(similarity.shape[0]):
-                similarity[i, :env.memory_num] = normalize(similarity[i, :env.memory_num])
-                similarity[i, env.memory_num:] = normalize(similarity[i, env.memory_num:])
+            # for i in range(similarity.shape[0]):
+            #     similarity[i, :env.memory_num] = normalize(similarity[i, :env.memory_num])
+            #     similarity[i, env.memory_num:] = normalize(similarity[i, env.memory_num:])
             similarities.append(similarity)
         similarities = np.stack(similarities)
         similarity = np.mean(similarities, axis=0)

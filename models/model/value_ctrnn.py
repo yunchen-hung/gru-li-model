@@ -74,7 +74,6 @@ class ValueMemoryCTRNN(BasicModule):
         if recall:
             if self.start_recall_with_ith_item_init != 0:
                 self.hidden_state = self.ith_item_state.clone()
-                self.write(state, 'state')
             elif self.init_state_type == 'zeros':
                 self.hidden_state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
@@ -85,6 +84,8 @@ class ValueMemoryCTRNN(BasicModule):
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
             state = self.act_fn(self.hidden_state)
+            if self.start_recall_with_ith_item_init != 0:
+                self.write(state, 'state')
         else:
             if self.init_state_type == "zeros":
                 self.hidden_state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
@@ -127,7 +128,7 @@ class ValueMemoryCTRNN(BasicModule):
                 self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in) * self.alpha + noise
                 self.write(self.fc_hidden(state), "half_state")
                 state = self.act_fn(self.hidden_state)
-            self.write(state, 'state')
+                self.write(state, 'state') 
 
             if self.use_memory:
                 self.memory_module.encode(state)
@@ -170,7 +171,7 @@ class ValueMemoryCTRNN(BasicModule):
                 self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in * mem_gate) * self.alpha + noise
                 self.write(self.fc_hidden(state), "half_state")
                 state = self.act_fn(self.hidden_state)
-            self.write(state, 'state')
+                self.write(state, 'state') 
                 
             decision = softmax(self.fc_decision(state), beta=self.softmax_beta)
             self.write(decision, 'decision')

@@ -43,3 +43,25 @@ def load_dict(dict_path, d=None):
         if isinstance(v, dict):
             d[k] = load_dict(dict_path, d=v)
     return d
+
+
+def get_dict_item(dict, path):
+    """
+    Get an item from a dict using a path (list of keys)
+    """
+    if isinstance(path, str):
+        path = path.split(".")
+    for key in path:
+        dict = dict[key]
+    return dict
+
+
+def set_dict_item(dict, path, value):
+    """
+    Set an item in a dict using a path (list of keys)
+    """
+    if isinstance(path, str):
+        path = path.split(".")
+    for key in path[:-1]:
+        dict = dict[key]
+    dict[path[-1]] = value
