@@ -37,18 +37,10 @@ class A2CLoss(nn.Module):
     def forward(self, probs, values, rewards, entropys, device='cpu'):
         returns = compute_returns(rewards, gamma=self.gamma, normalize=self.returns_normalize)
         policy_grads, value_losses = [], []
-        # print(prob_t, v_t, R_t)
-        # print(torch.tensor(probs).shape)
-        # print(torch.stack(values).shape)
-        # print(torch.stack(returns).shape)
         probs, values, rewards, entropys = torch.stack([torch.stack(prob_t).to(device) for prob_t in probs]).transpose(1, 0).to(device), \
                                 torch.stack(values).squeeze(2).transpose(1, 0).to(device), \
                                 torch.stack(returns).to(device), \
                                 torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
-        # print(probs)
-        # print(values)
-        # print(rewards)
-        # print(entropys)
         if self.use_V:
             A = rewards - values.data.double()
             value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device).float()), torch.squeeze(rewards.to(device).float()))
@@ -58,7 +50,6 @@ class A2CLoss(nn.Module):
             value_losses = torch.tensor(0.0).to(device)
         # accumulate policy gradient
         policy_grads = -probs * A
-        # print(probs, A)
         policy_gradient = torch.mean(policy_grads)
         value_loss = torch.mean(value_losses)
         pi_ent = torch.mean(entropys)

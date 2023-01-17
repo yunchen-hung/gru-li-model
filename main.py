@@ -6,7 +6,7 @@ import torch
 
 import consts
 from utils import load_setup, parse_setup, import_attr
-from train import train_model, supervised_train_model, plot_accuracy_and_error, record_model
+from train import plot_accuracy_and_error, record_model
 
 
 def parse_args():
@@ -84,20 +84,15 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                         accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, device=device, 
                             model_save_path=model_save_path, **training_setup["trainer"])
                     plot_accuracy_and_error(accuracies, errors, model_save_path)
-                # if setup.get("pretrain", True) and sup_env and sup_optimizer and sup_scheduler and sup_criterion:
-                #     sup_test_accuracies, sup_test_errors = supervised_train_model(model, sup_env, sup_optimizer, sup_scheduler, setup, sup_criterion, device=device, model_save_path=model_save_path, **setup["supervised_training"])
-                # if env and optimizer and scheduler and criterion:
-                #     test_accuracies, test_errors = train_model(model, env, optimizer, scheduler, setup, criterion, device=device, model_save_path=model_save_path, **setup["training"])
-                #     plot_accuracy_and_error(test_accuracies, test_errors, model_save_path)
 
             env = envs[-1]
             if env:
                 data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
 
-            model_all[run_name] = model
-            data_all[run_name] = data
+            model_all[run_name_with_num] = model
+            data_all[run_name_with_num] = data
 
-    paths = {"fig": exp_dir/consts.FIGURE_FOLDER/general_setup["model"]["class"]}
+    paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup_origin["model"]["class"]}
 
     run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
     if env:
