@@ -1,7 +1,6 @@
 import numpy as np
 import sklearn.decomposition as decomposition
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 from utils import savefig
 
@@ -25,10 +24,6 @@ class PCA:
             self.n_steps, self.n_traj = act.shape[0], 1
             X = act
         self.proj_act = self.pca.fit_transform(X).reshape(self.n_traj, self.n_steps, -1)
-        self.max_x = np.max(self.proj_act[:, :, 0])
-        self.min_x = np.min(self.proj_act[:, :, 0])
-        self.max_y = np.max(self.proj_act[:, :, 1])
-        self.min_y = np.min(self.proj_act[:, :, 1])
         print("PCA explained variance: ", self.pca.explained_variance_ratio_)
         return self
 
@@ -62,7 +57,8 @@ class PCA:
             savefig(save_path, "pca_temporal", pdf=pdf)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, display_start_step=None, display_end_step=None):
+    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, display_start_step=None, 
+        display_end_step=None, title=None):
         if start_step is None:
             start_step = 0
         if end_step is None:
@@ -85,8 +81,12 @@ class PCA:
             else:
                 ax.scatter3D(proj_act[:, i, 0], proj_act[:, i, 1], proj_act[:, i, 2], color=colors[i-start_step], marker='o', markerfacecolor='none')
 
-        plt.xlim(self.min_x - 0.5, self.max_x + 0.5)
-        plt.ylim(self.min_y - 0.5, self.max_y + 0.5)
+        max_x = np.max(proj_act[:, :, 0])
+        min_x = np.min(proj_act[:, :, 0])
+        max_y = np.max(proj_act[:, :, 1])
+        min_y = np.min(proj_act[:, :, 1])
+        plt.xlim(min_x - 0.5, max_x + 0.5)
+        plt.ylim(min_y - 0.5, max_y + 0.5)
 
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
@@ -108,6 +108,9 @@ class PCA:
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+
+        if title:
+            plt.title("{}, {} trials".format(title, self.n_traj))
 
         plt.tight_layout()
         if save_path is not None:

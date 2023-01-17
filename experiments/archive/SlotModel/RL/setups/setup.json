@@ -1,0 +1,61 @@
+{
+    "model": {
+        "class": "ValueMemoryCTRNN",
+        "hidden_dim": 64,
+        "input_dim": 21,
+        "output_dim": 21,
+        "em_gate_type": "scalar",
+        "start_recall_with_ith_item_init": 1,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 64,
+            "capacity": 5,
+            "recall_method": "weight_sum",
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.05
+                }
+            ]
+        }]
+    },
+    "training": [{
+        "env": {
+            "class": "FreeRecall",
+            "vocabulary_num": 20,
+            "memory_num": 5,
+            "retrieve_time_limit": 5,
+            "start_recall_cue": false,
+            "reset_state_before_test": true,
+            "repeat_penalty": -1.0
+        },
+        "trainer": {
+            "training_function": "train_model",
+            "num_iter": 100000,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "use_memory": true,
+            "stop_test_accu": 0.99,
+            "train_all_time": true,
+            "criterion": {
+                "class": "A2CLoss",
+                "use_V": false
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 5e-4,
+                "lr_decay_factor": 0.2,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-8
+            }
+        }
+    }],
+    "load_saved_model": false,
+    "pretrain": true,
+    "context_num": 1000
+}

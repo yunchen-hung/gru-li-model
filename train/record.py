@@ -35,7 +35,7 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
     #             memory_contexts.pop(0)
 
     data = {'actions': [], 'probs': [], 'rewards': [], 'values': [], 'readouts': [],
-    'memory_contexts': []}
+    'memory_contexts': [], 'accuracy': 0.0}
     actions_total_num, actions_correct_num = 0, 0
     for i in range(context_num):
         actions, probs, rewards, values, readouts, mem_contexts = [], [], [], [], [], []
@@ -93,6 +93,7 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
         data['readouts'].append(readouts)
         data['memory_contexts'].append(mem_contexts)
     print("test accuracy: {}".format(actions_correct_num/actions_total_num))
+    data['accuracy'] = actions_correct_num/actions_total_num
     
     return data
 

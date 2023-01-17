@@ -59,12 +59,12 @@ class SVM:
         if save_path is not None:
             savefig(save_path, "svm_accuracy", pdf=pdf)
 
-    def visualize_by_memory(self, save_path, pdf=False):
+    def visualize_by_memory(self, save_path, title=None, pdf=False):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(1.0 * self.results.shape[1], 4.0), dpi=180)
+        plt.figure(figsize=(0.75 * self.results.shape[1], 3), dpi=180)
         for i in range(self.results.shape[1]):
-            plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="memory {}".format(i+1))
+            plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="item {}".format(i+1))
         plt.legend()
         plt.xlim(0.5, 0.5 + self.results.shape[0])
         plt.title("SVM decoding accuracy")
@@ -74,6 +74,9 @@ class SVM:
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+
+        if title:
+            plt.title(title)
 
         plt.tight_layout()
         if save_path is not None:
