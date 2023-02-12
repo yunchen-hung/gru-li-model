@@ -18,6 +18,7 @@ def run(data_all, model_all, env, paths, exp_name):
     sim_enc_rec = {}
     accuracy = {}
     rec_prob = {}
+    rec_prob_mem = {}
 
     run_names_without_num = []
     for run_name in data_all.keys():
@@ -30,6 +31,7 @@ def run(data_all, model_all, env, paths, exp_name):
             sim_enc_rec[run_name_without_num] = []
             accuracy[run_name_without_num] = []
             rec_prob[run_name_without_num] = []
+            rec_prob_mem[run_name_without_num] = []
 
     for run_name, data in data_all.items():
         fig_path = paths["fig"]/run_name
@@ -62,11 +64,12 @@ def run(data_all, model_all, env, paths, exp_name):
         actions = np.array(actions)
         actions = actions.reshape(-1, actions.shape[-1])
         rewards = np.array(rewards)
+        rewards = rewards.squeeze()
         rewards = rewards.reshape(-1, rewards.shape[-1])
         
         for i in range(5):
-                print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], 
-                    actions[i][env.memory_num:], rewards[i][env.memory_num:]))
+                print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
+                    rewards[i][env.memory_num:]))
 
         # similarity after softmax
         similarity = readouts[0][0]["ValueMemory"]["similarity"].squeeze()
@@ -119,13 +122,13 @@ def run(data_all, model_all, env, paths, exp_name):
         savefig(fig_path, "similarity_state_recall")
         sim_rec[run_name_without_num].append(similarity[timestep_each_phase:, timestep_each_phase:])
 
-        plt.imshow(similarity[timestep_each_phase:, :timestep_each_phase], cmap="Blues")
+        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], cmap="Blues")
         plt.colorbar()
         plt.xlabel("encoding timestep")
         plt.ylabel("recalling timestep")
         plt.title("encoding-recalling state similarity".format(memory_contexts[0], actions[0][env.memory_num:]))
         savefig(fig_path, "similarity_state_encode_recall")
-        sim_enc_rec[run_name_without_num].append(similarity[timestep_each_phase:, :timestep_each_phase])
+        sim_enc_rec[run_name_without_num].append(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase])
 
         # memory gate
         plt.figure(figsize=(4, 3), dpi=250)
@@ -141,11 +144,23 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.tight_layout()
         savefig(fig_path, "em_gate_recall")
 
-        # recalled probability
+        # recall probability (output)
         recall_probability = RecallProbability()
-        recall_probability.fit(memory_contexts, actions)
+        recall_probability.fit(memory_contexts, actions[:, env.memory_num:])
         recall_probability.visualize(fig_path/"recall_prob")
         rec_prob[run_name_without_num].append(recall_probability.get_results())
+
+        # recall probability (memory)
+        retrieved_memories = []
+        for i in range(context_num):
+            retrieved_memory = readouts[i][0]["ValueMemory"]["retrieved_memory"].squeeze()
+            retrieved_memory = np.argmax(retrieved_memory, axis=-1)
+            retrieved_memories.append(retrieved_memory)
+        retrieved_memories = np.stack(retrieved_memories)
+        recall_probability = RecallProbability()
+        recall_probability.fit(np.repeat(np.array(range(env.memory_num)).reshape(1, -1), context_num, axis=0), retrieved_memories)
+        recall_probability.visualize(fig_path/"recall_prob_memory")
+        rec_prob_mem[run_name_without_num].append(recall_probability.get_results())
 
         # PCA
         states = []
@@ -211,3 +226,19 @@ def run(data_all, model_all, env, paths, exp_name):
         recall_probability = RecallProbability()
         recall_probability.set_results(np.mean(np.stack(rec_prob[run_name]), axis=0))
         recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob")
+
+        recall_probability = RecallProbability()
+        recall_probability.set_results(np.mean(np.stack(rec_prob_mem[run_name]), axis=0))
+        recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob_memory")
+
+
+    # accuracy_list = []
+    # for run_name in run_names_without_num:
+    #     accuracy_list.append(np.mean(accuracy[run_name]))
+
+    # for i in range(3):
+    #     plt.plot([1.0, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3], accuracy_list[i*7:(i+1)*7], label="{} steps per item".format(i+1))
+    # plt.legend()
+    # plt.xlabel("a = dt/tau")
+    # plt.ylabel("performance")
+    # savefig(paths['fig']/"mean", "{}_performance".format(exp_name))

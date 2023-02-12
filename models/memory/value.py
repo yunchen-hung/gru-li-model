@@ -60,6 +60,7 @@ class ValueMemory(BasicModule):
         else:
             raise NotImplementedError
         # print(retrieved_memory.shape, self.values.shape)
+        self.write(retrieved_memory, "retrieved_memory")
         return torch.bmm(torch.unsqueeze(retrieved_memory, dim=1), self.values).squeeze(1)
 
     def get_vals(self):

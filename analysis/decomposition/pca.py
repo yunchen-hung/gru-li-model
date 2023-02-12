@@ -100,11 +100,6 @@ class PCA:
         cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="timesteps")
         cb.set_ticks(np.arange(display_start_step+1, display_end_step+1))
 
-        # handles = []
-        # handles.append(mpatches.Patch(color=colors[0], label="first timestep"))
-        # handles.append(mpatches.Patch(color=colors[-1], label="last timestep"))
-        # plt.legend(handles=handles, frameon=False)
-
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)

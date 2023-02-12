@@ -65,11 +65,11 @@ def run(data_all, model_all, env, paths, exp_name):
         rewards = rewards.reshape(-1, rewards.shape[-1])
         
         for i in range(5):
-                print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], 
-                    actions[i][env.memory_num:], rewards[i][env.memory_num:]))
+                print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
+                    rewards[i][env.memory_num:]))
 
         # similarity after softmax
-        similarity = readouts[0][0]["ValueMemory"]["similarity"].squeeze()
+        similarity = readouts[0][0]["f_in"].squeeze()
         plt.imshow(similarity, cmap="Blues")
         plt.colorbar()
         plt.xlabel("encoding timestep")
@@ -79,7 +79,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
         similarities = []
         for i in range(context_num):
-            similarity = readouts[i][0]["ValueMemory"]["similarity"].squeeze()
+            similarity = readouts[i][0]["f_in"].squeeze()
             similarities.append(similarity)
         similarities = np.stack(similarities)
         similarity = np.mean(similarities, axis=0)
@@ -127,20 +127,6 @@ def run(data_all, model_all, env, paths, exp_name):
         savefig(fig_path, "similarity_state_encode_recall")
         sim_enc_rec[run_name_without_num].append(similarity[timestep_each_phase:, :timestep_each_phase])
 
-        # memory gate
-        plt.figure(figsize=(4, 3), dpi=250)
-        for i in range(context_num):
-            readout = readouts[i][0]
-            em_gates = readout['mem_gate_recall']
-            plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:env.memory_num], label="context {}".format(i))
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.xlabel("timesteps of recalling phase")
-        plt.ylabel("memory gate")
-        plt.tight_layout()
-        savefig(fig_path, "em_gate_recall")
-
         # recalled probability
         recall_probability = RecallProbability()
         recall_probability.fit(memory_contexts, actions)
@@ -158,16 +144,6 @@ def run(data_all, model_all, env, paths, exp_name):
         pca.visualize_state_space(save_path=fig_path/"pca"/"memorizing", end_step=timestep_each_phase)
         pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
         pca.visualize_state_space(save_path=fig_path/"pca")
-
-        half_states = []
-        for i in range(context_num):
-            half_states.append(readouts[i][0]['half_state'])
-        half_states = np.stack(half_states).squeeze()
-        pca = PCA()
-        pca.fit(half_states)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"memorizing", end_step=timestep_each_phase)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state")
 
         # SVM
         c_memorizing = np.stack([readouts[i][0]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
@@ -211,3 +187,14 @@ def run(data_all, model_all, env, paths, exp_name):
         recall_probability = RecallProbability()
         recall_probability.set_results(np.mean(np.stack(rec_prob[run_name]), axis=0))
         recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob")
+
+    # accuracy_list = []
+    # for run_name in run_names_without_num:
+    #     accuracy_list.append(np.mean(accuracy[run_name]))
+
+    # for i in range(3):
+    #     plt.plot([1.0, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3], accuracy_list[i*7:(i+1)*7], label="{} steps per item".format(i+1))
+    # plt.legend()
+    # plt.xlabel("a = dt/tau")
+    # plt.ylabel("performance")
+    # savefig(paths['fig']/"mean", "{}_performance".format(exp_name))

@@ -50,9 +50,9 @@ class A2CLoss(nn.Module):
             value_losses = torch.tensor(0.0).to(device)
         # accumulate policy gradient
         policy_grads = -probs * A
-        policy_gradient = torch.mean(policy_grads)
-        value_loss = torch.mean(value_losses)
-        pi_ent = torch.mean(entropys)
+        policy_gradient = torch.sum(policy_grads)
+        value_loss = torch.sum(value_losses)
+        pi_ent = torch.sum(entropys)
         loss = policy_gradient + value_loss - pi_ent * self.eta
         return loss, policy_gradient, value_loss
 

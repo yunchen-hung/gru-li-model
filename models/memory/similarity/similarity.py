@@ -29,7 +29,7 @@ class BasicSimilarity(BasicModule):
             similarities = torch.bmm(F.normalize(values, p=2, dim=2), F.normalize(torch.unsqueeze(query, dim=2), p=2)).squeeze(2)
         else:
             raise Exception(f'Unrecognizable self.measure: {self.measure}')
-        self.write(similarities, 'similarities')
+        self.write(similarities, 'raw_similarity')
         if self.process_similarity == 'normalize':
             # normalize
             similarities = similarities / torch.sum(similarities, dim=-1, keepdim=True)

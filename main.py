@@ -61,7 +61,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             run_name_with_num = run_name + "-{}".format(i)
             print("run_name: {}".format(run_name_with_num))
 
-            model, envs, optimizers, schedulers, criterions, training_setups, setup = model_instance
+            model, model_for_record, envs, optimizers, schedulers, criterions, training_setups, setup = model_instance
 
             model_save_path = exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
             model_save_path.mkdir(parents=True, exist_ok=True)
@@ -87,6 +87,10 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
             env = envs[-1]
             if env:
+                if model_for_record is not None:
+                    print("use record model setup")
+                    model = model_for_record
+                    model.load_state_dict(torch.load(model_save_path/"model.pt"))
                 data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
 
             model_all[run_name_with_num] = model

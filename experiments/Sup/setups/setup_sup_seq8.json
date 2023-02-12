@@ -1,20 +1,20 @@
 {
-    "run_num": 3,
+    "run_num": 5,
     "model": {
         "class": "ValueMemoryCTRNN",
         "hidden_dim": 64,
-        "input_dim": 11,
-        "output_dim": 11,
+        "input_dim": 21,
+        "output_dim": 21,
         "tau": 10,
         "em_gate_type": "scalar",
         "start_recall_with_ith_item_init": 1,
         "step_for_each_timestep": 1,
-        "softmax_beta": 0.2,
+        "softmax_beta": 0.1,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 64,
-            "capacity": 5,
+            "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -26,12 +26,38 @@
             ]
         }]
     },
+    "model_for_record": {
+        "class": "ValueMemoryCTRNN",
+        "hidden_dim": 64,
+        "input_dim": 21,
+        "output_dim": 21,
+        "tau": 10,
+        "em_gate_type": "scalar",
+        "start_recall_with_ith_item_init": 1,
+        "step_for_each_timestep": 1,
+        "softmax_beta": 0.1,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 64,
+            "capacity": 8,
+            "recall_method": "random",
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.5
+                }
+            ]
+        }]
+    },
     "training": [{
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 10,
-            "memory_num": 5,
-            "retrieve_time_limit": 5,
+            "vocabulary_num": 20,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
             "start_recall_cue": false,
             "reset_state_before_test": true
         },
@@ -63,31 +89,33 @@
     }, {
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 10,
-            "memory_num": 5,
-            "retrieve_time_limit": 5,
+            "vocabulary_num": 20,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
             "start_recall_cue": false,
-            "reset_state_before_test": true,
-            "repeat_penalty": -0.2
+            "reset_state_before_test": true
         },
         "trainer": {
-            "training_function": "train_model",
-            "num_iter": 100000,
+            "num_iter": 60000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
+            "min_iter": 10000,
+            "stop_test_accu": 0.98,
             "use_memory": true,
-            "stop_test_accu": 0.99,
-            "train_all_time": false,
-            "train_encode": false,
+            "train_all_time": true,
             "criterion": {
-                "class": "A2CLoss",
-                "use_V": true
+                "class": "FreeRecallSumMSETrainEncodeLoss",
+                "var_weight": 2.0,
+                "output_weight": [1.0],
+                "encode_weight": 1.0,
+                "only_encode": false
             },
             "optimizer": {
                 "class": "Adam",
                 "lr": 1e-3,
-                "lr_decay_factor": 0.2,
+                "weight_decay": 2e-5,
+                "lr_decay_factor": 0.5,
                 "lr_decay_patience": 10,
                 "lr_decay_threshold": 1e-3,
                 "min_lr": 1e-7

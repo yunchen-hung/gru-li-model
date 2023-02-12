@@ -26,6 +26,32 @@
             ]
         }]
     },
+    "model_for_record": {
+        "class": "ValueMemoryCTRNN",
+        "hidden_dim": 64,
+        "input_dim": 21,
+        "output_dim": 21,
+        "tau": 10,
+        "em_gate_type": "scalar",
+        "start_recall_with_ith_item_init": 1,
+        "step_for_each_timestep": 1,
+        "softmax_beta": 0.2,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 64,
+            "capacity": 5,
+            "recall_method": "random",
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.2
+                }
+            ]
+        }]
+    },
     "training": [{
         "env": {
             "class": "FreeRecall",
@@ -85,7 +111,7 @@
                 "encode_weight": 1.0,
                 "only_encode": false
             },
-            "optimizer": {
+            "optimizer": { 
                 "class": "Adam",
                 "lr": 1e-3,
                 "weight_decay": 2e-5,
@@ -98,5 +124,5 @@
     }],
     "load_saved_model": false,
     "pretrain": true,
-    "context_num": 20
+    "context_num": 1000
 }

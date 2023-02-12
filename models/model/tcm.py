@@ -9,8 +9,8 @@ from ..basic_module import BasicModule
 
 
 class TCM(BasicModule):
-    def __init__(self, dim: int, lr_cf: float = 1.0, lr_fc: float = 0.9, alpha: float = 0.5, threshold = 0.0, start_recall_with_ith_item_init=0, 
-    rand_mem=False, device: str = 'cpu'):
+    def __init__(self, dim: int, lr_cf: float = 1.0, lr_fc: float = 0.9, alpha: float = 0.5, threshold = 0.0, 
+    start_recall_with_ith_item_init=0, rand_mem=False, softmax_temperature=1.0, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -23,6 +23,7 @@ class TCM(BasicModule):
         self.threshold = threshold
         self.dim = dim
         self.rand_mem = rand_mem
+        self.softmax_temperature = softmax_temperature
 
         self.W_cf = torch.zeros((dim, dim), device=device)
         self.W_fc = torch.eye(dim, device=device) * (1 - lr_fc)
@@ -68,7 +69,7 @@ class TCM(BasicModule):
             # f_in_raw = torch.bmm(F.normalize(self.W_cf, p=2, dim=2), F.normalize(torch.unsqueeze(state, dim=2), p=2)).squeeze(2)
             f_in_raw = torch.mv(self.W_cf, state.squeeze())
             # f_in_filtered = (F.relu(f_in_raw - torch.max(f_in_raw) * self.threshold)) * self.not_recalled
-            f_in = softmax(f_in_raw.unsqueeze(0) * self.not_recalled).squeeze(0)
+            f_in = softmax(f_in_raw.unsqueeze(0) * self.not_recalled, self.softmax_temperature).squeeze(0)
             # print(f_in, f_in_filtered)
             if self.rand_mem:
                 retrieved_idx = Categorical(f_in).sample()
