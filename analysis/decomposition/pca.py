@@ -26,6 +26,13 @@ class PCA:
         self.proj_act = self.pca.fit_transform(X).reshape(self.n_traj, self.n_steps, -1)
         print("PCA explained variance: ", self.pca.explained_variance_ratio_)
         return self
+    
+    def transform(self, dataset):
+        if len(dataset.shape) == 3:
+            X = dataset.reshape(dataset.shape[0] * dataset.shape[1], -1)
+        else:
+            X = dataset
+        return self.pca.transform(X).reshape(self.n_traj, self.n_steps, -1)
 
     def fit_transform(self, dataset):
         self.fit(dataset)
@@ -37,6 +44,7 @@ class PCA:
         t = np.arange(self.n_steps) * self.dt if x_labels is None else x_labels
 
         plt.figure(figsize=(2.3, 1.5 * n_components), dpi=180) if ax is None else None
+        # plt.rcParams['font.size'] = 20
         proj_act = self.proj_act
         for component in range(n_components):
             ax = plt.subplot(n_components, 1, component + 1)
@@ -57,8 +65,8 @@ class PCA:
             savefig(save_path, "pca_temporal", pdf=pdf)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, display_start_step=None, 
-        display_end_step=None, title=None):
+    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, 
+        display_start_step=None, display_end_step=None, title=None, constrain_lim=True):
         if start_step is None:
             start_step = 0
         if end_step is None:
@@ -85,8 +93,9 @@ class PCA:
         min_x = np.min(proj_act[:, :, 0])
         max_y = np.max(proj_act[:, :, 1])
         min_y = np.min(proj_act[:, :, 1])
-        plt.xlim(min_x - 0.5, max_x + 0.5)
-        plt.ylim(min_y - 0.5, max_y + 0.5)
+        if constrain_lim:
+            plt.xlim(min_x - 0.5, max_x + 0.5)
+            plt.ylim(min_y - 0.5, max_y + 0.5)
 
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")

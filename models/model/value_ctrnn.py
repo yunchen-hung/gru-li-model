@@ -182,6 +182,31 @@ class ValueMemoryCTRNN(BasicModule):
             
             self.write(mem_gate, 'mem_gate_recall')
 
+        else:
+            # c_in = torch.bmm(self.W_in, torch.unsqueeze(inp, dim=2)).squeeze(2)
+            # c_in = c_in / torch.norm(c_in, p=2, dim=1).reshape(-1, 1)
+
+            for _ in range(self.step_for_each_timestep):
+                if self.noise_std > 0:
+                    noise = self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
+                else:
+                    noise = 0
+                # self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state)) * self.alpha + noise
+                # self.write(self.fc_hidden(state), "half_state")
+                state = self.act_fn(state * (1 - self.alpha) + self.fc_hidden(state) * self.alpha + noise)
+                # state = self.act_fn(self.fc_hidden(state))
+                # self.write(state, 'state') 
+
+            # decision = softmax(self.fc_decision(state))
+            # self.write(decision, 'decision')
+            # if self.two_decisions:
+            #     decision2 = softmax(self.fc_decision2(state))
+            # value = self.fc_critic(decision)
+            # decision = (decision, decision2) if self.two_decisions else decision
+            decision = None
+            value = None
+            # print("haha")
+
         # print(decision)
 
         return decision, value, state

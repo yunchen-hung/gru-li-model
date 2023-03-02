@@ -7,10 +7,11 @@ from utils import savefig
 class RecallProbability:
     def __init__(self) -> None:
         self.results = None
+        self.results_all_time = None
 
     def fit(self, memory_contexts, actions):
-        self.results = np.zeros((memory_contexts.shape[1], memory_contexts.shape[1]))
         self.context_num, self.memory_num = memory_contexts.shape
+        self.results = np.zeros((self.memory_num, self.memory_num))
         for i in range(self.context_num):
             for t in range(self.memory_num - 1):
                 position1 = np.where(memory_contexts[i] == actions[i][t])
@@ -19,14 +20,25 @@ class RecallProbability:
                     position1 = position1[0][0]
                     position2 = position2[0][0]
                     self.results[position1][position2] += 1
+
         times_sum = np.expand_dims(np.sum(self.results, axis=1), axis=1)
         times_sum[times_sum == 0] = 1
         self.results = self.results / times_sum
 
-    def visualize(self, save_path, pdf=False):
-        if self.results is None:
+        self.results_all_time = np.zeros((self.memory_num, self.memory_num*2-1))
+        for i in range(self.memory_num):
+            self.results_all_time[i, self.memory_num-1-i:self.memory_num*2-1-i] = self.results[i]
+        self.results_all_time = np.sum(self.results_all_time, axis=0)
+        self.average_times = np.concatenate((np.arange(1, self.memory_num+1),np.arange(self.memory_num-1, 0, -1)), axis=0)
+        self.results_all_time = self.results_all_time / self.average_times
+        # self.results_all_time = self.results_all_time / np.sum(self.results_all_time)
+
+    def visualize(self, save_path, title="", pdf=False):
+        if self.results is None or self.results_all_time is None:
             raise Exception("Please run fit() first")
+        # plot at each time step
         for t in range(self.memory_num):
+            plt.figure(figsize=(4, 3.5), dpi=180)
             if t != 0:
                 plt.scatter(np.arange(1, t+1), self.results[t][:t], c='b', zorder=2)
                 plt.plot(np.arange(1, t+1), self.results[t][:t], c='k', zorder=1)
@@ -42,13 +54,49 @@ class RecallProbability:
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
 
+            plt.tight_layout()
+
             savefig(save_path, "timestep_{}".format(t+1), pdf=pdf)
+
+        # plot of all time
+        plt.figure(figsize=(4, 3.5), dpi=180)
+        plt.scatter(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='b', zorder=2)
+        plt.plot(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='k', zorder=1)
+        plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='b', zorder=2)
+        plt.plot(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='k', zorder=1)
+        plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
+        plt.xlabel("item position")
+        plt.ylabel("possibility of next recalling")
+        title = title if title else "recall probability of all time"
+        plt.title(title)
+
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.tight_layout()
+
+        savefig(save_path, "all_time", pdf=pdf)
+
+        # plot of matrix
+        plt.figure(figsize=(4, 3.5), dpi=180)
+        plt.imshow(self.results, cmap="Blues")
+        plt.colorbar()
+        plt.xlabel("item position")
+        plt.ylabel("recalling timestep")
+        plt.title("recalling probability\nmean of 10 models")
+        plt.tight_layout()
+        savefig(save_path, "recall_prob_mat", pdf=pdf)
 
     def get_results(self):
         return self.results
-    
-    def set_results(self, results):
+
+    def get_results_all_time(self):
+        return self.results_all_time
+
+    def set_results(self, results, results_all_time):
         self.results = results
+        self.results_all_time = results_all_time
         self.memory_num = self.results.shape[0]
 
 

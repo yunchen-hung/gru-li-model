@@ -2,9 +2,9 @@
     "run_num": 5,
     "model": {
         "class": "ValueMemoryCTRNN",
-        "hidden_dim": 64,
-        "input_dim": 21,
-        "output_dim": 21,
+        "hidden_dim": 128,
+        "input_dim": 31,
+        "output_dim": 31,
         "tau": 10,
         "em_gate_type": "scalar",
         "start_recall_with_ith_item_init": 1,
@@ -13,8 +13,8 @@
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 64,
-            "capacity": 8,
+            "value_dim": 128,
+            "capacity": 15,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -28,9 +28,9 @@
     },
     "model_for_record": {
         "class": "ValueMemoryCTRNN",
-        "hidden_dim": 64,
-        "input_dim": 21,
-        "output_dim": 21,
+        "hidden_dim": 128,
+        "input_dim": 31,
+        "output_dim": 31,
         "tau": 10,
         "em_gate_type": "scalar",
         "start_recall_with_ith_item_init": 1,
@@ -39,8 +39,8 @@
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 64,
-            "capacity": 8,
+            "value_dim": 128,
+            "capacity": 15,
             "recall_method": "random",
             "subclasses": [
                 {
@@ -55,9 +55,9 @@
     "training": [{
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 20,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
+            "vocabulary_num": 30,
+            "memory_num": 15,
+            "retrieve_time_limit": 15,
             "start_recall_cue": false,
             "reset_state_before_test": true
         },
@@ -89,9 +89,9 @@
     }, {
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 20,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
+            "vocabulary_num": 30,
+            "memory_num": 15,
+            "retrieve_time_limit": 15,
             "start_recall_cue": false,
             "reset_state_before_test": true
         },

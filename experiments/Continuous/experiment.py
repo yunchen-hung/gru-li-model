@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils import savefig
-from analysis.decomposition import PCA, TDR
-from analysis.decoding import SVM, PCSelectivity
+from analysis.decomposition import PCA
+from analysis.decoding import SVM
 from analysis.visualization import RecallProbability
 from analysis.dynamics import FixedPointAnalysis
 import sklearn.metrics.pairwise as skp
@@ -22,8 +22,6 @@ def run(data_all, model_all, env, paths, exp_name):
     rec_prob_mem = {}
     rec_prob_all = {}
     rec_prob_mem_all = {}
-    rec_prob_by_time_all = {}
-    tdr_variance = {}
 
     run_names_without_num = []
     for run_name in data_all.keys():
@@ -39,10 +37,6 @@ def run(data_all, model_all, env, paths, exp_name):
             rec_prob_mem[run_name_without_num] = []
             rec_prob_all[run_name_without_num] = []
             rec_prob_mem_all[run_name_without_num] = []
-            rec_prob_by_time_all[run_name_without_num] = []
-            tdr_variance[run_name_without_num] = []
-
-    plt.rcParams['font.size'] = 14
 
     for run_name, data in data_all.items():
         fig_path = paths["fig"]/run_name
@@ -99,9 +93,9 @@ def run(data_all, model_all, env, paths, exp_name):
         similarity = np.mean(similarities, axis=0)
         plt.imshow(similarity, cmap="Blues")
         plt.colorbar()
-        plt.xlabel("memories")
+        plt.xlabel("item position")
         plt.ylabel("recalling timestep")
-        plt.title("memory similarity\nmean of 20 trials")
+        plt.title("recalling probability\nmean of 20 trials")
         savefig(fig_path, "recall_probability")
         sim_mem[run_name_without_num].append(similarity)
         
@@ -175,25 +169,6 @@ def run(data_all, model_all, env, paths, exp_name):
         rec_prob_mem[run_name_without_num].append(recall_probability.get_results())
         rec_prob_mem_all[run_name_without_num].append(recall_probability.get_results_all_time())
 
-        # recall probability by time
-        rec_prob_by_time = np.zeros((env.memory_num, env.memory_num))
-        for i in range(context_num):
-            for t in range(env.memory_num):
-                position1 = np.where(memory_contexts[i] == actions[i][t])
-                if position1[0].shape[0] != 0:
-                    position1 = position1[0][0]
-                    rec_prob_by_time[t][position1] += 1
-        times_sum = np.expand_dims(np.sum(rec_prob_by_time, axis=1), axis=1)
-        times_sum[times_sum == 0] = 1
-        rec_prob_by_time = rec_prob_by_time / times_sum
-        plt.imshow(rec_prob_by_time, cmap="Blues")
-        plt.colorbar()
-        plt.xlabel("item position")
-        plt.ylabel("recalling timestep")
-        plt.title("recall probability")
-        savefig(fig_path, "recall probability")
-        rec_prob_by_time_all[run_name_without_num].append(rec_prob_by_time)
-
         # alignment of memory and output
         memory_output = []
         for i in range(context_num):
@@ -210,24 +185,24 @@ def run(data_all, model_all, env, paths, exp_name):
         
         pca = PCA()
         pca.fit(states)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"memorizing", end_step=timestep_each_phase, title="encoding phase")
-        pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2, title="recall phase")
+        pca.visualize_state_space(save_path=fig_path/"pca"/"memorizing", end_step=timestep_each_phase)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
         pca.visualize_state_space(save_path=fig_path/"pca")
 
-        # half_states = []
-        # for i in range(context_num):
-        #     half_states.append(readouts[i][0]['half_state'])
-        # half_states = np.stack(half_states).squeeze()
-        # pca = PCA()
-        # pca.fit(half_states)
-        # pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"memorizing", end_step=timestep_each_phase)
-        # pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
-        # pca.visualize_state_space(save_path=fig_path/"pca"/"half_state")
+        half_states = []
+        for i in range(context_num):
+            half_states.append(readouts[i][0]['half_state'])
+        half_states = np.stack(half_states).squeeze()
+        pca = PCA()
+        pca.fit(half_states)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"memorizing", end_step=timestep_each_phase)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state")
 
         # fixed_point
-        # fixed_point_analysis = FixedPointAnalysis()
-        # fixed_point_analysis.fit(model, states, sample_num=20, time_step=20000)
-        # fixed_point_analysis.visualize(save_path=fig_path/"fixed_point")
+        fixed_point_analysis = FixedPointAnalysis()
+        fixed_point_analysis.fit(model, states, sample_num=20, time_step=20000)
+        fixed_point_analysis.visualize(save_path=fig_path/"fixed_point")
 
         # SVM
         c_memorizing = np.stack([readouts[i][0]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
@@ -243,50 +218,24 @@ def run(data_all, model_all, env, paths, exp_name):
         svm.visualize(save_path=fig_path/"svm"/"c_rec")
         svm.visualize_by_memory(save_path=fig_path/"svm"/"c_rec")
 
-        # # PC selectivity
-        # pc_selectivity = PCSelectivity(n_components=64)
-
-
-        # TDR
-        states = []
-        for i in range(context_num):
-            states.append(readouts[i][0]['state'][:env.memory_num*2])
-        states = np.stack(states).squeeze(2)
-        tdr = TDR()
-        # order_var_single_trial = np.arange(env.memory_num*2) % env.memory_num
-        order_var_single_trial = np.arange(env.memory_num*2)
-        order_var = np.repeat(order_var_single_trial.reshape(1, -1), context_num, axis=0)
-        item_var = np.zeros((context_num, env.memory_num*2))
-        for i in range(context_num):
-            item_var[i, :env.memory_num] = memory_contexts[i]
-            item_var[i, env.memory_num:env.memory_num*2] = actions[i][env.memory_num:]
-        task_var = np.stack((order_var, item_var))
-        task_var = np.transpose(task_var, (1, 2, 0))
-        var_labels = ["index", "item"]
-        tdr_variance[run_name_without_num].append(tdr.fit(states, task_var, var_labels))
-
     for run_name in run_names_without_num:
-        plt.figure(figsize=(4, 3.5), dpi=180)
         plt.imshow(np.mean(np.stack(sim_mem[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
-        plt.xlabel("memories")
+        plt.xlabel("item position")
         plt.ylabel("recalling timestep")
-        plt.title("memory-recalling state similarity\nmean of {} models".format(run_num))
-        savefig(paths['fig']/"mean"/run_name, "state_memory_similarity_mean")
+        plt.title("recalling probability\nmean of {} models".format(run_num))
+        savefig(paths['fig']/"mean"/run_name, "recalling_probability_mean")
 
-        plt.figure(figsize=(4, 3.5), dpi=180)
         plt.imshow(np.mean(np.stack(sim_enc[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
         plt.title("encoding state similarity\nmean of {} models".format(run_num))
         savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_mean")
 
-        plt.figure(figsize=(4, 3.5), dpi=180)
         plt.imshow(np.mean(np.stack(sim_rec[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
         plt.title("recalling state similarity\nmean of {} models".format(run_num))
         savefig(paths['fig']/"mean"/run_name, "similarity_state_recall_mean")
 
-        plt.figure(figsize=(4, 3.5), dpi=180)
         plt.imshow(np.mean(np.stack(sim_enc_rec[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
         plt.xlabel("encoding timestep")
@@ -294,33 +243,13 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.title("encoding-recalling state similarity\nmean of {} models".format(run_num))
         savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_recall_mean")
 
-        plt.figure(figsize=(4, 3.5), dpi=180)
-        plt.imshow(np.mean(np.stack(rec_prob_by_time_all[run_name]), axis=0), cmap="Blues")
-        plt.colorbar()
-        plt.xlabel("item position")
-        plt.ylabel("recalling timestep")
-        plt.title("recall probability\nmean of {} models".format(run_num))
-        savefig(paths['fig']/"mean"/run_name, "recall_probability")
-
         recall_probability = RecallProbability()
         recall_probability.set_results(np.mean(np.stack(rec_prob[run_name]), axis=0), np.mean(np.stack(rec_prob_all[run_name]), axis=0))
-        recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob", title="output probability")
+        recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob")
 
         recall_probability = RecallProbability()
         recall_probability.set_results(np.mean(np.stack(rec_prob_mem[run_name]), axis=0), np.mean(np.stack(rec_prob_mem_all[run_name]), axis=0))
-        recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob_memory", title="recall probability")
-
-        tdr_variance_mean = np.mean(np.stack(tdr_variance[run_name]), axis=0)
-        tdr_variance_std = np.std(np.stack(tdr_variance[run_name]), axis=0)
-        plt.figure(figsize=(3.5, 3.5), dpi=180)
-        plt.bar(np.arange(2), tdr_variance_mean, yerr=tdr_variance_std)
-        plt.xticks(np.arange(2), ["index", "item"])
-        plt.title("Variance of task parameters\nmean of {} models".format(run_num))
-        plt.tight_layout()
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        savefig(paths['fig']/"mean"/run_name, "tdr_variance")
+        recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob_memory")
 
     # accuracy_list = []
     # for run_name in run_names_without_num:

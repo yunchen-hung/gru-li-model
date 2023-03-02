@@ -132,7 +132,11 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             flush_iter += 1
             
         if i % test_iter == 0:
-            print(env.memory_sequence[0], torch.tensor(actions[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
+            if hasattr(env, "fixed_feature_sequence"):
+                gt = env.fixed_feature_sequence
+            else:
+                gt = env.memory_sequence
+            print(gt, torch.tensor(actions[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.tensor(actions_max[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
             if train_all_time:
                 print(torch.tensor(actions[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
