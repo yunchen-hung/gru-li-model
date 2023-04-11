@@ -85,9 +85,10 @@ class FreeRecall(gym.Env):
         start_recall = 0
         if self.return_action:
             if self.current_timestep == 0:
-                returned_actions = np.zeros((batch_size, 1))
+                returned_actions = np.zeros((batch_size, self.vocabulary_num+1))
             else:
-                returned_actions = np.array([a.cpu().detach().item() for a in action]).reshape(-1, 1)
+                returned_actions_digit = np.array([a.cpu().detach().item() for a in action])
+                returned_actions = np.eye(self.vocabulary_num+1)[returned_actions_digit]
         if self.testing:
             if self.current_timestep == 0:
                 start_recall = 1
@@ -158,7 +159,7 @@ class FreeRecall(gym.Env):
         if self.start_recall_cue:
             observations = np.concatenate((observations, np.zeros((self.batch_size, 1))), axis=1)
         if self.return_action:
-            observations = np.concatenate((observations, np.zeros((self.batch_size, 1))), axis=1)
+            observations = np.concatenate((observations, np.zeros((self.batch_size, self.vocabulary_num+1))), axis=1)
         if self.return_reward:
             observations = np.concatenate((observations, np.zeros((self.batch_size, 1))), axis=1)
         return observations, info

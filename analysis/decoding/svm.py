@@ -62,12 +62,13 @@ class SVM:
     def visualize_by_memory(self, save_path, title=None, pdf=False):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(0.75 * self.results.shape[1], 3), dpi=180)
+        plt.figure(figsize=(4.5, 3.5), dpi=180)
         for i in range(self.results.shape[1]):
             plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="item {}".format(i+1))
-        plt.legend()
+        plt.legend(fontsize=12)
         plt.xlim(0.5, 0.5 + self.results.shape[0])
-        plt.title("SVM decoding accuracy")
+        if title:
+            plt.title(title)
         plt.xlabel("timesteps")
         plt.ylabel("decoding accuracy")
 

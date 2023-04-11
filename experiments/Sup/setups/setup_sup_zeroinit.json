@@ -7,7 +7,8 @@
         "output_dim": 21,
         "tau": 10,
         "em_gate_type": "scalar",
-        "start_recall_with_ith_item_init": 1,
+        "init_state_type": "zeros",
+        "evolve_state_between_phases": true,
         "step_for_each_timestep": 1,
         "softmax_beta": 0.2,
         "subclasses": [{

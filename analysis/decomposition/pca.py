@@ -74,7 +74,7 @@ class PCA:
         n_steps = end_step - start_step
         colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
 
-        plt.figure(figsize=(3.5, 3), dpi=180)
+        plt.figure(figsize=(3.5, 3.1), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
         proj_act = self.proj_act

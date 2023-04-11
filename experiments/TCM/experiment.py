@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from utils import savefig
 from analysis.decomposition import PCA
 from analysis.decoding import SVM
-from analysis.visualization import RecallProbability
+from analysis.behavior import RecallProbability
 import sklearn.metrics.pairwise as skp
 
 
@@ -30,6 +30,8 @@ def run(data_all, model_all, env, paths, exp_name):
             sim_enc_rec[run_name_without_num] = []
             accuracy[run_name_without_num] = []
             rec_prob[run_name_without_num] = []
+
+    plt.rcParams['font.size'] = 12
 
     for run_name, data in data_all.items():
         fig_path = paths["fig"]/run_name
@@ -140,9 +142,10 @@ def run(data_all, model_all, env, paths, exp_name):
         states = np.stack(states).squeeze()
         
         pca = PCA()
-        pca.fit(states)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"memorizing", end_step=timestep_each_phase)
-        pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
+        pca.fit(states[:10])
+        pca.visualize_state_space(save_path=fig_path/"pca"/"memorizing", end_step=timestep_each_phase, title="TCM encoding phase")
+        pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=timestep_each_phase, 
+                                  end_step=timestep_each_phase*2, title="TCM recall phase")
         pca.visualize_state_space(save_path=fig_path/"pca")
 
         # SVM
@@ -159,34 +162,34 @@ def run(data_all, model_all, env, paths, exp_name):
         svm.visualize(save_path=fig_path/"svm"/"c_rec")
         svm.visualize_by_memory(save_path=fig_path/"svm"/"c_rec")
 
-    for run_name in run_names_without_num:
-        plt.imshow(np.mean(np.stack(sim_mem[run_name]), axis=0), cmap="Blues")
-        plt.colorbar()
-        plt.xlabel("encoding timestep")
-        plt.ylabel("recall timestep")
-        plt.title("recalling state-memory similarity\nmean of {} models".format(run_num))
-        savefig(paths['fig']/"mean"/run_name, "similarity_memory_mean")
+    # for run_name in run_names_without_num:
+    #     plt.imshow(np.mean(np.stack(sim_mem[run_name]), axis=0), cmap="Blues")
+    #     plt.colorbar()
+    #     plt.xlabel("encoding timestep")
+    #     plt.ylabel("recall timestep")
+    #     plt.title("recalling state-memory similarity\nmean of {} models".format(run_num))
+    #     savefig(paths['fig']/"mean"/run_name, "similarity_memory_mean")
 
-        plt.imshow(np.mean(np.stack(sim_enc[run_name]), axis=0), cmap="Blues")
-        plt.colorbar()
-        plt.title("encoding state similarity\nmean of {} models".format(run_num))
-        savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_mean")
+    #     plt.imshow(np.mean(np.stack(sim_enc[run_name]), axis=0), cmap="Blues")
+    #     plt.colorbar()
+    #     plt.title("encoding state similarity\nmean of {} models".format(run_num))
+    #     savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_mean")
 
-        plt.imshow(np.mean(np.stack(sim_rec[run_name]), axis=0), cmap="Blues")
-        plt.colorbar()
-        plt.title("recalling state similarity\nmean of {} models".format(run_num))
-        savefig(paths['fig']/"mean"/run_name, "similarity_state_recall_mean")
+    #     plt.imshow(np.mean(np.stack(sim_rec[run_name]), axis=0), cmap="Blues")
+    #     plt.colorbar()
+    #     plt.title("recalling state similarity\nmean of {} models".format(run_num))
+    #     savefig(paths['fig']/"mean"/run_name, "similarity_state_recall_mean")
 
-        plt.imshow(np.mean(np.stack(sim_enc_rec[run_name]), axis=0), cmap="Blues")
-        plt.colorbar()
-        plt.xlabel("encoding timestep")
-        plt.ylabel("recalling timestep")
-        plt.title("encoding-recalling state similarity\nmean of {} models".format(run_num))
-        savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_recall_mean")
+    #     plt.imshow(np.mean(np.stack(sim_enc_rec[run_name]), axis=0), cmap="Blues")
+    #     plt.colorbar()
+    #     plt.xlabel("encoding timestep")
+    #     plt.ylabel("recalling timestep")
+    #     plt.title("encoding-recalling state similarity\nmean of {} models".format(run_num))
+    #     savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_recall_mean")
 
-        recall_probability = RecallProbability()
-        recall_probability.set_results(np.mean(np.stack(rec_prob[run_name]), axis=0))
-        recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob")
+    #     recall_probability = RecallProbability()
+    #     recall_probability.set_results(np.mean(np.stack(rec_prob[run_name]), axis=0))
+    #     recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob")
 
     # accuracy_list = []
     # for run_name in run_names_without_num:

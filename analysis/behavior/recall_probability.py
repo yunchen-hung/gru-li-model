@@ -100,3 +100,32 @@ class RecallProbability:
         self.memory_num = self.results.shape[0]
 
 
+class RecallProbabilityInTime:
+    def __init__(self) -> None:
+        self.results = None
+
+    def fit(self, memory_contexts, actions):
+        self.context_num, self.memory_num = memory_contexts.shape
+        self.results = np.zeros((self.memory_num, self.memory_num))
+        for i in range(self.context_num):
+            for t in range(self.memory_num):
+                # position1 = np.where(memory_contexts[i] == actions[i][t])
+                position1 = np.where(actions[i] == memory_contexts[i][t])
+                if position1[0].shape[0] != 0:
+                    position1 = position1[0][0]
+                    self.results[t][position1] += 1
+        times_sum = np.expand_dims(np.sum(self.results, axis=1), axis=1)
+        times_sum[times_sum == 0] = 1
+        self.results = self.results / times_sum
+        return self.results
+
+    def visualize(self, save_path, title="", pdf=False):
+        if self.results is None:
+            raise Exception("Please run fit() first")
+        plt.imshow(self.results, cmap="Blues")
+        plt.colorbar()
+        plt.xlabel("item position")
+        plt.ylabel("recalling timestep")
+        plt.title("recall probability")
+        savefig(save_path, "recall probability")
+        
