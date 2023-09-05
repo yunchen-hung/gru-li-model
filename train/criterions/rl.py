@@ -42,8 +42,8 @@ class A2CLoss(nn.Module):
                                 torch.stack(returns).to(device), \
                                 torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
         if self.use_V:
-            A = rewards - values.data.double()
-            value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device).float()), torch.squeeze(rewards.to(device).float()))
+            A = rewards - values.data
+            value_losses = smooth_l1_loss(torch.squeeze(values.to(device).float()), torch.squeeze(rewards.to(device).float()))
             # smooth_l1_loss(torch.squeeze(v_t.to(self.device)), torch.squeeze(R_t.to(self.device)))
         else:
             A = rewards

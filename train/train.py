@@ -7,53 +7,33 @@ from .utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
-# TODO: support other RL algorithms
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9, train_all_time=False, train_encode=False,
-    train_encode_2item=False, min_iter=0):
+    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0):
+    """
+    Train the model with RL
+    """
+    # set up some parameters and variables
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
-    test_accuracies = []
-    test_errors = []
-
-    keep_state = setup.get("keep_state", False)    # reset state after each episode
-    if keep_state:
-        print("keep state")
-    regenerate_context = setup.get("regenerate_context", True)    # regenerate context after each episode
-
+    test_accuracies, test_errors = [], []
     batch_size = env.batch_size
-
     if use_memory:
         agent.use_memory = use_memory
-    
-    if soft_flush:
-        print("soft flush")
-        flush_level = 0.0
-        accuracy = 0.0
-        flush_iter = 0
-    else:
-        flush_level = 1.0
- 
+    min_test_loss = torch.inf
+
     print("start training")
     print("batch size:", batch_size)
-    min_test_loss = torch.inf
+    
     for i in range(num_iter):
+        # before each trial, for the agent:
+        # 1. reset initial state
+        # 2. reset memory module
         state = agent.init_state(batch_size)
-        if regenerate_context and hasattr(env, "regenerate_contexts"):
-            env.regenerate_contexts()
         agent.reset_memory()
-        agent.set_retrieval(True)
 
-        actions, probs, rewards, values, entropys, actions_max = [], [], [], [], [], []
-        outputs = []
+        # create variables to store data
+        actions, probs, rewards, values, entropys, actions_max, outputs = [], [], [], [], [], [], []
 
-        if keep_state:
-            new_state = []
-            for item in state:
-                new_state.append(item.detach().clone())
-            state = tuple(new_state)
-        else:
-            state = agent.init_state(batch_size)
-
+        # reset environment
         obs_, info = env.reset()
         obs = torch.Tensor(obs_).to(device)
         done = False
@@ -67,7 +47,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             else:
                 agent.set_retrieval(True)
             if info.get("reset_state", False):
-                state = agent.init_state(batch_size, recall=True, flush_level=flush_level, prev_state=state)
+                state = agent.init_state(batch_size, recall=True, prev_state=state)
             # print(agent.memory_module.stored_memory)
 
             # torch.autograd.set_detect_anomaly(True)
@@ -127,9 +107,6 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
         total_critic_loss += loss_critic.item()
-
-        if soft_flush:
-            flush_iter += 1
             
         if i % test_iter == 0:
             if hasattr(env, "fixed_feature_sequence"):
@@ -152,11 +129,6 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
             print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
                 'critic loss: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss))
-
-            if soft_flush and (accuracy > soft_flush_accuracy or flush_iter >= soft_flush_iter) and flush_level < 1.0 and i != 0:
-                flush_level = min(1.0, flush_level+0.1)
-                flush_iter = 0
-                print("flush level changed to {}, accuracy {}".format(flush_level, accuracy))
 
             if test:
                 test_accuracy, test_error, test_not_know_rate, test_mean_reward, test_mean_loss, test_mean_actor_loss, test_mean_critic_loss \
