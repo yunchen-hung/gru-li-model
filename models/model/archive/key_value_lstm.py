@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from ...planning.lstm import LSTM
 from ...utils import load_act_fn, softmax
 from ...memory import KeyValueMemory
-from ...basic_module import BasicModule
+from ...base_module import BasicModule
 
 class KeyValueLSTM(BasicModule):
     def __init__(self, memory_module: KeyValueMemory, input_dim: int, other_input_dim: int, output_dim: int, hidden_dim: int = 256, decision_dim: int = 128, 

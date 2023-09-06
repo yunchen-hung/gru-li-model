@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from ...utils import load_act_fn, softmax
-from ...basic_module import BasicModule
+from ...base_module import BasicModule
 
 
 class TCM(BasicModule):

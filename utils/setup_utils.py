@@ -113,7 +113,4 @@ def parse_vary_params(setup):
             setups[run_name] = s
     else:
         setups[general_run_name] = setup
-    # for run_name, setup in setups.items():
-    #     print("Run name: {}".format(run_name))
-    #     print("Setup: {}".format(setup))
     return setups

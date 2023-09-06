@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .lca import LCA
-from models.basic_module import BasicModule
+from models.base_module import BasicModule
 from models.utils import softmax
 
 SIMILARITY_MEASURES = ['cosine', 'l1', 'l2']

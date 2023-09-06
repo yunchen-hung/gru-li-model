@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from ...utils import load_act_fn, softmax
-from ...basic_module import BasicModule
+from ...base_module import BasicModule
 from ...planning.lstm import LSTM
 from ...memory import ValueMemory
 

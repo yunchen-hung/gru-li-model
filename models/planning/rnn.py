@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from utils import import_attr
-from ..basic_module import BasicModule
+from ..base_module import BasicModule
 
 INIT_STATE_METHODS = ['zero', 'random', 'train', 'keep_last']
 

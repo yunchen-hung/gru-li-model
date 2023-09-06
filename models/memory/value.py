@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from ..basic_module import BasicModule
+from ..base_module import BasicModule
 
 
 class ValueMemory(BasicModule):

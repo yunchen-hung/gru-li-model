@@ -5,14 +5,17 @@ import torch.nn as nn
 
 
 class BasicModule(nn.Module):
-    def __init__(self, config={}, name=None, regions=None, to_numpy=True):
+    def __init__(self, name=None, to_numpy=True):
         super().__init__()
         # name of the module
         self.name = name if name is not None else self.__class__.__name__
-        self.to_numpy = to_numpy  # if true, detach and convert pytorch tensors to numpy arrays when recording
-        self.analyzing = False
+        self.to_numpy = to_numpy    # if true, detach and convert pytorch tensors to numpy arrays when recording
+        self.analyzing = False      # if true, record activities of the model
 
     def analyze(self, mode=True):
+        """
+        set up dict for recording activities
+        """
         self.analyzing = mode
         if mode:
             self.readout_dict = defaultdict(list)
@@ -24,6 +27,9 @@ class BasicModule(nn.Module):
         return self
 
     def write(self, tensor, name, append=True):
+        """
+        record a tensor to the readout_dict with a given name
+        """
         if self.analyzing:
             if self.to_numpy:
                 tensor = tensor.detach().clone().cpu().numpy()
@@ -35,12 +41,12 @@ class BasicModule(nn.Module):
                 self.readout_dict[name] = tensor
 
     def readout(self):
+        """
+        process the readout_dict and return a dict of recorded data
+        """
         if hasattr(self, 'readout_dict'):
             readout_dict = {}
             for key, value in self.readout_dict.items():
-                # print(key)
-                # for v in value:
-                #     print(v.shape)
                 if self.to_numpy:
                     readout_dict[key] = np.stack(value, axis=0)
                 else:
@@ -53,14 +59,3 @@ class BasicModule(nn.Module):
             return readout_dict
         else:
             return {}
-
-
-class analyze:
-    def __init__(self, model):
-        self.model = model
-
-    def __enter__(self):
-        self.model.analyze(True)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.model.analyze(False)

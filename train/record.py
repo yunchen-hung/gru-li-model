@@ -1,6 +1,6 @@
 import torch
 
-from models.basic_module import analyze
+from models.base_module import analyze
 from .criterions.rl import pick_action
 
 

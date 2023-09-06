@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..basic_module import BasicModule
+from ..base_module import BasicModule
 
 
 class TCMMemory(BasicModule):

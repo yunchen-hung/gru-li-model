@@ -30,7 +30,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         state = agent.init_state(batch_size)
         agent.reset_memory()
 
-        # create variables to store data
+        # create variables to store data related to outputs and results
         actions, probs, rewards, values, entropys, actions_max, outputs = [], [], [], [], [], [], []
 
         # reset environment
@@ -38,19 +38,18 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         obs = torch.Tensor(obs_).to(device)
         done = False
         while not done:
-            if info.get("encoding_on", False):
+            # set up the phase of the agent
+            if info["phase"] == "encoding":
                 agent.set_encoding(True)
-            else:
-                agent.set_encoding(False)
-            if info.get("retrieval_off", False):
                 agent.set_retrieval(False)
-            else:
+            elif info["phase"] == "recall":
+                agent.set_encoding(False)
                 agent.set_retrieval(True)
+            # reset state between phases
             if info.get("reset_state", False):
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
-            # print(agent.memory_module.stored_memory)
 
-            # torch.autograd.set_detect_anomaly(True)
+            # do one step of computation for the agent
             output, value, state = agent(obs, state)
             if isinstance(output, tuple):
                 action_distribution = output[0]
