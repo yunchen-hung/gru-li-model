@@ -35,9 +35,9 @@
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": false,
-            "false_reward": -0.25,
-            "repeat_penalty": -0.25,
-            "not_know_reward": -0.1
+            "false_reward": -0.5,
+            "repeat_penalty": -0.5,
+            "not_know_reward": -0.5
         },
         "trainer": {
             "training_function": "train_model",
