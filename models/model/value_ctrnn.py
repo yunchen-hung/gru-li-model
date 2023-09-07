@@ -132,6 +132,9 @@ class ValueMemoryCTRNN(BasicModule):
 
             # when use_memory is false, this function will return a zero tensor
             retrieved_memory = self.memory_module.retrieve(state)
+        else:
+            retrieved_memory = 0
+            mem_gate = 0
 
         # compute forward pass
         for _ in range(self.step_for_each_timestep):
@@ -140,7 +143,6 @@ class ValueMemoryCTRNN(BasicModule):
             else:
                 noise = 0
             self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in + retrieved_memory * mem_gate) * self.alpha + noise
-            self.write(self.fc_hidden(state), "state_before_act")
             state = self.act_fn(self.hidden_state)
             self.write(state, 'state')
 

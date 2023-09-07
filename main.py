@@ -11,7 +11,7 @@ from train import plot_accuracy_and_error, record_model
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--experiment", type=str, default="", help="")
+    parser.add_argument("--exp", type=str, default="", help="")
     parser.add_argument("--setup", type=str, default="setup.json", help="")
     parser.add_argument("-train", action='store_true', help="")
     parser.add_argument("--device", type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help="")
@@ -20,7 +20,7 @@ def parse_args():
 
     args, unknown_args = parser.parse_known_args()
 
-    experiment = args.experiment
+    experiment = args.exp
     assert args.setup != ""
     # setup_name = Path(args.setup).stem
     setup_name = args.setup

@@ -59,3 +59,14 @@ class BasicModule(nn.Module):
             return readout_dict
         else:
             return {}
+
+
+class analyze:
+    def __init__(self, model):
+        self.model = model
+
+    def __enter__(self):
+        self.model.analyze(True)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.model.analyze(False)

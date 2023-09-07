@@ -49,9 +49,10 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             if info.get("reset_state", False):
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
-            # do one step of computation for the agent
+            # do one step of forward pass for the agent
             output, value, state = agent(obs, state)
             if isinstance(output, tuple):
+                # when generating two decisions, only record the first one as action
                 action_distribution = output[0]
             else:
                 action_distribution = output

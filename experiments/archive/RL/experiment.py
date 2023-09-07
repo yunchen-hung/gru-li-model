@@ -159,6 +159,16 @@ def run(data_all, model_all, env, paths, exp_name):
         pca.visualize_state_space(save_path=fig_path/"pca"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
         pca.visualize_state_space(save_path=fig_path/"pca")
 
+        half_states = []
+        for i in range(context_num):
+            half_states.append(readouts[i][0]['half_state'])
+        half_states = np.stack(half_states).squeeze()
+        pca = PCA()
+        pca.fit(half_states)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"memorizing", end_step=timestep_each_phase)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state"/"recalling", start_step=timestep_each_phase, end_step=timestep_each_phase*2)
+        pca.visualize_state_space(save_path=fig_path/"pca"/"half_state")
+
         # SVM
         c_memorizing = np.stack([readouts[i][0]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
         c_recalling = np.stack([readouts[i][0]['state'][-timestep_each_phase:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
