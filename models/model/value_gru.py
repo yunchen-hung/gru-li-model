@@ -7,7 +7,7 @@ from ..base_module import BasicModule
 from ..memory import ValueMemory
 
 
-class ValueMemoryCTRNN(BasicModule):
+class ValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant', act_fn='Tanh', 
     init_state_type="zeros", evolve_state_between_phases=False, dt: float = 10, tau: float = 10, noise_std=0, start_recall_with_ith_item_init=0, 
     softmax_beta=1.0, use_memory=True, two_decisions=False, step_for_each_timestep=None, device: str = 'cpu'):

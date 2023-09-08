@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import torch
 
@@ -7,7 +8,7 @@ from .utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
-def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=True, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
+def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
     model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0):
     """
     Train the model with RL
@@ -24,6 +25,10 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
     print("batch size:", batch_size)
     
     for i in range(num_iter):
+        # record time for the first iteration to estimate total time needed
+        if i == 0:
+            start_time = time.time()
+
         # before each trial, for the agent:
         # 1. reset initial state
         # 2. reset memory module
@@ -36,6 +41,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         # reset environment
         obs_, info = env.reset()
         obs = torch.Tensor(obs_).to(device)
+        # print(env.memory_sequence)
         done = False
         while not done:
             # set up the phase of the agent
@@ -57,7 +63,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             else:
                 action_distribution = output
             action, log_prob_action, action_max = pick_action(action_distribution)
+            # info_ = info
             obs_, reward, done, info = env.step(action)
+            # print(obs, action, reward, info_)
             obs = torch.Tensor(obs_).to(device)
 
             outputs.append(output)
@@ -68,6 +76,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             actions.append(action)
             actions_max.append(action_max)
             total_reward += np.sum(reward)
+        
+        # print()
 
         correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions)
         # print(torch.stack(actions[env.memory_num:]).detach().cpu().numpy(), env.memory_sequence, correct_actions, wrong_actions, not_know_actions)
@@ -76,11 +86,13 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         actions_wrong_num += wrong_actions
 
         if train_all_time:
+            # train both encoding and recall phase
             loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, device=device)
         else:
             loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], device=device)
 
         if train_encode:
+            # train encoding phase with supervised loss
             if isinstance(outputs[0], tuple):
                 outputs_ts = [[] for _ in range(len(outputs[0]))]
                 for output in outputs:
@@ -101,7 +113,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
+        # torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
         optimizer.step()
 
         total_loss += loss.item()
@@ -109,13 +121,18 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         total_critic_loss += loss_critic.item()
             
         if i % test_iter == 0:
+            if i == test_iter:
+                print("Estimated time needed: {:2f}h".format((time.time()-start_time)/test_iter*num_iter/3600))
+
             if hasattr(env, "fixed_feature_sequence"):
                 gt = env.fixed_feature_sequence
             else:
                 gt = env.memory_sequence
+            # show example ground truth and actions, including random sampled actions and argmax actions
             print(gt, torch.tensor(actions[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.tensor(actions_max[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
             if train_all_time:
+                # show example in the encoding phase
                 print(torch.tensor(actions[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
                     torch.tensor(actions_max[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
 

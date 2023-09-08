@@ -2,10 +2,11 @@
     "run_num": 3,
     "model": {
         "class": "ValueMemoryCTRNN",
-        "hidden_dim": 64,
-        "input_dim": 33,
-        "output_dim": 16,
+        "hidden_dim": 128,
+        "input_dim": 43,
+        "output_dim": 21,
         "tau": 10,
+        "use_memory": false,
         "em_gate_type": "scalar",
         "start_recall_with_ith_item_init": 1,
         "step_for_each_timestep": 1,
@@ -13,7 +14,7 @@
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 64,
+            "value_dim": 128,
             "capacity": 5,
             "recall_method": "weight_sum",
             "subclasses": [
@@ -29,7 +30,7 @@
     "training": [{
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 15,
+            "vocabulary_num": 20,
             "memory_num": 5,
             "retrieve_time_limit": 5,
             "return_action": true,

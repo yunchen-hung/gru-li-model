@@ -4,7 +4,7 @@ import gym
 
 
 class FreeRecall(gym.Env):
-    def __init__(self, vocabulary_num=100, memory_num=10, retrieve_time_limit=15, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
+    def __init__(self, vocabulary_num=20, memory_num=5, retrieve_time_limit=5, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
     not_know_reward=-0.1, reset_state_before_test=False, start_recall_cue=False, encode_reward_weight=0.0, return_action=False, return_reward=False, 
     forward_smooth=0, backward_smooth=0, dt=10, tau=10, batch_size=1):
         self.vocabulary_num = vocabulary_num        # dimension of items
@@ -114,7 +114,7 @@ class FreeRecall(gym.Env):
         input: action, batch_size * 1
         output: returned_actions, batch_size * (vocabulary_num+1)
         """
-        if self.current_timestep == 0:
+        if self.current_timestep == 0 and not self.testing:
             returned_actions = np.zeros((len(action), self.vocabulary_num+1))
         else:
             returned_actions_digit = np.array([a.cpu().detach().item() for a in action])
@@ -202,7 +202,10 @@ class FreeRecall(gym.Env):
         if self.start_recall_cue:
             observations = np.concatenate((observations, np.array([start_recall for _ in range(batch_size)]).reshape(-1, 1)), axis=1)
         if self.return_action:
-            observations = np.concatenate((observations, returned_actions), axis=1)
+            if self.testing and self.current_timestep > 0:
+                observations = np.concatenate((observations, returned_actions), axis=1)
+            else:
+                observations = np.concatenate((observations, np.zeros((batch_size, self.vocabulary_num+1))), axis=1)
         if self.return_reward:
             observations = np.concatenate((observations, rewards.reshape(-1, 1)), axis=1)
         return observations, rewards, done, info
@@ -304,3 +307,10 @@ class FreeRecall(gym.Env):
                     else:
                         rewards[i].append(self.false_reward)
         return np.array(rewards).transpose(1, 0)
+
+
+# test
+if __name__ == "__main__":
+    env = FreeRecall(batch_size=1, vocabulary_num=10, memory_num=5, retrieve_time_limit=5)
+
+
