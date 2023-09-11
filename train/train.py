@@ -85,11 +85,17 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
 
+        if i % test_iter == 0:
+            print_criterion_info = True
+            print(action_distribution)
+        else:
+            print_criterion_info = False
+
         if train_all_time:
             # train both encoding and recall phase
-            loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, device=device)
+            loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, print_info=print_criterion_info, device=device)
         else:
-            loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], device=device)
+            loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], print_info=print_criterion_info, device=device)
 
         if train_encode:
             # train encoding phase with supervised loss

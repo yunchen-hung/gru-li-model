@@ -1,4 +1,4 @@
-from turtle import forward
+import math
 import torch
 import torch.nn as nn
 
@@ -10,7 +10,7 @@ from ..memory import ValueMemory
 class ValueMemoryCTRNN(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant', act_fn='Tanh', 
     init_state_type="zeros", evolve_state_between_phases=False, dt: float = 10, tau: float = 10, noise_std=0, start_recall_with_ith_item_init=0, 
-    softmax_beta=1.0, use_memory=True, two_decisions=False, step_for_each_timestep=None, device: str = 'cpu'):
+    softmax_beta=1.0, use_memory=True, step_for_each_timestep=None, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -36,10 +36,7 @@ class ValueMemoryCTRNN(BasicModule):
         self.fc_input = nn.Linear(input_dim, hidden_dim)
         self.fc_hidden = nn.Linear(hidden_dim, hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, output_dim)
-        self.fc_critic = nn.Linear(output_dim, 1)
-        if two_decisions:           # if true, train to output both current timestep and last timestep
-            self.fc_decision2 = nn.Linear(hidden_dim, output_dim)
-        self.two_decisions = two_decisions
+        self.fc_critic = nn.Linear(hidden_dim, 1)
 
         # gate when adding episodic memory to hidden state
         self.em_gate_type = em_gate_type
@@ -72,6 +69,13 @@ class ValueMemoryCTRNN(BasicModule):
             # train different initial hidden state for encoding and recall phase
             self.h0 = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
             self.h0_recall = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        std = 1.0 / math.sqrt(self.hidden_dim)
+        for w in self.parameters():
+            w.data.uniform_(-std, std)
 
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
@@ -157,12 +161,9 @@ class ValueMemoryCTRNN(BasicModule):
                 self.ith_item_state = self.hidden_state.detach().clone()
 
         # compute output decision(s)
-        decision = softmax(self.fc_decision(state))
+        decision = softmax(self.fc_decision(state), self.softmax_beta)
         self.write(decision, 'decision')
-        if self.two_decisions:
-            decision2 = softmax(self.fc_decision2(state))
-        value = self.fc_critic(decision)
-        decision = (decision, decision2) if self.two_decisions else decision
+        value = self.fc_critic(state)
         
         return decision, value, state
 

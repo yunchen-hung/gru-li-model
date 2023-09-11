@@ -1,16 +1,11 @@
 {
     "run_num": 3,
     "model": {
-        "class": "ValueMemoryCTRNN",
+        "class": "ValueMemoryGRU",
         "hidden_dim": 128,
         "input_dim": 103,
         "output_dim": 51,
-        "tau": 10,
         "use_memory": false,
-        "em_gate_type": "scalar",
-        "act_fn": "ReLU",
-        "start_recall_with_ith_item_init": 1,
-        "step_for_each_timestep": 1,
         "softmax_beta": 1.0,
         "subclasses": [{
             "name": "memory_module",
@@ -57,7 +52,7 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-2,
+                "lr": 3e-3,
                 "lr_decay_factor": 0.1,
                 "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,

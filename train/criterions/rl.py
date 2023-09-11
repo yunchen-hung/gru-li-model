@@ -9,7 +9,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 class A2CLoss(nn.Module):
-    def __init__(self, returns_normalize=False, use_V=True, eta=0.001, gamma=0.0) -> None:
+    def __init__(self, returns_normalize=False, use_V=True, eta=0.0, gamma=0.0) -> None:
         """
         compute the objective node for policy/value networks
 
@@ -34,7 +34,7 @@ class A2CLoss(nn.Module):
         self.eta = eta
         self.gamma = gamma
 
-    def forward(self, probs, values, rewards, entropys, device='cpu'):
+    def forward(self, probs, values, rewards, entropys, print_info=False, device='cpu'):
         """
         probs, values: list of torch.tensor, overall size is (timesteps, batch_size, action_dim)
         rewards, entropys: list of torch.tensor, overall size is (timesteps, batch_size)
@@ -46,6 +46,8 @@ class A2CLoss(nn.Module):
                                 torch.stack(values).squeeze(2).transpose(1, 0).to(device), \
                                 torch.stack(returns).to(device), \
                                 torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
+        if print_info:
+            print(probs, values, rewards)
         if self.use_V:
             # A2C loss
             A = rewards - values.data

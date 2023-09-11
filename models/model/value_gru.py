@@ -1,4 +1,4 @@
-from turtle import forward
+import math
 import torch
 import torch.nn as nn
 
@@ -8,9 +8,9 @@ from ..memory import ValueMemory
 
 
 class ValueMemoryGRU(BasicModule):
-    def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant', act_fn='Tanh', 
-    init_state_type="zeros", evolve_state_between_phases=False, dt: float = 10, tau: float = 10, noise_std=0, start_recall_with_ith_item_init=0, 
-    softmax_beta=1.0, use_memory=True, two_decisions=False, step_for_each_timestep=None, device: str = 'cpu'):
+    def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
+    init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, start_recall_with_ith_item_init=0, 
+    softmax_beta=1.0, use_memory=True, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -21,11 +21,6 @@ class ValueMemoryGRU(BasicModule):
         self.encoding = False
         self.retrieving = False
 
-        # for CTRNN
-        self.dt = dt
-        self.alpha = float(dt) / float(tau)
-        self.step_for_each_timestep = step_for_each_timestep if step_for_each_timestep is not None else int(tau / dt)
-
         self.noise_std = noise_std
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
 
@@ -33,36 +28,10 @@ class ValueMemoryGRU(BasicModule):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.fc_input = nn.Linear(input_dim, hidden_dim)
-        self.fc_hidden = nn.Linear(hidden_dim, hidden_dim)
+        self.fc_input = nn.Linear(input_dim, 3 * hidden_dim)
+        self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, output_dim)
-        self.fc_critic = nn.Linear(output_dim, 1)
-        if two_decisions:           # if true, train to output both current timestep and last timestep
-            self.fc_decision2 = nn.Linear(hidden_dim, output_dim)
-        self.two_decisions = two_decisions
-
-        # gate when adding episodic memory to hidden state
-        self.em_gate_type = em_gate_type
-        if em_gate_type == "constant":
-            self.em_gate = 1.0
-        elif em_gate_type == "scalar":
-            self.em_gate = nn.Linear(hidden_dim, 1)
-        elif em_gate_type == "vector":
-            self.em_gate = nn.Linear(hidden_dim, hidden_dim)
-        else:
-            raise ValueError(f"Invalid em_gate_type: {em_gate_type}")
-
-        self.act_fn = load_act_fn(act_fn)
-
-        # if true, compute forward pass for an extra timestep between encoding and retrieval phases
-        self.evolve_state_between_phases = evolve_state_between_phases
-        self.last_encoding = False
-
-        self.hidden_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
-        # initialize the hidden state at recall phase with the ith item's hidden state at encoding phase
-        # start_recall_with_ith_item_init can take 1~mem_num, 0 means do not initialize hidden state at recall phase
-        self.start_recall_with_ith_item_init = start_recall_with_ith_item_init
-        self.ith_item_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
+        self.fc_critic = nn.Linear(hidden_dim, 1)
 
         self.init_state_type = init_state_type
         if init_state_type == "train":
@@ -72,6 +41,13 @@ class ValueMemoryGRU(BasicModule):
             # train different initial hidden state for encoding and recall phase
             self.h0 = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
             self.h0_recall = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
+
+    #     self.reset_parameters()
+
+    # def reset_parameters(self):
+    #     std = 1.0 / math.sqrt(self.hidden_dim)
+    #     for w in self.parameters():
+    #         w.data.uniform_(-std, std)
 
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
@@ -87,7 +63,7 @@ class ValueMemoryGRU(BasicModule):
                 self.hidden_state = self.h0_recall.repeat(batch_size, 1)
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
-            state = self.act_fn(self.hidden_state)
+            state = torch.tanh(self.hidden_state)
             if self.start_recall_with_ith_item_init != 0:
                 self.write(state, 'state')
         else:
@@ -97,72 +73,30 @@ class ValueMemoryGRU(BasicModule):
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == "train" or self.init_state_type == "train_diff":
                 self.hidden_state = self.h0.repeat(batch_size, 1)
-                state = self.act_fn(self.hidden_state)
+                state = torch.tanh(self.hidden_state)
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
         
         self.write(state, 'init_state')
-        self.current_timestep = 0
         return state
 
-    def forward(self, inp, state, beta=1.0):
-        if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
-            # do a timestep of forward pass between encoding and retrieval phases
-            if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
-            else:
-                noise = 0
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state)) * self.alpha + noise
-            state = self.act_fn(self.hidden_state)
-            self.write(state, 'state')
-            self.last_encoding = False
-
-        # encode input info
-        c_in = self.fc_input(inp)
-
-        # retrieve memory
-        if self.use_memory and self.retrieving:
-            print("retrieving")
-            if self.em_gate_type == "constant":
-                mem_gate = self.em_gate
-            elif self.em_gate_type == "scalar":
-                mem_gate = self.em_gate(state)
-            else:
-                mem_gate = self.em_gate(state).sigmoid()
-            self.write(mem_gate, 'mem_gate_recall')
-
-            # when use_memory is false, this function will return a zero tensor
-            retrieved_memory = self.memory_module.retrieve(state)
-        else:
-            retrieved_memory = 0
-            mem_gate = 0
-
+    def forward(self, inp, state, beta=None):
         # compute forward pass
-        for _ in range(self.step_for_each_timestep):
-            if self.noise_std > 0:
-                noise = self.noise_std*torch.randn(self.hidden_state.size()).to(self.device)
-            else:
-                noise = 0
-            self.hidden_state = self.hidden_state * (1 - self.alpha) + (self.fc_hidden(state) + c_in + retrieved_memory * mem_gate) * self.alpha + noise
-            state = self.act_fn(self.hidden_state)
-            self.write(state, 'state')
-
-        # store memory
-        if self.use_memory and self.encoding:
-            print("encoding")
-            self.memory_module.encode(state)
-            self.last_encoding = True       # flag for evolve_state_between_phases, indicating last timestep is in encoding phase
-            self.current_timestep += 1
-            if self.current_timestep == self.start_recall_with_ith_item_init:
-                self.ith_item_state = self.hidden_state.detach().clone()
+        gate_x = self.fc_input(inp)
+        gate_h = self.fc_hidden(state)
+        i_r, i_i, i_n = gate_x.chunk(3, 1)
+        h_r, h_i, h_n = gate_h.chunk(3, 1)
+        resetgate = torch.sigmoid(i_r + h_r)
+        inputgate = torch.sigmoid(i_i + h_i)
+        newgate = torch.tanh(i_n + resetgate * h_n)
+        state = newgate + inputgate * (state - newgate)
+        self.write(state, 'state')
 
         # compute output decision(s)
-        decision = softmax(self.fc_decision(state))
+        beta = self.softmax_beta if beta is None else beta
+        decision = softmax(self.fc_decision(state), beta)
         self.write(decision, 'decision')
-        if self.two_decisions:
-            decision2 = softmax(self.fc_decision2(state))
-        value = self.fc_critic(decision)
-        decision = (decision, decision2) if self.two_decisions else decision
+        value = self.fc_critic(state)
         
         return decision, value, state
 
