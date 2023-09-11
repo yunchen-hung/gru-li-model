@@ -36,7 +36,7 @@ class FreeRecall(gym.Env):
         self.current_timestep = 0                           # reset current timestep
         self.current_step_within_item = 0                   # for CTRNN, when there's multiple steps for each item
         self.testing = False                                # false: encoding phase, true: recall phase
-        self.not_retrieved = np.ones((self.batch_size, self.vocabulary_num+1), dtype=np.bool)   # flag for each item, 0 for retrieved, 1 for not retrieved
+        self.not_retrieved = np.ones((self.batch_size, self.vocabulary_num+1), dtype=bool)   # flag for each item, 0 for retrieved, 1 for not retrieved
         # for i in range(self.batch_size):
         #     self.not_retrieved[i][self.memory_sequence[i]] = True
         self.reported_memory = np.zeros(self.batch_size)    # number of reported memories during recall
@@ -221,7 +221,7 @@ class FreeRecall(gym.Env):
         self.current_timestep = 0
         self.current_step_within_item = 0
         self.testing = False
-        self.not_retrieved = np.ones((self.batch_size, self.vocabulary_num+1), dtype=np.bool)
+        self.not_retrieved = np.ones((self.batch_size, self.vocabulary_num+1), dtype=bool)
         self.reported_memory = np.zeros(self.batch_size)
         info = {"phase": "encoding"}
         observations = self.stimuli[:, self.current_timestep, :]
@@ -268,7 +268,7 @@ class FreeRecall(gym.Env):
         correct_actions = 0
         wrong_actions = 0
         not_know_actions = 0
-        not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=np.bool)
+        not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=bool)
         for actions_batch in actions[self.memory_num:]:
             for i, action in enumerate(actions_batch):
                 if action in list(self.memory_sequence[i]) and not_retrieved[i][action]:
@@ -290,7 +290,7 @@ class FreeRecall(gym.Env):
         assert len(actions[0]) <= self.batch_size
         batch_size = min(len(actions[0]), self.batch_size)
         rewards = [[] for _ in range(batch_size)]
-        not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=np.bool)
+        not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=bool)
         for t, action_batch in enumerate(actions[i]):
             for i, action in enumerate(action_batch):
                 if t < self.memory_num:
