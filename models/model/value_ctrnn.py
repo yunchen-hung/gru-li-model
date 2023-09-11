@@ -54,6 +54,7 @@ class ValueMemoryCTRNN(BasicModule):
         # if true, compute forward pass for an extra timestep between encoding and retrieval phases
         self.evolve_state_between_phases = evolve_state_between_phases
         self.last_encoding = False
+        self.current_timestep = 0
 
         self.hidden_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
         # initialize the hidden state at recall phase with the ith item's hidden state at encoding phase
