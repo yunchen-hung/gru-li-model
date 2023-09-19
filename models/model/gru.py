@@ -7,7 +7,7 @@ from ..base_module import BasicModule
 from ..memory import ValueMemory
 
 
-class ValueMemoryGRU(BasicModule):
+class GRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
     init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, softmax_beta=1.0, use_memory=True, device: str = 'cpu'):
         super().__init__()
@@ -31,21 +31,6 @@ class ValueMemoryGRU(BasicModule):
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, output_dim)
         self.fc_critic = nn.Linear(hidden_dim, 1)
-
-        # gate when adding episodic memory to hidden state
-        self.em_gate_type = em_gate_type
-        if em_gate_type == "constant":
-            self.em_gate = 1.0
-        elif em_gate_type == "scalar":
-            self.em_gate = nn.Linear(hidden_dim, 1)
-        elif em_gate_type == "vector":
-            self.em_gate = nn.Linear(hidden_dim, hidden_dim)
-        else:
-            raise ValueError(f"Invalid em_gate_type: {em_gate_type}")
-
-        # if true, compute forward pass for an extra timestep between encoding and retrieval phases
-        self.evolve_state_between_phases = evolve_state_between_phases
-        self.last_encoding = False
 
         self.init_state_type = init_state_type
         if init_state_type == "train":
@@ -88,33 +73,6 @@ class ValueMemoryGRU(BasicModule):
         return state
 
     def forward(self, inp, state, beta=None):
-        if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
-            # do a timestep of forward pass between encoding and retrieval phases
-            gate_h = self.fc_hidden(state)
-            h_r, h_i, h_n = gate_h.chunk(3, 1)
-            resetgate = torch.sigmoid(h_r)
-            inputgate = torch.sigmoid(h_i)
-            newgate = torch.tanh(resetgate * h_n)
-            state = newgate + inputgate * (state - newgate)
-            self.write(state, 'state')
-            self.last_encoding = False
-
-        # retrieve memory
-        if self.use_memory and self.retrieving:
-            retrieved_memory = self.memory_module.retrieve(state)
-            if self.em_gate_type == "constant":
-                mem_gate = self.em_gate
-            elif self.em_gate_type == "scalar":
-                mem_gate = self.em_gate(state)
-            elif self.em_gate_type == "vector":
-                mem_gate = self.em_gate(state).sigmoid()
-            else:
-                raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
-            self.write(state, 'state')
-        else:
-            retrieved_memory = 0.0
-            mem_gate = 0.0
-
         # compute forward pass
         gate_x = self.fc_input(inp)
         gate_h = self.fc_hidden(state)
@@ -122,14 +80,10 @@ class ValueMemoryGRU(BasicModule):
         h_r, h_i, h_n = gate_h.chunk(3, 1)
         resetgate = torch.sigmoid(i_r + h_r)
         inputgate = torch.sigmoid(i_i + h_i)
-        newgate = torch.tanh(i_n + resetgate * h_n + mem_gate * retrieved_memory)
+        # newgate = torch.tanh(i_n + resetgate * h_n + mem_gate * retrieved_memory)
+        newgate = torch.tanh(i_n + resetgate * h_n)
         state = newgate + inputgate * (state - newgate)
         self.write(state, 'state')
-
-        # store memory
-        if self.use_memory and self.encoding:
-            self.memory_module.encode(state)
-            self.last_encoding = True
 
         # compute output decision(s)
         beta = self.softmax_beta if beta is None else beta

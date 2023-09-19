@@ -8,6 +8,7 @@
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
+        "em_gate_type": "vector",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -19,7 +20,7 @@
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.05
+                    "softmax_temperature": 0.2
                 }
             ]
         }]
@@ -61,5 +62,6 @@
             }
         }
     }],
-    "load_saved_model": false
+    "load_saved_model": false,
+    "context_num": 1000
 }

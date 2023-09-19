@@ -11,12 +11,13 @@ from train import plot_accuracy_and_error, record_model
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp", type=str, default="", help="")
-    parser.add_argument("--setup", type=str, default="setup.json", help="")
-    parser.add_argument("-train", action='store_true', help="")
-    parser.add_argument("--device", type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help="")
+    parser.add_argument("--exp", type=str, default="", help="experiment name")
+    parser.add_argument("--setup", type=str, default="setup.json", help="setup file name")
+    parser.add_argument("-train", action='store_true', help="train the model from beginning, ignore the stored models")
+    parser.add_argument("--device", type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument("-debug", action='store_true', help="debug mode, don't save results")
     parser.add_argument("-test_accu", action='store_true', help="test accuracy when loading models")
+    parser.add_argument("--run_num", default=None, help="number of runs, can be list or int")
 
     args, unknown_args = parser.parse_known_args()
 
@@ -28,10 +29,11 @@ def parse_args():
     train = args.train
     debug = args.debug
     test_accu = args.test_accu
+    run_num = args.run_num
 
-    return experiment, setup_name, device, train, debug, test_accu, unknown_args
+    return experiment, setup_name, device, train, debug, test_accu, run_num, unknown_args
 
-def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else 'cpu', train=False, debug=False, test_accu=False, unknown_args=None):
+def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else 'cpu', train=False, debug=False, test_accu=False, run_num=None, unknown_args=None):
     # load setup
     exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
     setup_origin = load_setup(exp_dir/consts.SETUP_FOLDER/setup_name)
@@ -40,7 +42,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     # if run_num is a int, number the runs with 1~run_num
     # if run_num is a list, number the runs with the numbers in the list
     # there could be int and list in the list, e.g. [1, [2, 4], 5] means run 1, 2, 3, 4, 5
-    run_num = setup_origin.get("run_num", 1)
+    run_num = setup_origin.get("run_num", 1) if run_num is None else run_num
     if isinstance(run_num, list):
         run_nums = []
         for i in range(len(run_num)):
@@ -51,6 +53,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 run_nums.extend(list(range(run_num[i][0], run_num[i][1]+1)))
     else:
         run_nums = list(range(1, run_num+1))
+
+    print("device:", device)
 
     model_all, data_all = {}, {}
     for i in run_nums:
@@ -80,9 +84,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_save_path/"model.pt"):
                 if setup.get("load_saved_model", False):
                     print("load saved model")
-                model.load_state_dict(torch.load(model_save_path/"model.pt"))
+                model.load_state_dict(torch.load(model_save_path/"model.pt", map_location=torch.device('cpu')))
 
-            print("device: ", device)
             model.to(device)
 
             # train the model with each training setup
@@ -119,5 +122,5 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
 
 if __name__ == "__main__":
-    _experiment, _setup_name, _device, _train, _debug, _test_accu, _unknown_args = parse_args()
-    main(_experiment, _setup_name, _device, _train, _debug, _test_accu, _unknown_args)
+    _experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, _unknown_args = parse_args()
+    main(_experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, _unknown_args)
