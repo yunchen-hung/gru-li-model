@@ -1,18 +1,21 @@
 {
     "run_num": 3,
     "model": {
-        "class": "ValueMemoryGRU",
-        "hidden_dim": 128,
+        "class": "ValueMemoryCTRNN",
+        "hidden_dim": 256,
         "input_dim": 103,
         "output_dim": 51,
+        "tau": 10,
         "use_memory": true,
-        "softmax_beta": 2.0,
-        "start_recall_with_ith_item_init": 1,
         "em_gate_type": "scalar",
+        "act_fn": "ReLU",
+        "start_recall_with_ith_item_init": 1,
+        "step_for_each_timestep": 1,
+        "softmax_beta": 10.0,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 128,
+            "value_dim": 256,
             "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
@@ -20,7 +23,7 @@
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.2
+                    "softmax_temperature": 0.1
                 }
             ]
         }]
@@ -49,14 +52,14 @@
             "train_all_time": false,
             "train_encode": false,
             "beta_decay_rate": 0.8,
-            "beta_decay_iter": 10000,
+            "beta_decay_iter": 5000,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 3e-3,
+                "lr": 1e-2,
                 "lr_decay_factor": 0.1,
                 "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,
@@ -64,6 +67,5 @@
             }
         }
     }],
-    "load_saved_model": false,
-    "context_num": 1000
+    "load_saved_model": false
 }

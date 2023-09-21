@@ -146,18 +146,18 @@ def run(data_all, model_all, env, paths, exp_name):
         sim_enc_rec[run_name_without_num].append(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase])
 
         # memory gate
-        plt.figure(figsize=(4, 3), dpi=250)
-        for i in range(context_num):
-            readout = readouts[i][0]
-            em_gates = readout['mem_gate_recall']
-            plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:env.memory_num], label="context {}".format(i))
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.xlabel("timesteps of recalling phase")
-        plt.ylabel("memory gate")
-        plt.tight_layout()
-        savefig(fig_path, "em_gate_recall")
+        # plt.figure(figsize=(4, 3), dpi=250)
+        # for i in range(context_num):
+        #     readout = readouts[i][0]
+        #     em_gates = readout['mem_gate_recall']
+        #     plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:env.memory_num], label="context {}".format(i))
+        # ax = plt.gca()
+        # ax.spines['top'].set_visible(False)
+        # ax.spines['right'].set_visible(False)
+        # plt.xlabel("timesteps of recalling phase")
+        # plt.ylabel("memory gate")
+        # plt.tight_layout()
+        # savefig(fig_path, "em_gate_recall")
 
         # recall probability (output)
         recall_probability = RecallProbability()
@@ -186,6 +186,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
         # alignment of memory and output
         memory_output = []
+        print(memory_contexts.shape)
         for i in range(context_num):
             memory_output.append(memory_contexts[i][retrieved_memories[i]])
         memory_output = np.stack(memory_output)

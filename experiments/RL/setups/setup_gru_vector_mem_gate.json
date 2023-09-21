@@ -8,7 +8,7 @@
         "use_memory": true,
         "softmax_beta": 2.0,
         "start_recall_with_ith_item_init": 1,
-        "em_gate_type": "scalar",
+        "em_gate_type": "vector",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",

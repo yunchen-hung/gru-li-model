@@ -9,7 +9,8 @@ from ..memory import ValueMemory
 
 class ValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
-    init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, softmax_beta=1.0, use_memory=True, device: str = 'cpu'):
+    init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, softmax_beta=1.0, use_memory=True, 
+    start_recall_with_ith_item_init=0, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -28,6 +29,7 @@ class ValueMemoryGRU(BasicModule):
         self.output_dim = output_dim
 
         self.fc_input = nn.Linear(input_dim, 3 * hidden_dim)
+        # self.fc_memory = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, output_dim)
         self.fc_critic = nn.Linear(hidden_dim, 1)
@@ -46,6 +48,10 @@ class ValueMemoryGRU(BasicModule):
         # if true, compute forward pass for an extra timestep between encoding and retrieval phases
         self.evolve_state_between_phases = evolve_state_between_phases
         self.last_encoding = False
+
+        self.start_recall_with_ith_item_init = start_recall_with_ith_item_init
+        self.ith_item_state = torch.zeros((1, self.hidden_dim), device=self.device, requires_grad=True)
+        self.current_timestep = 0
 
         self.init_state_type = init_state_type
         if init_state_type == "train":
@@ -66,7 +72,9 @@ class ValueMemoryGRU(BasicModule):
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
             # initialize hidden state for recall phase
-            if self.init_state_type == 'zeros':
+            if self.start_recall_with_ith_item_init != 0:
+                state = self.ith_item_state.clone()
+            elif self.init_state_type == 'zeros':
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == 'train':
                 state = self.h0.repeat(batch_size, 1)
@@ -112,17 +120,23 @@ class ValueMemoryGRU(BasicModule):
                 raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
             self.write(state, 'state')
         else:
-            retrieved_memory = 0.0
+            retrieved_memory = torch.zeros(1, self.hidden_dim)
             mem_gate = 0.0
 
         # compute forward pass
+        state = state
         gate_x = self.fc_input(inp)
         gate_h = self.fc_hidden(state)
+        # gate_m = self.fc_memory(retrieved_memory)
         i_r, i_i, i_n = gate_x.chunk(3, 1)
         h_r, h_i, h_n = gate_h.chunk(3, 1)
+        # m_r, m_i, m_n = gate_m.chunk(3, 1)
         resetgate = torch.sigmoid(i_r + h_r)
         inputgate = torch.sigmoid(i_i + h_i)
+        # resetgate = torch.sigmoid(i_r + h_r + m_r)
+        # inputgate = torch.sigmoid(i_i + h_i + m_i)
         newgate = torch.tanh(i_n + resetgate * h_n + mem_gate * retrieved_memory)
+        # newgate = torch.tanh(i_n + resetgate * h_n + m_n)
         state = newgate + inputgate * (state - newgate)
         self.write(state, 'state')
 
@@ -130,6 +144,9 @@ class ValueMemoryGRU(BasicModule):
         if self.use_memory and self.encoding:
             self.memory_module.encode(state)
             self.last_encoding = True
+            self.current_timestep += 1
+            if self.current_timestep == self.start_recall_with_ith_item_init:
+                self.ith_item_state = state.detach().clone()
 
         # compute output decision(s)
         beta = self.softmax_beta if beta is None else beta

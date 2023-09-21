@@ -127,7 +127,6 @@ class ValueMemoryCTRNN(BasicModule):
 
         # retrieve memory
         if self.use_memory and self.retrieving:
-            print("retrieving")
             if self.em_gate_type == "constant":
                 mem_gate = self.em_gate
             elif self.em_gate_type == "scalar":
@@ -154,7 +153,6 @@ class ValueMemoryCTRNN(BasicModule):
 
         # store memory
         if self.use_memory and self.encoding:
-            print("encoding")
             self.memory_module.encode(state)
             self.last_encoding = True       # flag for evolve_state_between_phases, indicating last timestep is in encoding phase
             self.current_timestep += 1

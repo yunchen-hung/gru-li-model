@@ -1,10 +1,10 @@
 {
-    "run_num": 5,
+    "run_num": 3,
     "model": {
         "class": "ValueMemoryCTRNN",
-        "hidden_dim": 64,
-        "input_dim": 21,
-        "output_dim": 21,
+        "hidden_dim": 128,
+        "input_dim": 51,
+        "output_dim": 51,
         "tau": 10,
         "em_gate_type": "scalar",
         "start_recall_with_ith_item_init": 1,
@@ -13,7 +13,7 @@
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 64,
+            "value_dim": 128,
             "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
@@ -26,36 +26,10 @@
             ]
         }]
     },
-    "model_for_record": {
-        "class": "ValueMemoryCTRNN",
-        "hidden_dim": 64,
-        "input_dim": 21,
-        "output_dim": 21,
-        "tau": 10,
-        "em_gate_type": "scalar",
-        "start_recall_with_ith_item_init": 1,
-        "step_for_each_timestep": 1,
-        "softmax_beta": 0.2,
-        "subclasses": [{
-            "name": "memory_module",
-            "class": "ValueMemory",
-            "value_dim": 64,
-            "capacity": 8,
-            "recall_method": "random",
-            "subclasses": [
-                {
-                    "name":"similarity_measure",
-                    "class": "BasicSimilarity",
-                    "process_similarity": "softmax",
-                    "softmax_temperature": 0.1
-                }
-            ]
-        }]
-    },
     "training": [{
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 20,
+            "vocabulary_num": 50,
             "memory_num": 8,
             "retrieve_time_limit": 8,
             "start_recall_cue": false,
@@ -89,7 +63,7 @@
     }, {
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 20,
+            "vocabulary_num": 50,
             "memory_num": 8,
             "retrieve_time_limit": 8,
             "start_recall_cue": false,

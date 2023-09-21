@@ -9,7 +9,7 @@ from torch.nn.functional import mse_loss
 
 
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0):
+    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0, beta_decay_rate=1.0, beta_decay_iter=None):
     """
     Train the model with RL
     """
@@ -23,6 +23,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
     print("start training")
     print("batch size:", batch_size)
+
+    beta = agent.softmax_beta
     
     for i in range(num_iter):
         # record time for the first iteration to estimate total time needed
@@ -56,7 +58,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
             # do one step of forward pass for the agent
-            output, value, state = agent(obs, state)
+            output, value, state = agent(obs, state, beta=beta)
             if isinstance(output, tuple):
                 # when generating two decisions, only record the first one as action
                 action_distribution = output[0]
@@ -125,15 +127,15 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
         total_critic_loss += loss_critic.item()
+
+        if beta_decay_iter and i % beta_decay_iter == 0 and i > 0:
+            beta *= beta_decay_rate
             
         if i % test_iter == 0:
             if i == test_iter:
                 print("Estimated time needed: {:2f}h".format((time.time()-start_time)/test_iter*num_iter/3600))
 
-            if hasattr(env, "fixed_feature_sequence"):
-                gt = env.fixed_feature_sequence
-            else:
-                gt = env.memory_sequence
+            gt = env.memory_sequence
             # show example ground truth and actions, including random sampled actions and argmax actions
             print(gt, torch.tensor(actions[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.tensor(actions_max[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
@@ -187,14 +189,10 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
 
 def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
-    train_all_time=False, device='cpu', model_save_path=None, use_memory=None, soft_flush=False, soft_flush_iter=1000, soft_flush_accuracy=0.9, min_iter=0):
+    train_all_time=False, device='cpu', model_save_path=None, use_memory=None, min_iter=0, random_action=False):
     actions_correct_num, actions_wrong_num, actions_total_num, total_loss = 0, 0, 0, 0.0
     test_accuracies = []
     test_errors = []
-
-    keep_state = setup.get("keep_state", False)    # reset state after each episode
-    if keep_state:
-        print("keep state")
 
     batch_size = env.batch_size
 
@@ -205,60 +203,58 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
     else:
         print("Agent not use memory")
 
-    if soft_flush:
-        print("soft flush")
-        flush_level = 0.0
-        accuracy = 0.0
-        flush_iter = 0
-    else:
-        flush_level = 1.0
-
     print("start supervised training")
     print("batch size:", batch_size)
     min_test_loss = torch.inf
+
     for i in range(num_iter):
         state = agent.init_state(batch_size)
         agent.reset_memory()
         agent.set_encoding(False)
         agent.set_retrieval(False)
 
-        env.reset()
+        # create variables to store data related to outputs and results
+        actions, probs, rewards, actions_max, outputs = [], [], [], [], []
+
+        # reset environment
+        obs_, info = env.reset()
+        obs = torch.Tensor(obs_).to(device)
+        # print(env.memory_sequence)
+        done = False
+
         data, gt = env.get_batch()
         data = torch.as_tensor(data, dtype=torch.float).to(device)
-        # gt = torch.as_tensor(gt, dtype=torch.long).to(device)
         gt = torch.as_tensor(gt, dtype=torch.float).to(device)
-        actions, values = [], []
 
-        if keep_state:
-            new_state = []
-            for item in state:
-                new_state.append(item.detach().clone())
-            state = tuple(new_state)
-        else:
-            state = agent.init_state(batch_size)
+        while not done:
+            # set up the phase of the agent
+            if info["phase"] == "encoding":
+                agent.set_encoding(True)
+                agent.set_retrieval(False)
+            elif info["phase"] == "recall":
+                agent.set_encoding(False)
+                agent.set_retrieval(True)
+            # reset state between phases
+            if info.get("reset_state", False):
+                state = agent.init_state(batch_size, recall=True, prev_state=state)
 
-        outputs = []
-        for t in range(data.shape[0]):
-            if agent.use_memory:
-                # TODO: make it scalable for other tasks
-                if t < env.memory_num:
-                    agent.set_encoding(True)
-                else:
-                    agent.set_encoding(False)
-                if t < env.memory_num:
-                    agent.set_retrieval(False)
-                else:
-                    agent.set_retrieval(True)
-            if t == env.memory_num and env.reset_state_before_test:
-                state = agent.init_state(batch_size, recall=True, flush_level=flush_level, prev_state=state)
-
-            output, value, state = agent(data[t], state)
-
-            values.append(value)
+            # do one step of forward pass for the agent
+            output, _, state = agent(obs, state)
             if isinstance(output, tuple):
-                actions.append(list(torch.argmax(output[0], dim=1).detach().cpu().numpy()))
+                # when generating two decisions, only record the first one as action
+                action_distribution = output[0]
             else:
-                actions.append(list(torch.argmax(output, dim=1).detach().cpu().numpy()))
+                action_distribution = output
+            action, log_prob_action, action_max = pick_action(action_distribution)
+            # info_ = info
+            obs_, reward, done, info = env.step(action)
+            # print(obs, action, reward, info_)
+            obs = torch.Tensor(obs_).to(device)
+
+            probs.append(log_prob_action)
+            rewards.append(reward)
+            actions.append(action)
+            actions_max.append(action_max)
             outputs.append(output)
         if isinstance(outputs[0], tuple):
             outputs_ts = [[] for _ in range(len(outputs[0]))]
@@ -271,7 +267,10 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         else:
             outputs = torch.stack(outputs)
 
-        correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions)
+        if random_action:
+            correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions)
+        else:
+            correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions_max)
         # rewards = env.compute_rewards(actions)
         # print(torch.stack(actions[env.memory_num:]).detach().cpu().numpy(), env.memory_sequence, correct_actions, wrong_actions, not_know_actions)
         actions_total_num += correct_actions + wrong_actions + not_know_actions
@@ -324,11 +323,6 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
 
             print('Supervised, Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, '
             'total loss: {:.2f}'.format(i, accuracy, error, not_know_rate, mean_loss))
-
-            if soft_flush and (accuracy > soft_flush_accuracy or flush_iter >= soft_flush_iter) and flush_level < 1.0:
-                flush_level = min(1.0, flush_level+0.1)
-                flush_iter = 0
-                print("flush level changed to {}, accuracy {}".format(flush_level, accuracy))
 
             if test:
                 test_accuracy, test_error, test_not_know_rate, test_mean_reward, test_mean_loss, test_mean_actor_loss, test_mean_critic_loss \
