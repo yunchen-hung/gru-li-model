@@ -1,14 +1,14 @@
 {
-    "run_num": 3,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
         "input_dim": 103,
         "output_dim": 51,
         "use_memory": true,
-        "softmax_beta": 2.0,
+        "softmax_beta": 1.0,
         "start_recall_with_ith_item_init": 1,
-        "em_gate_type": "scalar",
+        "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -48,8 +48,6 @@
             "stop_test_accu": 0.99,
             "train_all_time": false,
             "train_encode": false,
-            "beta_decay_rate": 0.8,
-            "beta_decay_iter": 10000,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true

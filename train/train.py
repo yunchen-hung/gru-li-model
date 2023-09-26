@@ -9,7 +9,8 @@ from torch.nn.functional import mse_loss
 
 
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0, beta_decay_rate=1.0, beta_decay_iter=None):
+    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0, beta_decay_rate=1.0, 
+    beta_decay_iter=None, randomly_use_memory=False, use_memory_prob=1.0):
     """
     Train the model with RL
     """
@@ -30,6 +31,16 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         # record time for the first iteration to estimate total time needed
         if i == 0:
             start_time = time.time()
+
+        # if randomly_use_memory is true, randomly decide whether to use memory module in the forward pass
+        # this is used for mixed task of working memory and episodic memory
+        if randomly_use_memory:
+            if np.random.rand() < use_memory_prob:
+                agent.use_memory = True
+                env.reset_state_before_test = True
+            else:
+                agent.use_memory = False
+                env.reset_state_before_test = False
 
         # before each trial, for the agent:
         # 1. reset initial state

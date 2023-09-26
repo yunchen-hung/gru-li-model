@@ -1,41 +1,42 @@
 {
-    "run_num": 1,
+    "run_num": 10,
     "model": {
-        "class": "ValueMemoryCTRNN",
-        "hidden_dim": 64,
-        "input_dim": 25,
-        "output_dim": 4,
-        "tau": 10,
-        "em_gate_type": "scalar",
+        "class": "ValueMemoryGRU",
+        "hidden_dim": 128,
+        "input_dim": 103,
+        "output_dim": 51,
+        "use_memory": true,
+        "softmax_beta": 1.0,
         "start_recall_with_ith_item_init": 1,
-        "step_for_each_timestep": 1,
-        "softmax_beta": 0.2,
+        "em_gate_type": "scalar",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 64,
-            "capacity": 5,
+            "value_dim": 128,
+            "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.05
+                    "softmax_temperature": 0.2
                 }
             ]
         }]
     },
     "training": [{
         "env": {
-            "class": "FreeRecallWithFeatures",
-            "vocabulary_num": 20,
-            "memory_num": 5,
-            "feature_num": 5,
-            "feature_dim": 3,
-            "retrieve_time_limit": 5,
-            "start_recall_cue": false,
-            "reset_state_before_test": true
+            "class": "FreeRecall",
+            "vocabulary_num": 50,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
+            "return_action": true,
+            "return_reward": true,
+            "reset_state_before_test": true,
+            "false_reward": -0.5,
+            "repeat_penalty": -0.5,
+            "not_know_reward": -0.5
         },
         "trainer": {
             "training_function": "train_model",
@@ -45,21 +46,22 @@
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
+            "train_all_time": false,
+            "train_encode": false,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
-                "lr_decay_factor": 0.2,
-                "lr_decay_patience": 10,
+                "lr": 3e-3,
+                "lr_decay_factor": 0.1,
+                "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,
                 "min_lr": 1e-7
             }
         }
     }],
     "load_saved_model": false,
-    "pretrain": true,
-    "context_num": 20
+    "context_num": 1000
 }

@@ -112,10 +112,10 @@ class ValueMemoryGRU(BasicModule):
             retrieved_memory = self.memory_module.retrieve(state)
             if self.em_gate_type == "constant":
                 mem_gate = self.em_gate
+            elif self.em_gate_type == "scalar_sigmoid" or self.em_gate_type == "vector":
+                mem_gate = self.em_gate(state).sigmoid()
             elif self.em_gate_type == "scalar":
                 mem_gate = self.em_gate(state)
-            elif self.em_gate_type == "vector":
-                mem_gate = self.em_gate(state).sigmoid()
             else:
                 raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
             self.write(state, 'state')

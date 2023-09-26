@@ -2,6 +2,7 @@ from copy import deepcopy
 import os
 import argparse
 from pathlib import Path
+import ast
 import torch
 
 import consts
@@ -30,6 +31,8 @@ def parse_args():
     debug = args.debug
     test_accu = args.test_accu
     run_num = args.run_num
+    if run_num is not None and isinstance(run_num, str) and run_num[0] == "[" and run_num[-1] == "]":
+        run_num = ast.literal_eval(run_num)
 
     return experiment, setup_name, device, train, debug, test_accu, run_num, unknown_args
 
