@@ -30,7 +30,7 @@ def parse_args():
     return experiment, setup_name, time_limit, device, train, unknown_args
 
 
-def write_sbatch_script(experiment, setup_name, device, train, setup, time_limit=5):
+def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit=5):
     run_name = setup.get("run_name", setup_name.split(".")[0])
     save_dir = exp_dir/consts.LOG_FOLDER/setup["model"]["class"]/run_name
 
@@ -62,9 +62,9 @@ def write_sbatch_script(experiment, setup_name, device, train, setup, time_limit
         f"#SBATCH --cpus-per-task=1\n" +
         f"#SBATCH --time={time_limit}:00:00\n" +
         f"#SBATCH --mem-per-cpu=4G\n" +
-        f"#SBATCH -e {save_dir}/stderr/%A/slurm-%a.err\n" +
-        f"#SBATCH -o {save_dir}/stdout/%A/slurm-%a.out\n" +
-        f"#SBATCH --array=1-{len(run_nums)}\n" + 
+        f"#SBATCH -e {save_dir}/stderr/slurm-%A_%a.err\n" +
+        f"#SBATCH -o {save_dir}/stdout/slurm-%A_%a.out\n" +
+        f"#SBATCH --array=0-{len(run_nums)-1}\n" + 
         f"\n" +
 
         inspect.cleandoc(f"python -u main.py --exp {experiment} --setup {setup_name} --run_num \"[$SLURM_ARRAY_TASK_ID]\" --device {device}")
@@ -81,6 +81,6 @@ if __name__ == "__main__":
     exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
     setup = load_dict(exp_dir/consts.SETUP_FOLDER/setup_name)
 
-    shell_path = write_sbatch_script(experiment, setup_name, device, train, setup, time_limit)
+    shell_path = write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit)
 
     subprocess.run(f"sbatch {shell_path}", shell=True)

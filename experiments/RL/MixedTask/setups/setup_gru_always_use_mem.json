@@ -83,6 +83,9 @@
             "stop_test_accu": 0.99,
             "train_all_time": false,
             "train_encode": false,
+            "randomly_flush_state": true,
+            "flush_state_prob": 0.5,
+            "randomly_use_memory": false,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true

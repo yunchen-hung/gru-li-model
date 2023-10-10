@@ -2,9 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils import savefig
-from analysis.decomposition import PCA
-from analysis.decoding import SVM
+from analysis.decomposition import PCA, TDR
+from analysis.decoding import SVM, PCSelectivity, SingleNeuronSelectivity
 from analysis.behavior import RecallProbability, RecallProbabilityInTime
+from analysis.dynamics import FixedPointAnalysis
 import sklearn.metrics.pairwise as skp
 
 
@@ -22,6 +23,9 @@ def run(data_all, model_all, env, paths, exp_name):
     rec_prob_all = {}
     rec_prob_mem_all = {}
     rec_prob_by_time_all = {}
+    tdr_variance = {}
+    pc_selectivities = {}
+    pc_explained_variances = {}
 
     run_names_without_num = []
     for run_name in data_all.keys():
@@ -38,6 +42,9 @@ def run(data_all, model_all, env, paths, exp_name):
             rec_prob_all[run_name_without_num] = []
             rec_prob_mem_all[run_name_without_num] = []
             rec_prob_by_time_all[run_name_without_num] = []
+            tdr_variance[run_name_without_num] = []
+            pc_selectivities[run_name_without_num] = []
+            pc_explained_variances[run_name_without_num] = []
 
     plt.rcParams['font.size'] = 14
 
@@ -56,7 +63,6 @@ def run(data_all, model_all, env, paths, exp_name):
             timestep_each_phase = env.memory_num
         # timestep_each_phase = env.memory_num
 
-        # get recorded data and outputs of the model
         readouts = data['readouts']
         actions = data['actions']
         probs = data['probs']
@@ -66,28 +72,23 @@ def run(data_all, model_all, env, paths, exp_name):
 
         all_context_num = len(actions)
         context_num = min(all_context_num, 20)
+        trial_num = len(actions[0])
 
-        # convert data to numpy array
-        memory_contexts = np.array(data['memory_contexts'])     # ground truth of memory for each trial
-        memory_contexts = memory_contexts.reshape(-1, memory_contexts.shape[-1])    # reshape to (trials, sequence_len)
+        memory_contexts = np.array(data['memory_contexts'])
+        memory_contexts = memory_contexts.reshape(-1, memory_contexts.shape[-1])
         actions = np.array(actions)
-        actions = actions.reshape(-1, actions.shape[-1])        # (trials, timesteps per trial)
+        actions = actions.reshape(-1, actions.shape[-1])
         rewards = np.array(rewards)
         rewards = rewards.squeeze()
-        rewards = rewards.reshape(-1, rewards.shape[-1])        # (trials, timesteps per trial)
+        rewards = rewards.reshape(-1, rewards.shape[-1])
 
         if "ValueMemory" in readouts[0][0] and "similarity" in readouts[0][0]["ValueMemory"]:
             has_memory = True
         else:
             has_memory = False
         
-        # print ground truths, actions and rewards for 5 trials
         for i in range(5):
-            if has_memory:
-                print("context {}, gt: {}, action: {}, retrieved memory: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
-                np.argmax(readouts[i][0]["ValueMemory"]["similarity"].squeeze(), axis=1)+1, rewards[i][env.memory_num:]))
-            else:
-                print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
+            print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
                 rewards[i][env.memory_num:]))
 
         if has_memory:
@@ -99,11 +100,11 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.xlabel("encoding timestep")
             plt.ylabel("recall timestep")
             plt.title("recalling state-memory similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0], actions[0][env.memory_num:]))
-            savefig(fig_path, "recall_probability_one_trial")
+            savefig(fig_path, "similarity_memory")
 
             # average over all trials
             similarities = []
-            for i in range(all_context_num):
+            for i in range(context_num):
                 similarity = readouts[i][0]["ValueMemory"]["similarity"].squeeze()
                 similarities.append(similarity)
             similarities = np.stack(similarities)
@@ -112,18 +113,16 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.colorbar()
             plt.xlabel("memories")
             plt.ylabel("recalling timestep")
-            plt.title("memory similarity\nmean of {} trials".format(all_context_num))
+            plt.title("memory similarity\nmean of 20 trials")
             savefig(fig_path, "recall_probability")
             sim_mem[run_name_without_num].append(similarity)
-
-            # average over all trials and normalize in each timestep
-            similarity_normalized = similarity / np.sum(similarity, axis=1)
-            plt.imshow(similarity_normalized, cmap="Blues")
+            
+            plt.imshow(similarity, cmap="Blues")
             plt.colorbar()
-            plt.xlabel("memories")
-            plt.ylabel("recalling timestep")
-            plt.title("memory similarity\nmean of {} trials\nnormalized in each timestep".format(all_context_num))
-            savefig(fig_path, "recall_probability_normalized")
+            plt.xlabel("encoding timestep")
+            plt.ylabel("recall timestep")
+            plt.title("recalling state-memory similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0], actions[0][env.memory_num:]))
+            savefig(fig_path, "similarity_memory")
 
         # similarity of states
         similarities = []
@@ -158,8 +157,9 @@ def run(data_all, model_all, env, paths, exp_name):
         if "mem_gate_recall" in readouts[0][0]:
             plt.figure(figsize=(4, 3), dpi=250)
             for i in range(context_num):
-                em_gates = readouts[i][0]['mem_gate_recall']
-                plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:timestep_each_phase], label="context {}".format(i))
+                readout = readouts[i][0]
+                em_gates = readout['mem_gate_recall']
+                plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:env.memory_num], label="context {}".format(i))
             ax = plt.gca()
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -170,21 +170,20 @@ def run(data_all, model_all, env, paths, exp_name):
 
         # recall probability (output)
         recall_probability = RecallProbability()
-        recall_probability.fit(memory_contexts, actions[:, -timestep_each_phase:])
+        recall_probability.fit(memory_contexts, actions[:, env.memory_num:])
         recall_probability.visualize(fig_path/"recall_prob")
         rec_prob[run_name_without_num].append(recall_probability.get_results())
         rec_prob_all[run_name_without_num].append(recall_probability.get_results_all_time())
 
         # recall probability by time
         recall_probability_in_time = RecallProbabilityInTime()
-        rec_prob_by_time = recall_probability_in_time.fit(memory_contexts, actions[:, -timestep_each_phase:])
-        recall_probability_in_time.visualize(fig_path)
+        rec_prob_by_time = recall_probability_in_time.fit(memory_contexts, actions[:, env.memory_num:])
         rec_prob_by_time_all[run_name_without_num].append(rec_prob_by_time)
 
         # recall probability (memory)
         if has_memory:
             retrieved_memories = []
-            for i in range(all_context_num):
+            for i in range(context_num):
                 retrieved_memory = readouts[i][0]["ValueMemory"]["retrieved_memory"].squeeze()
                 retrieved_memory = np.argmax(retrieved_memory, axis=-1)
                 retrieved_memories.append(retrieved_memory)
@@ -197,39 +196,11 @@ def run(data_all, model_all, env, paths, exp_name):
 
             # alignment of memory and output
             memory_output = []
-            for i in range(all_context_num):
+            for i in range(context_num):
                 memory_output.append(memory_contexts[i][retrieved_memories[i]])
             memory_output = np.stack(memory_output)
-            alignment = np.mean(memory_output == actions[:all_context_num][:, env.memory_num:])
+            alignment = np.mean(memory_output == actions[:context_num][:, env.memory_num:])
             print("alignment rate: {}".format(alignment))
-
-            # matrix of alignment of memory and output
-            # the probability of "when the output is 1~n, the probability of retrieving memory 1~n"
-            memory_index = retrieved_memories + 1
-            output_index = []
-            for i in range(all_context_num):
-                index = []
-                for t in range(env.memory_num):
-                    position1 = np.where(memory_contexts[i] == actions[i][t])
-                    if position1[0].shape[0] != 0:
-                        position1 = position1[0][0] + 1
-                        index.append(position1)
-                    else:
-                        index.append(0)
-                output_index.append(index)
-            output_index = np.stack(output_index)
-            alignment_matrix = np.zeros((env.memory_num, env.memory_num))
-            for i in range(all_context_num):
-                for t in range(env.memory_num):
-                    if output_index[i][t] != 0:
-                        alignment_matrix[output_index[i][t]-1][memory_index[i][t]-1] += 1
-            alignment_matrix = alignment_matrix / np.sum(alignment_matrix, axis=1, keepdims=True)
-            plt.imshow(alignment_matrix, cmap="Blues")
-            plt.colorbar()
-            plt.xlabel("memory")
-            plt.ylabel("output")
-            plt.title("probability of retrieving each memory")
-            savefig(fig_path, "alignment_matrix")
 
         # PCA
         states = []

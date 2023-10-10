@@ -13,14 +13,14 @@
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 8,
+            "capacity": 12,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.2
+                    "softmax_temperature": 0.1
                 }
             ]
         }]
@@ -29,8 +29,8 @@
         "env": {
             "class": "FreeRecall",
             "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
+            "memory_num": 12,
+            "retrieve_time_limit": 12,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true
@@ -64,8 +64,8 @@
         "env": {
             "class": "FreeRecall",
             "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
+            "memory_num": 12,
+            "retrieve_time_limit": 12,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true,

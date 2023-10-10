@@ -10,12 +10,13 @@ from torch.nn.functional import mse_loss
 
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
     model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0, beta_decay_rate=1.0, 
-    beta_decay_iter=None, randomly_use_memory=False, use_memory_prob=1.0):
+    beta_decay_iter=None, randomly_flush_state=False, flush_state_prob=1.0, randomly_use_memory=False):
     """
     Train the model with RL
     """
     # set up some parameters and variables
-    total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
+    total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, \
+        total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
     test_accuracies, test_errors = [], []
     batch_size = env.batch_size
     if use_memory:
@@ -32,15 +33,18 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         if i == 0:
             start_time = time.time()
 
-        # if randomly_use_memory is true, randomly decide whether to use memory module in the forward pass
+        # if randomly_flush_state is true, randomly decide whether to flush the state between encoding and recall phase
+        # if randomly_use_memory is also true, don't use memory when don't flush state
         # this is used for mixed task of working memory and episodic memory
-        if randomly_use_memory:
-            if np.random.rand() < use_memory_prob:
-                agent.use_memory = True
+        if randomly_flush_state:
+            if np.random.rand() < flush_state_prob:
                 env.reset_state_before_test = True
+                if randomly_use_memory:
+                    agent.use_memory = True
             else:
-                agent.use_memory = False
                 env.reset_state_before_test = False
+                if randomly_use_memory:
+                    agent.use_memory = False
 
         # before each trial, for the agent:
         # 1. reset initial state
@@ -138,6 +142,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
         total_critic_loss += loss_critic.item()
+        total_entropy += np.mean(torch.stack([torch.stack(entropys_t) for entropys_t in entropys]).cpu().detach().numpy())
 
         if beta_decay_iter and i % beta_decay_iter == 0 and i > 0:
             beta *= beta_decay_rate
@@ -162,9 +167,11 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             mean_loss = total_loss / test_iter
             mean_actor_loss = total_actor_loss / test_iter
             mean_critic_loss = total_critic_loss / test_iter
+            mean_entropy = total_entropy / test_iter
 
             print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
-                'critic loss: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss))
+                'critic loss: {:.4f}, entropy: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss,
+                                                              mean_entropy))
 
             if test:
                 test_accuracy, test_error, test_not_know_rate, test_mean_reward, test_mean_loss, test_mean_actor_loss, test_mean_critic_loss \
@@ -191,7 +198,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             test_accuracies.append(test_accuracy)
             test_errors.append(test_error)
 
-            total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss = 0.0, 0, 0, 0, 0.0, 0.0, 0.0
+            total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
         
         if i % save_iter == 0:
             save_model(agent, model_save_path, filename="{}.pt".format(i))

@@ -101,6 +101,9 @@ class RecallProbability:
 
 
 class RecallProbabilityInTime:
+    """
+    calculate the recall probability of each item at each time step.
+    """
     def __init__(self) -> None:
         self.results = None
 
@@ -126,6 +129,6 @@ class RecallProbabilityInTime:
         plt.colorbar()
         plt.xlabel("item position")
         plt.ylabel("recalling timestep")
-        plt.title("recall probability")
-        savefig(save_path, "recall probability")
+        plt.title("recall probability by time")
+        savefig(save_path, "output_probability_by_time")
         

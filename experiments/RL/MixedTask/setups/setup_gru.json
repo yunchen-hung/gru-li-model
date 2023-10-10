@@ -1,5 +1,5 @@
 {
-    "run_num": 3,
+    "run_num": 5,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -33,6 +33,41 @@
             "retrieve_time_limit": 8,
             "return_action": true,
             "return_reward": true,
+            "reset_state_before_test": true
+        },
+        "trainer": {
+            "num_iter": 5000,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "stop_test_accu": 0.99,
+            "use_memory": true,
+            "train_all_time": true,
+            "criterion": {
+                "class": "FreeRecallSumCETrainEncodeLoss",
+                "var_weight": 2.0,
+                "output_weight": [1.0],
+                "encode_weight": 1.0,
+                "only_encode": true
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 2e-4,
+                "weight_decay": 2e-5,
+                "lr_decay_factor": 0.5,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }, {
+        "env": {
+            "class": "FreeRecall",
+            "vocabulary_num": 50,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
+            "return_action": true,
+            "return_reward": true,
             "reset_state_before_test": true,
             "false_reward": -0.5,
             "repeat_penalty": -0.5,
@@ -48,8 +83,9 @@
             "stop_test_accu": 0.99,
             "train_all_time": false,
             "train_encode": false,
+            "randomly_flush_state": true,
+            "flush_state_prob": 0.5,
             "randomly_use_memory": true,
-            "use_memory_prob": 0.5,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true

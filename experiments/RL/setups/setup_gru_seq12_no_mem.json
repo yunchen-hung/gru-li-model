@@ -1,26 +1,26 @@
 {
-    "run_num": 10,
+    "run_num": 5,
     "model": {
         "class": "ValueMemoryGRU",
-        "hidden_dim": 128,
+        "hidden_dim": 256,
         "input_dim": 103,
         "output_dim": 51,
-        "use_memory": true,
+        "use_memory": false,
         "softmax_beta": 1.0,
         "start_recall_with_ith_item_init": 1,
-        "em_gate_type": "scalar_sigmoid",
+        "em_gate_type": "scalar",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 128,
-            "capacity": 8,
+            "value_dim": 256,
+            "capacity": 12,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.2
+                    "softmax_temperature": 0.1
                 }
             ]
         }]
@@ -29,11 +29,11 @@
         "env": {
             "class": "FreeRecall",
             "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
+            "memory_num": 12,
+            "retrieve_time_limit": 12,
             "return_action": true,
             "return_reward": true,
-            "reset_state_before_test": true,
+            "reset_state_before_test": false,
             "false_reward": -0.5,
             "repeat_penalty": -0.5,
             "not_know_reward": -0.5
@@ -44,13 +44,14 @@
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
-            "use_memory": true,
+            "use_memory": false,
             "stop_test_accu": 0.99,
             "train_all_time": false,
             "train_encode": false,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true
+                "use_V": true,
+                "eta": 0.05
             },
             "optimizer": {
                 "class": "Adam",

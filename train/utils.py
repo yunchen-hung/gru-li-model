@@ -85,3 +85,4 @@ def plot_accuracy_and_error(accuracies, errors, save_path, filename="accuracy_an
     plt.plot(1 - errors, label="accuracy + don't know")
     plt.legend()
     plt.savefig(save_path/filename)
+    plt.close()

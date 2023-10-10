@@ -38,7 +38,7 @@ class ValueMemoryGRU(BasicModule):
         self.em_gate_type = em_gate_type
         if em_gate_type == "constant":
             self.em_gate = 1.0
-        elif em_gate_type == "scalar":
+        elif em_gate_type == "scalar" or em_gate_type == "scalar_sigmoid":
             self.em_gate = nn.Linear(hidden_dim, 1)
         elif em_gate_type == "vector":
             self.em_gate = nn.Linear(hidden_dim, hidden_dim)
@@ -104,8 +104,8 @@ class ValueMemoryGRU(BasicModule):
             inputgate = torch.sigmoid(h_i)
             newgate = torch.tanh(resetgate * h_n)
             state = newgate + inputgate * (state - newgate)
-            self.write(state, 'state')
             self.last_encoding = False
+            self.write(state, 'state')
 
         # retrieve memory
         if self.use_memory and self.retrieving:
@@ -118,7 +118,7 @@ class ValueMemoryGRU(BasicModule):
                 mem_gate = self.em_gate(state)
             else:
                 raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
-            self.write(state, 'state')
+            self.write(mem_gate, 'mem_gate_recall')
         else:
             retrieved_memory = torch.zeros(1, self.hidden_dim)
             mem_gate = 0.0
@@ -153,6 +153,8 @@ class ValueMemoryGRU(BasicModule):
         decision = softmax(self.fc_decision(state), beta)
         self.write(decision, 'decision')
         value = self.fc_critic(state)
+
+        self.write(self.use_memory, 'use_memory')
         
         return decision, value, state
 

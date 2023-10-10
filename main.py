@@ -1,4 +1,5 @@
 from copy import deepcopy
+from sys import platform
 import os
 import argparse
 from pathlib import Path
@@ -38,8 +39,9 @@ def parse_args():
 
 def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else 'cpu', train=False, debug=False, test_accu=False, run_num=None, unknown_args=None):
     # load setup
-    exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
-    setup_origin = load_setup(exp_dir/consts.SETUP_FOLDER/setup_name)
+    # exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
+    exp_dir = Path(experiment.replace(".", "/"))
+    setup_origin = load_setup(Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SETUP_FOLDER/setup_name)
 
     # parse run_num
     # if run_num is a int, number the runs with 1~run_num
@@ -55,7 +57,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 assert len(run_num[i]) == 2
                 run_nums.extend(list(range(run_num[i][0], run_num[i][1]+1)))
     else:
-        run_nums = list(range(1, run_num+1))
+        run_nums = list(range(0, run_num))
 
     print("device:", device)
 
@@ -80,7 +82,10 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model, model_for_record, envs, optimizers, schedulers, criterions, training_setups, setup = model_instance
 
             # set up model save path
-            model_save_path = exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
+            if platform == "linux":
+                model_save_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/run_name_with_num
+            else:
+                model_save_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
             model_save_path.mkdir(parents=True, exist_ok=True)
 
             # load trained model when not specified to train again
@@ -115,7 +120,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model_all[run_name_with_num] = model
             data_all[run_name_with_num] = data
 
-    paths = {"fig": exp_dir/consts.FIGURE_FOLDER/setup_origin["model"]["class"]}
+    paths = {"fig": Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER/setup_origin["model"]["class"]}
 
     # run experiment
     run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))

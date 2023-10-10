@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn.functional import mse_loss
+from torch.nn.functional import mse_loss, cross_entropy
 
 from utils import import_attr
 from .rl import compute_returns
@@ -116,6 +116,38 @@ class FreeRecallSumMSETrainEncodeTwoDecisionLoss(nn.Module):
                 loss += self.loss_class(output[0], gt) * self.output_weight[0]
             loss += mse_loss(output[2], gt) * self.encode_weight
             loss += mse_loss(output[3][1:], gt[:-1]) * self.encode_weight
+        return loss
+
+
+class FreeRecallSumCETrainEncodeLoss(nn.Module):
+    def __init__(self, loss="FreeRecallSumMSELoss", var_weight=1.0, output_weight=[0.5, 0.5], encode_weight=1.0, only_encode=False) -> None:
+        super().__init__()
+        self.var_weight = var_weight
+        self.output_weight = output_weight
+        self.encode_weight = encode_weight
+        self.only_encode = only_encode
+        self.loss_class = import_attr("train.criterions.{}".format(loss))(var_weight=var_weight)
+        # if loss == "FreeRecallSumMSELoss":
+        #     self.loss_class = FreeRecallSumMSELoss(var_weight=var_weight)
+        # elif loss == "FreeRecallSumMSEReciprocalVarLoss":
+        #     self.loss_class = FreeRecallSumMSEReciprocalVarLoss(var_weight=var_weight)
+        # else:
+        #     raise AttributeError("invalid loss")
+    
+    def forward(self, output, gt):
+        loss = 0.0
+        if len(output) == 2:
+            free_recall_output_index = [0]
+            encode_output_index = 1
+        elif len(output) == 4:
+            free_recall_output_index = [0, 1]
+            encode_output_index = 2
+        else:
+            raise AttributeError("output length must be 2 or 4")
+        if not self.only_encode:
+            for i in free_recall_output_index:
+                loss += self.loss_class(output[i], gt) * self.output_weight[i]
+        loss += cross_entropy(output[encode_output_index].reshape(-1, output[encode_output_index].shape[-1]), torch.argmax(gt, dim=2).reshape(-1)) * self.encode_weight
         return loss
 
 

@@ -31,7 +31,7 @@ class BasicModule(nn.Module):
         record a tensor to the readout_dict with a given name
         """
         if self.analyzing:
-            if self.to_numpy:
+            if self.to_numpy and torch.is_tensor(tensor):
                 tensor = tensor.detach().clone().cpu().numpy()
             if append:
                 # append

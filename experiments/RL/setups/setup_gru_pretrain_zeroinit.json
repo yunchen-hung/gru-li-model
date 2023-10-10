@@ -7,7 +7,7 @@
         "output_dim": 51,
         "use_memory": true,
         "softmax_beta": 1.0,
-        "start_recall_with_ith_item_init": 1,
+        "evolve_state_between_phases": true,
         "em_gate_type": "scalar",
         "subclasses": [{
             "name": "memory_module",
