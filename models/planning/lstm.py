@@ -2,7 +2,7 @@ from turtle import forward
 import torch
 import torch.nn as nn
 
-from ..basic_module import BasicModule
+from ..base_module import BasicModule
 
 
 class LSTM(BasicModule):

@@ -21,6 +21,11 @@ def parse_setup(general_setup, device):
         model = load_model(setup.pop("model"), device)
         setup["model_name"] = model.__class__.__name__
 
+        if "model_for_record" in setup:
+            model_for_record = load_model(setup.pop("model_for_record"), device)
+        else:
+            model_for_record = None
+
         training_setups = setup.pop("training")
         envs, optimizers, schedulers, criterions = [], [], [], []
         for training_setup in training_setups:
@@ -37,7 +42,7 @@ def parse_setup(general_setup, device):
             optimizers.append(optimizer)
             schedulers.append(scheduler)
             criterions.append(criterion)
-        model_instances[run_name] = model, envs, optimizers, schedulers, criterions, training_setups, setup
+        model_instances[run_name] = model, model_for_record, envs, optimizers, schedulers, criterions, training_setups, setup
     
     return model_instances
 
@@ -108,7 +113,4 @@ def parse_vary_params(setup):
             setups[run_name] = s
     else:
         setups[general_run_name] = setup
-    # for run_name, setup in setups.items():
-    #     print("Run name: {}".format(run_name))
-    #     print("Setup: {}".format(setup))
     return setups

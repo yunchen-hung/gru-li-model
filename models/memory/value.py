@@ -3,16 +3,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from ..basic_module import BasicModule
+from ..base_module import BasicModule
 
 
 class ValueMemory(BasicModule):
-    def __init__(self, similarity_measure, value_dim: int, capacity: int, recall_method="argmax", batch_size=1, device: str = 'cpu') -> None:
+    def __init__(self, similarity_measure, value_dim: int, capacity: int, recall_method="argmax", 
+                 batch_size=1, noise_std=0.0, device: str = 'cpu') -> None:
         super().__init__()
         self.device = device
         self.similarity_measure = similarity_measure
         self.value_dim = value_dim
         self.capacity = capacity
+        self.noise_std = noise_std
 
         self.values = torch.zeros((batch_size, capacity, value_dim)).to(self.device)
         
@@ -48,6 +50,7 @@ class ValueMemory(BasicModule):
             return torch.zeros(query.shape[0], self.value_dim).to(self.device)
         # values = self.values.detach().clone()
         similarity = self.similarity_measure(query, self.values, input_weight)
+        similarity += torch.randn_like(similarity) * self.noise_std
         self.write(similarity, "similarity")
         if self.recall_method == "random":
             retrieved_idx = torch.tensor([Categorical(torch.abs(similarity[i])).sample() for i in range(similarity.shape[0])])
@@ -60,6 +63,7 @@ class ValueMemory(BasicModule):
         else:
             raise NotImplementedError
         # print(retrieved_memory.shape, self.values.shape)
+        self.write(retrieved_memory, "retrieved_memory")
         return torch.bmm(torch.unsqueeze(retrieved_memory, dim=1), self.values).squeeze(1)
 
     def get_vals(self):

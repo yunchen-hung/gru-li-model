@@ -122,6 +122,8 @@ class TDR:
         self.X = X.reshape(n_steps, self.n_traj, -1)
         self.proj_X = np.tensordot(self.X, self.B, axes=(2, 1))  # n_steps x n_trials(n_traj) x n_vars
 
+        return np.abs(np.diagonal(R))/np.sum(np.abs(np.diagonal(R)))
+
     def visualize(self, var_labels, save_path=None, save_fname=None, ax=None, **kwargs):
         """
         :param var1_label:

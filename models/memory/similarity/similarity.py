@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .lca import LCA
-from models.basic_module import BasicModule
+from models.base_module import BasicModule
 from models.utils import softmax
 
 SIMILARITY_MEASURES = ['cosine', 'l1', 'l2']
@@ -29,7 +29,7 @@ class BasicSimilarity(BasicModule):
             similarities = torch.bmm(F.normalize(values, p=2, dim=2), F.normalize(torch.unsqueeze(query, dim=2), p=2)).squeeze(2)
         else:
             raise Exception(f'Unrecognizable self.measure: {self.measure}')
-        self.write(similarities, 'similarities')
+        self.write(similarities, 'raw_similarity')
         if self.process_similarity == 'normalize':
             # normalize
             similarities = similarities / torch.sum(similarities, dim=-1, keepdim=True)

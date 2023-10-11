@@ -1,6 +1,6 @@
 import torch
 
-from models.basic_module import analyze
+from models.base_module import analyze
 from .criterions.rl import pick_action
 
 
@@ -51,16 +51,16 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
             with analyze(agent):
                 actions_trial, probs_trial, rewards_trial, values_trial, actions_for_accuracy = [], [], [], [], []
                 while not done:
-                    if info.get("encoding_on", False):
+                    # set up the phase of the agent
+                    if info["phase"] == "encoding":
                         agent.set_encoding(True)
-                    else:
-                        agent.set_encoding(False)
-                    if info.get("retrieval_off", False):
                         agent.set_retrieval(False)
-                    else:
+                    elif info["phase"] == "recall":
+                        agent.set_encoding(False)
                         agent.set_retrieval(True)
+                    # reset state between phases
                     if info.get("reset_state", False):
-                        state = agent.init_state(1, recall=True)
+                        state = agent.init_state(1, recall=True, prev_state=state)
                     
                     output, value, state = agent(obs, state)
                     if isinstance(output, tuple):

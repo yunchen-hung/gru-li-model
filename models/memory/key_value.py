@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ..basic_module import BasicModule
+from ..base_module import BasicModule
 
 
 class KeyValueMemory(BasicModule):

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from .utils import make_weights
-from models.basic_module import BasicModule
+from models.base_module import BasicModule
 
 
 class LCA(BasicModule):
