@@ -1,5 +1,6 @@
 {
-    "run_num": 5,
+    "run_num": 10,
+    "load_model_name": "setup_gru_pretrain_zeroinit_memsigmoid",
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -8,19 +9,19 @@
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
-        "em_gate_type": "scalar",
+        "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
-            "recall_method": "weight_sum",
+            "recall_method": "argmax",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.2
+                    "softmax_temperature": 0.1
                 }
             ]
         }]

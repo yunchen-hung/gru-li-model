@@ -181,8 +181,14 @@ def run(data_all, model_all, env, paths, exp_name):
         recall_probability_in_time.visualize(fig_path)
         rec_prob_by_time_all[run_name_without_num].append(rec_prob_by_time)
 
-        # recall probability (memory)
+        # conditional recall probability by time
+        # given the output at timestep t is i, the probability of retrieving memories at other timesteps
+        for i in range(env.memory_num):
+            rec_prob_cond = recall_probability_in_time.fit(memory_contexts, actions[:, -timestep_each_phase:], condition=i)
+            recall_probability_in_time.visualize(fig_path/"recall_prob_conditional", save_name="output_prob_by_time_{}".format(i), title="output probability\ngiven recalling item {} at timestep {}".format(i, i))
+
         if has_memory:
+            # recall probability (memory)
             retrieved_memories = []
             for i in range(all_context_num):
                 retrieved_memory = readouts[i][0]["ValueMemory"]["retrieved_memory"].squeeze()
@@ -228,7 +234,8 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.colorbar()
             plt.xlabel("memory")
             plt.ylabel("output")
-            plt.title("probability of retrieving each memory")
+            plt.title("probability of retrieving each memory\nalighment rate: {}".format(alignment))
+            plt.tight_layout()
             savefig(fig_path, "alignment_matrix")
 
         # PCA

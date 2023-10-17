@@ -89,15 +89,22 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model_save_path.mkdir(parents=True, exist_ok=True)
 
             # load trained model when not specified to train again
-            if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_save_path/"model.pt"):
+            # if load_model_path in setup is specified, may load from a different model (different experiment setup)
+            load_run_name = run_name_with_num if setup.get("load_model_name", None) is None else setup["load_model_name"]
+            load_run_name_with_path = load_run_name + "-{}".format(i)
+            if platform == "linux":
+                model_load_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/load_run_name_with_path
+            else:
+                model_load_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/load_run_name_with_path
+            if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
                 if setup.get("load_saved_model", False):
-                    print("load saved model")
-                model.load_state_dict(torch.load(model_save_path/"model.pt", map_location=torch.device('cpu')))
+                    print("load saved model from {}".format(load_run_name_with_path))
+                model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu')))
 
             model.to(device)
 
             # train the model with each training setup
-            if train or not os.path.exists(model_save_path/"model.pt"):
+            if train or not os.path.exists(model_load_path/"model.pt"):
                 training_session = 1
                 for env, optimizer, scheduler, criterion, training_setup in zip(envs, optimizers, schedulers, criterions, training_setups):
                     if env and optimizer and scheduler and criterion:
@@ -114,7 +121,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 if model_for_record is not None:
                     print("use record model setup")
                     model = model_for_record
-                    model.load_state_dict(torch.load(model_save_path/"model.pt"))
+                    model.load_state_dict(torch.load(model_load_path/"model.pt"))
                 data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
 
             model_all[run_name_with_num] = model

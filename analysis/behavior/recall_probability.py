@@ -107,7 +107,33 @@ class RecallProbabilityInTime:
     def __init__(self) -> None:
         self.results = None
 
-    def fit(self, memory_contexts, actions):
+    def fit(self, memory_contexts, actions, condition=None):
+        """
+        condition: a tuple (i, t) with 2 int indicating "given recalling ith item at timestep t"
+            or an int i indicating "given recalling ith item at timestep i"
+        """
+        if condition is not None:
+            if isinstance(condition, tuple):
+                i_cond, t_cond = condition
+            elif isinstance(condition, int):
+                i_cond = condition
+                t_cond = condition
+            else:
+                raise Exception("condition should be a tuple or an int")
+            
+            # filter the data with condition
+            valid_contexts = []
+            for i in range(memory_contexts.shape[0]):
+                if actions[i][t_cond] == memory_contexts[i][i_cond]:
+                    valid_contexts.append(i)
+
+            if len(valid_contexts) == 0:
+                print("No valid data for condition: {}".format(condition))
+                return None
+
+            memory_contexts = memory_contexts[valid_contexts]
+            actions = actions[valid_contexts]
+
         self.context_num, self.memory_num = memory_contexts.shape
         self.results = np.zeros((self.memory_num, self.memory_num))
         for i in range(self.context_num):
@@ -122,13 +148,14 @@ class RecallProbabilityInTime:
         self.results = self.results / times_sum
         return self.results
 
-    def visualize(self, save_path, title="", pdf=False):
+    def visualize(self, save_path, save_name="output_probability_by_time", title="output_probability_by_time", pdf=False):
         if self.results is None:
             raise Exception("Please run fit() first")
         plt.imshow(self.results, cmap="Blues")
         plt.colorbar()
         plt.xlabel("item position")
         plt.ylabel("recalling timestep")
-        plt.title("recall probability by time")
-        savefig(save_path, "output_probability_by_time")
+        plt.title(title)
+        plt.tight_layout()
+        savefig(save_path, save_name)
         
