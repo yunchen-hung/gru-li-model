@@ -99,7 +99,7 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.xlabel("encoding timestep")
             plt.ylabel("recall timestep")
             plt.title("recalling state-memory similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0], actions[0][env.memory_num:]))
-            savefig(fig_path, "recall_probability_one_trial")
+            savefig(fig_path, "recall_sim_after_processing_one_trial")
 
             # average over all trials
             similarities = []
@@ -111,9 +111,9 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.imshow(similarity, cmap="Blues")
             plt.colorbar()
             plt.xlabel("memories")
-            plt.ylabel("recalling timestep")
+            plt.ylabel("recall timestep")
             plt.title("memory similarity\nmean of {} trials".format(all_context_num))
-            savefig(fig_path, "recall_probability")
+            savefig(fig_path, "recall_sim_average")
             sim_mem[run_name_without_num].append(similarity)
 
             # average over all trials and normalize in each timestep
@@ -121,9 +121,9 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.imshow(similarity_normalized, cmap="Blues")
             plt.colorbar()
             plt.xlabel("memories")
-            plt.ylabel("recalling timestep")
-            plt.title("memory similarity\nmean of {} trials\nnormalized in each timestep".format(all_context_num))
-            savefig(fig_path, "recall_probability_normalized")
+            plt.ylabel("recall timestep")
+            plt.title("memory similarity\nmean of {} trials\nnormalized in each recall timestep".format(all_context_num))
+            savefig(fig_path, "recall_sim_normalized")
 
         # similarity of states
         similarities = []
@@ -211,7 +211,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
             # matrix of alignment of memory and output
             # the probability of "when the output is 1~n, the probability of retrieving memory 1~n"
-            memory_index = retrieved_memories + 1
+            memory_index = []
             output_index = []
             for i in range(all_context_num):
                 index = []
@@ -220,13 +220,13 @@ def run(data_all, model_all, env, paths, exp_name):
                     if position1[0].shape[0] != 0:
                         position1 = position1[0][0] + 1
                         index.append(position1)
-                    else:
-                        index.append(0)
+                        memory_index.append(retrieved_memories[i][t])
                 output_index.append(index)
             output_index = np.stack(output_index)
+            memory_index = np.stack(memory_index)
             alignment_matrix = np.zeros((env.memory_num, env.memory_num))
             for i in range(all_context_num):
-                for t in range(env.memory_num):
+                for t in range(len(memory_index[i])):
                     if output_index[i][t] != 0:
                         alignment_matrix[output_index[i][t]-1][memory_index[i][t]-1] += 1
             alignment_matrix = alignment_matrix / np.sum(alignment_matrix, axis=1, keepdims=True)
@@ -256,7 +256,7 @@ def run(data_all, model_all, env, paths, exp_name):
         # fixed_point_analysis.visualize(save_path=fig_path/"fixed_point")
 
         # SVM
-        c_memorizing = np.stack([readouts[i][0]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+        c_memorizing = np.stack([readouts[i][0]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)   # time * context_num * state_dim
         c_recalling = np.stack([readouts[i][0]['state'][-timestep_each_phase:].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
         memory_sequence = np.stack([memory_contexts[i] for i in range(all_context_num)]).transpose(1, 0) - 1
         
@@ -266,9 +266,17 @@ def run(data_all, model_all, env, paths, exp_name):
         svm.visualize_by_memory(save_path=fig_path/"svm"/"c_mem")
 
         # svm.fit(c_recalling, memory_sequence)
-        svm.fit(c_recalling, actions[:, -timestep_each_phase:].transpose(1, 0))
+        svm_mask = np.zeros_like(actions[:, -timestep_each_phase:])
+        for i in range(all_context_num):
+            for t in range(env.memory_num):
+                if actions[i][t] in memory_contexts[i]:
+                    svm_mask[i][t] = 1
+        svm.fit(c_recalling, actions[:, -timestep_each_phase:].transpose(1, 0), svm_mask)
         svm.visualize(save_path=fig_path/"svm"/"c_rec")
         svm.visualize_by_memory(save_path=fig_path/"svm"/"c_rec")
+
+        # fit for retrieved memory
+
 
     for run_name in run_names_without_num:
         if has_memory:

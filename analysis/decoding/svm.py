@@ -11,9 +11,9 @@ class SVM:
         self.n_splits = n_splits
         self.results = None
 
-    def fit(self, all_data, gts):
+    def fit(self, all_data, gts, mask=None):
         """
-        data: features, list, can have multiple groups of data
+        data: features, list, can have multiple groups of data, time * context_num * state_dim
         gts: ground truths, list, each item is a vector representing a group of labels, 
              can have multiple groups of labels
         return: decoding accuracy of each group of labels
