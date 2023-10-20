@@ -90,8 +90,11 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
             # load trained model when not specified to train again
             # if load_model_path in setup is specified, may load from a different model (different experiment setup)
-            load_run_name = run_name_with_num if setup.get("load_model_name", None) is None else setup["load_model_name"]
-            load_run_name_with_path = load_run_name + "-{}".format(i)
+            if setup.get("load_model_name", None) is not None:
+                load_run_name = setup["load_model_name"]
+                load_run_name_with_path = load_run_name + "-{}".format(i)
+            else:
+                load_run_name_with_path = run_name_with_num
             if platform == "linux":
                 model_load_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/load_run_name_with_path
             else:

@@ -22,6 +22,7 @@ def run(data_all, model_all, env, paths, exp_name):
     rec_prob_all = {}
     rec_prob_mem_all = {}
     rec_prob_by_time_all = {}
+    alignment_rate = {}
 
     run_names_without_num = []
     for run_name in data_all.keys():
@@ -38,6 +39,7 @@ def run(data_all, model_all, env, paths, exp_name):
             rec_prob_all[run_name_without_num] = []
             rec_prob_mem_all[run_name_without_num] = []
             rec_prob_by_time_all[run_name_without_num] = []
+            alignment_rate[run_name_without_num] = []
 
     plt.rcParams['font.size'] = 14
 
@@ -191,7 +193,7 @@ def run(data_all, model_all, env, paths, exp_name):
             # recall probability (memory)
             retrieved_memories = []
             for i in range(all_context_num):
-                retrieved_memory = readouts[i][0]["ValueMemory"]["retrieved_memory"].squeeze()
+                retrieved_memory = readouts[i][0]["ValueMemory"]["similarity"].squeeze()
                 retrieved_memory = np.argmax(retrieved_memory, axis=-1)
                 retrieved_memories.append(retrieved_memory)
             retrieved_memories = np.stack(retrieved_memories)
@@ -208,6 +210,7 @@ def run(data_all, model_all, env, paths, exp_name):
             memory_output = np.stack(memory_output)
             alignment = np.mean(memory_output == actions[:all_context_num][:, env.memory_num:])
             print("alignment rate: {}".format(alignment))
+            alignment_rate[run_name_without_num].append(alignment)
 
             # matrix of alignment of memory and output
             # the probability of "when the output is 1~n, the probability of retrieving memory 1~n"
@@ -215,15 +218,15 @@ def run(data_all, model_all, env, paths, exp_name):
             output_index = []
             for i in range(all_context_num):
                 index = []
+                mem_index = []
                 for t in range(env.memory_num):
                     position1 = np.where(memory_contexts[i] == actions[i][t])
                     if position1[0].shape[0] != 0:
                         position1 = position1[0][0] + 1
                         index.append(position1)
-                        memory_index.append(retrieved_memories[i][t])
+                        mem_index.append(retrieved_memories[i][t])
                 output_index.append(index)
-            output_index = np.stack(output_index)
-            memory_index = np.stack(memory_index)
+                memory_index.append(mem_index)
             alignment_matrix = np.zeros((env.memory_num, env.memory_num))
             for i in range(all_context_num):
                 for t in range(len(memory_index[i])):
@@ -262,24 +265,31 @@ def run(data_all, model_all, env, paths, exp_name):
         
         svm = SVM()
         svm.fit(c_memorizing, memory_sequence)
-        svm.visualize(save_path=fig_path/"svm"/"c_mem")
-        svm.visualize_by_memory(save_path=fig_path/"svm"/"c_mem")
+        svm.visualize_by_memory(save_path=fig_path/"svm", save_name="c_mem")
 
         # svm.fit(c_recalling, memory_sequence)
-        svm_mask = np.zeros_like(actions[:, -timestep_each_phase:])
+        svm_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
         for i in range(all_context_num):
             for t in range(env.memory_num):
-                if actions[i][t] in memory_contexts[i]:
+                if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
                     svm_mask[i][t] = 1
-        svm.fit(c_recalling, actions[:, -timestep_each_phase:].transpose(1, 0), svm_mask)
-        svm.visualize(save_path=fig_path/"svm"/"c_rec")
-        svm.visualize_by_memory(save_path=fig_path/"svm"/"c_rec")
+        svm.fit(c_recalling, actions[:, -timestep_each_phase:].transpose(1, 0), svm_mask.transpose(1, 0))
+        svm.visualize_by_memory(save_path=fig_path/"svm", save_name="c_rec")
 
         # fit for retrieved memory
+        if has_memory:
+            # fit for retrieval
+            retrieved_memory_states = np.stack([readouts[i][0]["ValueMemory"]["retrieved_memory"].squeeze() for i in range(all_context_num)]).transpose(1, 0, 2)
+            svm.fit(retrieved_memory_states, memory_sequence)
+            svm.visualize_by_memory(save_path=fig_path/"svm", save_name="retrieved_memory_recall")
 
+            # fit for output
+            svm.fit(retrieved_memory_states, actions[:, -timestep_each_phase:].transpose(1, 0), svm_mask.transpose(1, 0))
+            svm.visualize_by_memory(save_path=fig_path/"svm", save_name="retrieved_memory_output")
 
     for run_name in run_names_without_num:
         if has_memory:
+            # memory similarity after softmax
             plt.figure(figsize=(4, 3.5), dpi=180)
             plt.imshow(np.mean(np.stack(sim_mem[run_name]), axis=0), cmap="Blues")
             plt.colorbar()
@@ -289,6 +299,7 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.tight_layout()
             savefig(paths['fig']/"mean"/run_name, "state_memory_similarity_mean")
 
+        # state similarity within encoding phase
         plt.figure(figsize=(4, 3.5), dpi=180)
         plt.imshow(np.mean(np.stack(sim_enc[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
@@ -296,13 +307,15 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.tight_layout()
         savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_mean")
 
+        # state similarity within recall phase
         plt.figure(figsize=(4, 3.5), dpi=180)
         plt.imshow(np.mean(np.stack(sim_rec[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
-        plt.title("recalling state similarity\nmean of {} models".format(run_num))
+        plt.title("recall state similarity\nmean of {} models".format(run_num))
         plt.tight_layout()
         savefig(paths['fig']/"mean"/run_name, "similarity_state_recall_mean")
 
+        # state similarity between encoding and recall phase
         plt.figure(figsize=(4, 3.5), dpi=180)
         plt.imshow(np.mean(np.stack(sim_enc_rec[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
@@ -312,6 +325,7 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.tight_layout()
         savefig(paths['fig']/"mean"/run_name, "similarity_state_encode_recall_mean")
 
+        # recall probability by time
         plt.figure(figsize=(4.5, 4), dpi=180)
         plt.imshow(np.mean(np.stack(rec_prob_by_time_all[run_name]), axis=0), cmap="Blues")
         plt.colorbar()
@@ -321,11 +335,22 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.tight_layout()
         savefig(paths['fig']/"mean"/run_name, "recall_probability")
 
+        # recall_probability (output)
         recall_probability = RecallProbability()
         recall_probability.set_results(np.mean(np.stack(rec_prob[run_name]), axis=0), np.mean(np.stack(rec_prob_all[run_name]), axis=0))
         recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob", title="output probability")
 
         if has_memory:
+            # recall_probability (memory)
             recall_probability = RecallProbability()
             recall_probability.set_results(np.mean(np.stack(rec_prob_mem[run_name]), axis=0), np.mean(np.stack(rec_prob_mem_all[run_name]), axis=0))
             recall_probability.visualize(save_path=paths['fig']/"mean"/run_name/"recall_prob_memory", title="recall probability")
+
+            # alignment rate - accuracy plot
+            plt.figure(figsize=(4, 3), dpi=180)
+            plt.scatter(accuracy[run_name], alignment_rate[run_name])
+            plt.xlabel("accuracy")
+            plt.ylabel("alignment rate of retrieved memory and output")
+            plt.title("accuracy vs alignment rate\nmean of {} models".format(run_num))
+            plt.tight_layout()
+            savefig(paths['fig']/"mean"/run_name, "accuracy_alignment_rate")

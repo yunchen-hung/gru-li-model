@@ -15,15 +15,24 @@ class SVM:
         """
         data: features, list, can have multiple groups of data, time * context_num * state_dim
         gts: ground truths, list, each item is a vector representing a group of labels, 
-             can have multiple groups of labels
+             can have multiple groups of labels, time * context_num
+        mask: same shape as gts, indicating which data points are valid, time * context_num
         return: decoding accuracy of each group of labels
         """
         results = []
+        if mask is None:
+            mask = np.ones_like(gts, dtype=bool)
         for i in range(all_data.shape[0]):
-            data = all_data[i]
+            data_i = all_data[i]
             data_accuracy = []
             for j in range(gts.shape[0]):
-                gt = gts[j]
+                if not mask[j][i].any():
+                    data_accuracy.append(0.0)
+                    continue
+                
+                gt = gts[j][mask[j]]
+                data = data_i[mask[j]]
+                # print(i, j, mask[j].shape, gt.shape, data.shape, mask[j])
                 kf = KFold(n_splits=self.n_splits, shuffle=True)
                 decode_accuracy = 0.0
                 for train_index, test_index in kf.split(data):
@@ -59,7 +68,7 @@ class SVM:
         if save_path is not None:
             savefig(save_path, "svm_accuracy", pdf=pdf)
 
-    def visualize_by_memory(self, save_path, title=None, pdf=False):
+    def visualize_by_memory(self, save_path, save_name="svm_decode_acc_by_mem", title=None, pdf=False):
         if self.results is None:
             raise Exception("Please run fit() first")
         plt.figure(figsize=(1.0 * self.results.shape[1], 5.0), dpi=180)
@@ -81,4 +90,4 @@ class SVM:
 
         plt.tight_layout()
         if save_path is not None:
-            savefig(save_path, "svm_accuracy_by_memory", pdf=pdf)
+            savefig(save_path, save_name, pdf=pdf)
