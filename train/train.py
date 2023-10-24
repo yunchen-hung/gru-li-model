@@ -9,7 +9,7 @@ from torch.nn.functional import mse_loss
 
 
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0, beta_decay_rate=1.0, 
+    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, train_encode_weight=1.0, min_iter=0, beta_decay_rate=1.0, 
     beta_decay_iter=None, randomly_flush_state=False, flush_state_prob=1.0, randomly_use_memory=False):
     """
     Train the model with RL
@@ -129,9 +129,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 outputs = (outputs,)
             _, gt = env.get_batch()
             gt = torch.as_tensor(gt, dtype=torch.float).to(device)
-            loss += mse_loss(outputs[0][:env.memory_num], gt[:env.memory_num])
+            loss += train_encode_weight * mse_loss(outputs[0][:env.memory_num], gt[:env.memory_num])
             if train_encode_2item:
-                loss += mse_loss(outputs[1][1:env.memory_num], gt[:env.memory_num-1])
+                loss += train_encode_weight * mse_loss(outputs[1][1:env.memory_num], gt[:env.memory_num-1])
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
@@ -155,7 +155,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             # show example ground truth and actions, including random sampled actions and argmax actions
             print(gt, torch.tensor(actions[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.tensor(actions_max[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
-            if train_all_time:
+            if train_all_time or train_encode:
                 # show example in the encoding phase
                 print(torch.tensor(actions[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
                     torch.tensor(actions_max[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0])

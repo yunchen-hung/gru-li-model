@@ -20,7 +20,7 @@
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.2
+                    "softmax_temperature": 0.1
                 }
             ]
         }]

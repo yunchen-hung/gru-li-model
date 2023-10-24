@@ -14,7 +14,7 @@
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
-            "recall_method": "argmax",
+            "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
@@ -82,7 +82,8 @@
             "use_memory": true,
             "stop_test_accu": 0.99,
             "train_all_time": false,
-            "train_encode": false,
+            "train_encode": true,
+            "train_encode_weight": 1.0,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true
