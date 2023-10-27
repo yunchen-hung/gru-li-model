@@ -17,7 +17,7 @@ class BasicSimilarity(BasicModule):
         self.softmax_temperature = softmax_temperature
         self.device = device
 
-    def forward(self, query, values, input_weight=1.0):
+    def forward(self, query, values, input_weight=1.0, beta=None):
         if self.measure == 'cosine':
             # print(query.shape, values.shape)
             similarities = F.cosine_similarity(query.to(self.device), values.permute(1, 0, 2).to(self.device), dim=-1).permute(1, 0)
@@ -28,13 +28,14 @@ class BasicSimilarity(BasicModule):
         elif self.measure == 'inner_product':
             similarities = torch.bmm(F.normalize(values, p=2, dim=2), F.normalize(torch.unsqueeze(query, dim=2), p=2)).squeeze(2)
         else:
-            raise Exception(f'Unrecognizable self.measure: {self.measure}')
+            raise Exception(f'Unrecognizable similarity measure: {self.measure}')
         self.write(similarities, 'raw_similarity')
         if self.process_similarity == 'normalize':
             # normalize
             similarities = similarities / torch.sum(similarities, dim=-1, keepdim=True)
         elif self.process_similarity == 'softmax':
-            similarities = softmax(similarities, beta=self.softmax_temperature)
+            beta = self.softmax_temperature if beta is None else beta
+            similarities = softmax(similarities, beta=beta)
         elif self.process_similarity == 'none':
             pass
         return similarities * input_weight

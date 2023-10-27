@@ -9,8 +9,8 @@ from ..memory import ValueMemory
 
 class ValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
-    init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, softmax_beta=1.0, use_memory=True, 
-    start_recall_with_ith_item_init=0, device: str = 'cpu'):
+    init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, softmax_beta=1.0, use_memory=True,
+    start_recall_with_ith_item_init=0, reset_param=True, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -23,6 +23,11 @@ class ValueMemoryGRU(BasicModule):
 
         self.noise_std = noise_std
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
+        try:
+            # self.mem_beta = self.memory_module.similarity_measure.softmax_temperature   # TODO: make it more flexible with other kinds of memory
+            self.mem_beta = torch.nn.Parameter(torch.tensor(self.memory_module.similarity_measure.softmax_temperature), requires_grad=False)
+        except:
+            self.mem_beta = None
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
@@ -62,12 +67,14 @@ class ValueMemoryGRU(BasicModule):
             self.h0 = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
             self.h0_recall = torch.nn.Parameter(torch.zeros(hidden_dim), requires_grad=True)
 
-        self.reset_parameters()
+        if reset_param:
+            self.reset_parameters()
 
     def reset_parameters(self):
         std = 1.0 / math.sqrt(self.hidden_dim)
         for w in self.parameters():
-            w.data.uniform_(-std, std)
+            if w.requires_grad:
+                w.data.uniform_(-std, std)
 
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         if recall:
@@ -95,7 +102,7 @@ class ValueMemoryGRU(BasicModule):
         self.write(state, 'init_state')
         return state
 
-    def forward(self, inp, state, beta=None):
+    def forward(self, inp, state, beta=None, mem_beta=None):
         if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
             # do a timestep of forward pass between encoding and retrieval phases
             gate_h = self.fc_hidden(state)
@@ -109,7 +116,8 @@ class ValueMemoryGRU(BasicModule):
 
         # retrieve memory
         if self.use_memory and self.retrieving:
-            retrieved_memory = self.memory_module.retrieve(state)
+            mem_beta = self.mem_beta if mem_beta is None else mem_beta
+            retrieved_memory = self.memory_module.retrieve(state, beta=mem_beta)
             if self.em_gate_type == "constant":
                 mem_gate = self.em_gate
             elif self.em_gate_type == "scalar_sigmoid" or self.em_gate_type == "vector":

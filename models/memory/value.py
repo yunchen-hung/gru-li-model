@@ -45,11 +45,11 @@ class ValueMemory(BasicModule):
             self.to_be_replaced = (self.to_be_replaced + 1) % self.capacity
             self.stored_memory = min(self.stored_memory + 1, self.capacity)
     
-    def retrieve(self, query, input_weight=1.0):
+    def retrieve(self, query, input_weight=1.0, beta=None):
         if self.stored_memory == 0 or not self.retrieving:
             return torch.zeros(query.shape[0], self.value_dim).to(self.device)
         # values = self.values.detach().clone()
-        similarity = self.similarity_measure(query, self.values, input_weight)
+        similarity = self.similarity_measure(query, self.values, input_weight, beta)
         similarity += torch.randn_like(similarity) * self.noise_std
         self.write(similarity, "raw_similarity")
         if self.recall_method == "random":
