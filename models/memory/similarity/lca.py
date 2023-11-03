@@ -27,8 +27,8 @@ class LCA(BasicModule):
     noise_std : float
         the sd of the noise term of the LCA process
     """
-    def __init__(self, input_size, leak=0, lateral_inhibition=0.8, dt_div_tau=0.6, self_excitation=0, input_weight=1, cross_weight=0, 
-    offset=0, noise_std=0, threshold=1, device: str = 'cpu'):
+    def __init__(self, input_size, leak=0, lateral_inhibition=0.8, dt_div_tau=0.6, self_excitation=0, 
+                 input_weight=1, cross_weight=0, offset=0, noise_std=0, threshold=1, device: str = 'cpu'):
         super().__init__()
         self.device = device
 

@@ -7,7 +7,7 @@ from ..base_module import BasicModule
 from ..memory import ValueMemory
 
 
-class ValueMemoryGRU(BasicModule):
+class ValueMemoryGRU2(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
     init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, softmax_beta=1.0, use_memory=True,
     start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, device: str = 'cpu'):
@@ -124,6 +124,15 @@ class ValueMemoryGRU(BasicModule):
             self.last_encoding = False
             self.write(state, 'state')
 
+        gate_x = self.fc_input(inp)
+        gate_h = self.fc_hidden(state)
+        i_r, i_i, i_n = gate_x.chunk(3, 1)
+        h_r, h_i, h_n = gate_h.chunk(3, 1)
+        resetgate = torch.sigmoid(i_r + h_r)
+        inputgate = torch.sigmoid(i_i + h_i)
+        newgate = torch.tanh(i_n + resetgate * h_n)
+        state = newgate + inputgate * (state - newgate)
+
         # retrieve memory
         if self.use_memory and self.retrieving:
             mem_beta = self.mem_beta if mem_beta is None else mem_beta
@@ -153,11 +162,7 @@ class ValueMemoryGRU(BasicModule):
             inputgate = torch.sigmoid(i_i + h_i)
             # resetgate = torch.sigmoid(i_r + h_r + m_r)
             # inputgate = torch.sigmoid(i_i + h_i + m_i)
-            # TODO: try whether to input retrieved memory every timestep or only the first timestep
-            if i == 0:
-                newgate = torch.tanh(i_n + resetgate * h_n + mem_gate * retrieved_memory)
-            else:
-                newgate = torch.tanh(i_n + resetgate * h_n)
+            newgate = torch.tanh(i_n + resetgate * h_n + mem_gate * retrieved_memory)
             # newgate = torch.tanh(i_n + resetgate * h_n + m_n)
             state = newgate + inputgate * (state - newgate)
         self.write(state, 'state')

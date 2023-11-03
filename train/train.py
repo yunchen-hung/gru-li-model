@@ -9,7 +9,7 @@ from torch.nn.functional import mse_loss
 
 
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, train_encode_weight=1.0, min_iter=0,
+    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, train_encode_weight=1.0, min_iter=0, step_iter=1,
     mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, randomly_flush_state=False, flush_state_prob=1.0, randomly_use_memory=False):
     """
     Train the model with RL
@@ -25,6 +25,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
     print("start training")
     print("batch size:", batch_size)
+
+    current_step_iter = 0
     
     for i in range(num_iter):
         # record time for the first iteration to estimate total time needed
@@ -131,11 +133,14 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             if train_encode_2item:
                 loss += train_encode_weight * mse_loss(outputs[1][1:env.current_memory_num], gt[:env.current_memory_num-1])
 
-        optimizer.zero_grad()
-        # loss.backward(retain_graph=True)
-        loss.backward()
-        # torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
-        optimizer.step()
+        current_step_iter += 1
+        if current_step_iter == step_iter:
+            optimizer.zero_grad()
+            # loss.backward(retain_graph=True)
+            loss.backward()
+            # torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
+            optimizer.step()
+            current_step_iter = 0
 
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
@@ -312,7 +317,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                 loss = criterion(tuple([outputs[env.current_memory_num:], outputs[:env.current_memory_num]]), gt[env.current_memory_num:])
             else:
                 loss = criterion(outputs[env.current_memory_num:], gt[env.current_memory_num:])
-
+                
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
         loss.backward()

@@ -106,6 +106,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
             model.to(device)
 
+            torch.autograd.set_detect_anomaly(True)
+
             # train the model with each training setup
             if train or not os.path.exists(model_load_path/"model.pt"):
                 training_session = 1

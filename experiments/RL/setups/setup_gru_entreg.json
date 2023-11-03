@@ -13,7 +13,7 @@
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 10,
+            "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -30,8 +30,7 @@
             "class": "FreeRecall",
             "vocabulary_num": 50,
             "memory_num": 8,
-            "memory_var": 2,
-            "retrieve_time_limit": 0,
+            "retrieve_time_limit": 8,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true
@@ -66,8 +65,7 @@
             "class": "FreeRecall",
             "vocabulary_num": 50,
             "memory_num": 8,
-            "memory_var": 2,
-            "retrieve_time_limit": 0,
+            "retrieve_time_limit": 8,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true,
@@ -87,43 +85,8 @@
             "train_encode": false,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true
-            },
-            "optimizer": {
-                "class": "Adam",
-                "lr": 3e-3,
-                "lr_decay_factor": 0.1,
-                "lr_decay_patience": 30,
-                "lr_decay_threshold": 1e-3,
-                "min_lr": 1e-7
-            }
-        }
-    }, {
-        "env": {
-            "class": "FreeRecall",
-            "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 0,
-            "return_action": true,
-            "return_reward": true,
-            "reset_state_before_test": true,
-            "false_reward": -0.5,
-            "repeat_penalty": -0.5,
-            "not_know_reward": -0.5
-        },
-        "trainer": {
-            "training_function": "train_model",
-            "num_iter": 0,
-            "test": false,
-            "test_iter": 1000,
-            "save_iter": 2000,
-            "use_memory": true,
-            "stop_test_accu": 0.99,
-            "train_all_time": false,
-            "train_encode": false,
-            "criterion": {
-                "class": "A2CLoss",
-                "use_V": true
+                "use_V": true,
+                "eta": -0.001
             },
             "optimizer": {
                 "class": "Adam",
