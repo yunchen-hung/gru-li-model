@@ -101,7 +101,11 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.xlabel("encoding timestep")
             plt.ylabel("recall timestep")
             plt.title("recalling state-memory similarity\nmemory sequence {}\nrecall sequence {}".format(memory_contexts[0], actions[0][env.memory_num:]))
-            savefig(fig_path, "recall_sim_after_processing_one_trial")
+            savefig(fig_path/"memory_similarity", "one_trial_after_processing")
+            
+            # print some examples of similarity
+            for i in range(5):
+                print("memory similarity of context {}:".format(i), readouts[i][0]["ValueMemory"]["similarity"].squeeze())
 
             # average over all trials
             similarities = []
@@ -115,7 +119,7 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.xlabel("memories")
             plt.ylabel("recall timestep")
             plt.title("memory similarity\nmean of {} trials".format(all_context_num))
-            savefig(fig_path, "recall_sim_average")
+            savefig(fig_path/"memory_similarity", "average_after_processing")
             sim_mem[run_name_without_num].append(similarity)
 
             # average over all trials and normalize in each timestep
@@ -125,7 +129,7 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.xlabel("memories")
             plt.ylabel("recall timestep")
             plt.title("memory similarity\nmean of {} trials\nnormalized in each recall timestep".format(all_context_num))
-            savefig(fig_path, "recall_sim_normalized")
+            savefig(fig_path/"memory_similarity", "normalized_after_processing")
 
         # similarity of states
         similarities = []
@@ -139,13 +143,13 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.imshow(similarity[:timestep_each_phase, :timestep_each_phase], cmap="Blues")
         plt.colorbar()
         plt.title("encoding state similarity")
-        savefig(fig_path, "similarity_state_encode")
+        savefig(fig_path/"state_similarity", "encode_encode")
         sim_enc[run_name_without_num].append(similarity[:timestep_each_phase, :timestep_each_phase])
 
         plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, timestep_each_phase:timestep_each_phase*2], cmap="Blues")
         plt.colorbar()
         plt.title("recalling state similarity")
-        savefig(fig_path, "similarity_state_recall")
+        savefig(fig_path/"state_similarity", "recall_recall")
         sim_rec[run_name_without_num].append(similarity[timestep_each_phase:timestep_each_phase*2, timestep_each_phase:timestep_each_phase*2])
 
         plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], cmap="Blues")
@@ -153,7 +157,7 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.xlabel("encoding timestep")
         plt.ylabel("recalling timestep")
         plt.title("encoding-recalling state similarity")
-        savefig(fig_path, "similarity_state_encode_recall")
+        savefig(fig_path/"state_similarity", "encode_recall")
         sim_enc_rec[run_name_without_num].append(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase])
 
         # memory gate
@@ -237,7 +241,7 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.colorbar()
             plt.xlabel("memory")
             plt.ylabel("output")
-            plt.title("probability of retrieving each memory\nalighment rate: {}".format(alignment))
+            plt.title("probability of retrieving each memory\nalignment rate: {}".format(alignment))
             plt.tight_layout()
             savefig(fig_path, "alignment_matrix")
 

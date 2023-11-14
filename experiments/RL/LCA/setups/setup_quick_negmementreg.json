@@ -1,5 +1,5 @@
 {
-    "run_num": 20,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -7,8 +7,7 @@
         "output_dim": 51,
         "use_memory": true,
         "softmax_beta": 1.0,
-        "evolve_state_between_phases": false,
-        "init_state_type": "train",
+        "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
@@ -19,9 +18,11 @@
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "BasicSimilarity",
+                    "class": "LCASimilarity",
+                    "input_size": 8,
+                    "lca_cycles": 4,
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.1
+                    "softmax_beta": 0.1
                 }
             ]
         }]
@@ -84,6 +85,8 @@
             "stop_test_accu": 0.99,
             "train_all_time": false,
             "train_encode": false,
+            "memory_entropy_reg": true,
+            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true

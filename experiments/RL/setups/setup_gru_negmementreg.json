@@ -1,5 +1,5 @@
 {
-    "run_num": 20,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -20,7 +20,7 @@
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.02
+                    "softmax_temperature": 0.1
                 }
             ]
         }]
@@ -36,7 +36,7 @@
             "reset_state_before_test": true
         },
         "trainer": {
-            "num_iter": 10000,
+            "num_iter": 5000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
@@ -83,9 +83,12 @@
             "stop_test_accu": 0.99,
             "train_all_time": false,
             "train_encode": false,
+            "memory_entropy_reg": true,
+            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true
+                "use_V": true,
+                "eta": 0.001
             },
             "optimizer": {
                 "class": "Adam",

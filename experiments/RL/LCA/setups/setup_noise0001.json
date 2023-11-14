@@ -9,7 +9,6 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
-        "step_for_each_timestep": 2,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -19,9 +18,12 @@
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "BasicSimilarity",
+                    "class": "LCASimilarity",
+                    "input_size": 8,
+                    "lca_cycles": 6,
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.1
+                    "softmax_beta": 0.2,
+                    "noise_std": 0.001
                 }
             ]
         }]

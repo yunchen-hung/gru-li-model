@@ -49,9 +49,9 @@ class ValueMemory(BasicModule):
         if self.stored_memory == 0 or not self.retrieving:
             return torch.zeros(query.shape[0], self.value_dim).to(self.device)
         # values = self.values.detach().clone()
-        similarity = self.similarity_measure(query, self.values, input_weight, beta)
-        similarity += torch.randn_like(similarity) * self.noise_std
-        self.write(similarity, "raw_similarity")
+        similarity, raw_similarity = self.similarity_measure(query, self.values, input_weight, beta)
+        similarity = similarity + torch.randn_like(similarity) * self.noise_std
+        self.write(raw_similarity, "raw_similarity")
         if self.recall_method == "random":
             retrieved_idx = torch.tensor([Categorical(torch.abs(similarity[i])).sample() for i in range(similarity.shape[0])])
             similarity = F.one_hot(retrieved_idx, self.capacity).float()
@@ -65,7 +65,7 @@ class ValueMemory(BasicModule):
         self.write(similarity, "similarity")
         retrieved_memory = torch.bmm(torch.unsqueeze(similarity, dim=1), self.values).squeeze(1)
         self.write(retrieved_memory, "retrieved_memory")
-        return retrieved_memory
+        return retrieved_memory, raw_similarity
 
     def get_vals(self):
         return self.values.detach().cpu().numpy()

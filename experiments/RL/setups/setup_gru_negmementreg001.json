@@ -82,11 +82,13 @@
             "use_memory": true,
             "stop_test_accu": 0.99,
             "train_all_time": false,
-            "train_encode": true,
-            "train_encode_weight": 1.0,
+            "train_encode": false,
+            "memory_entropy_reg": true,
+            "memory_reg_weight": 0.01,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true
+                "use_V": true,
+                "eta": 0.001
             },
             "optimizer": {
                 "class": "Adam",

@@ -127,7 +127,7 @@ class ValueMemoryGRU(BasicModule):
         # retrieve memory
         if self.use_memory and self.retrieving:
             mem_beta = self.mem_beta if mem_beta is None else mem_beta
-            retrieved_memory = self.memory_module.retrieve(state, beta=mem_beta)
+            retrieved_memory, memory_similarity = self.memory_module.retrieve(state, beta=mem_beta)
             if self.em_gate_type == "constant":
                 mem_gate = self.em_gate
             elif self.em_gate_type == "scalar_sigmoid" or self.em_gate_type == "vector":
@@ -140,6 +140,7 @@ class ValueMemoryGRU(BasicModule):
         else:
             retrieved_memory = torch.zeros(1, self.hidden_dim)
             mem_gate = 0.0
+            memory_similarity = torch.zeros(1, self.memory_module.capacity)
 
         # compute forward pass
         for i in range(self.step_for_each_timestep):
@@ -178,7 +179,7 @@ class ValueMemoryGRU(BasicModule):
 
         self.write(self.use_memory, 'use_memory')
         
-        return decision, value, state
+        return decision, value, state, memory_similarity
 
     def set_encoding(self, status):
         """

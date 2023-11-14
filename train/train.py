@@ -10,7 +10,8 @@ from torch.nn.functional import mse_loss
 
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
     model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, train_encode_weight=1.0, min_iter=0, step_iter=1,
-    mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, randomly_flush_state=False, flush_state_prob=1.0, randomly_use_memory=False):
+    mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, randomly_flush_state=False, flush_state_prob=1.0, randomly_use_memory=False, 
+    memory_entropy_reg=False, memory_reg_weight=0.0):
     """
     Train the model with RL
     """
@@ -53,7 +54,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         agent.reset_memory()
 
         # create variables to store data related to outputs and results
-        actions, probs, rewards, values, entropys, actions_max, outputs = [], [], [], [], [], [], []
+        actions, probs, rewards, values, entropys, actions_max, outputs, mem_similarities, mem_sim_entropys = \
+            [], [], [], [], [], [], [], [], []
 
         # reset environment
         obs_, info = env.reset()
@@ -73,7 +75,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
             # do one step of forward pass for the agent
-            output, value, state = agent(obs, state)
+            output, value, state, mem_similarity = agent(obs, state)
             if isinstance(output, tuple):
                 # when generating two decisions, only record the first one as action
                 action_distribution = output[0]
@@ -92,6 +94,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             entropys.append(entropy(action_distribution, device))
             actions.append(action)
             actions_max.append(action_max)
+            mem_similarities.append(mem_similarity)
+            mem_sim_entropys.append(entropy(mem_similarity, device))
             total_reward += np.sum(reward)
         
         # print()
@@ -110,9 +114,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
         if train_all_time:
             # train both encoding and recall phase
-            loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, print_info=print_criterion_info, device=device)
+            loss, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards, entropys, print_info=print_criterion_info, device=device)
         else:
-            loss, loss_actor, loss_critic = criterion(probs[env.current_memory_num:], values[env.current_memory_num:], rewards[env.current_memory_num:], entropys[env.current_memory_num:], print_info=print_criterion_info, device=device)
+            loss, loss_actor, loss_critic, loss_ent_reg = criterion(probs[env.current_memory_num:], values[env.current_memory_num:], rewards[env.current_memory_num:], entropys[env.current_memory_num:], print_info=print_criterion_info, device=device)
 
         if train_encode:
             # train encoding phase with supervised loss
@@ -132,6 +136,14 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             loss += train_encode_weight * mse_loss(outputs[0][:env.current_memory_num], gt[:env.current_memory_num])
             if train_encode_2item:
                 loss += train_encode_weight * mse_loss(outputs[1][1:env.current_memory_num], gt[:env.current_memory_num-1])
+
+        if memory_entropy_reg:
+            # add (negative) entropy regularization for memory similarity
+            # to encourage the memory similarity to be closer to one-hot
+            mem_ent_reg_loss = memory_reg_weight * torch.mean(torch.stack([torch.stack(mem_sim_ent) for mem_sim_ent in mem_sim_entropys]))
+            loss += mem_ent_reg_loss
+        else:
+            mem_ent_reg_loss = None
 
         current_step_iter += 1
         if current_step_iter == step_iter:
@@ -159,6 +171,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 # show example in the encoding phase
                 print(torch.tensor(actions[:env.current_memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
                     torch.tensor(actions_max[:env.current_memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
+
+            print("Actor loss, Critic loss, Entropy loss, Mem entropy loss:", loss_actor.item(), loss_critic.item(), loss_ent_reg.item(), mem_ent_reg_loss.item() if memory_entropy_reg else 0.0)
 
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
@@ -263,7 +277,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
             # do one step of forward pass for the agent
-            output, _, state = agent(obs, state)
+            output, _, state, _ = agent(obs, state)
             if isinstance(output, tuple):
                 # when generating two decisions, only record the first one as action
                 action_distribution = output[0]

@@ -58,10 +58,10 @@ class LCA(BasicModule):
         inp = torch.matmul(inp, self.W_i)
         offset = self.offset * torch.ones(self.input_size, device=self.device)
         noise = (torch.randn(size=(timestep, self.input_size)) * self.noise_std * math.sqrt(self.alpha)).to(self.device)
-        w = torch.zeros((timestep, self.input_size)).to(self.device)
+        w = torch.zeros((timestep, self.input_size)).to(self.device) + noise[0]
         for t in range(timestep):
             w_prev = w[max(t-1, 0)]
             # print(offset.device, inp.device, self.W_r.device, w.device, noise.device)
-            w[t] = w_prev + offset + (inp[t] - self.leak * w_prev + torch.matmul(self.W_r, w_prev)) * self.alpha + noise[t]
+            w[t] = w_prev + offset + (inp[t] - self.leak * w_prev + torch.matmul(self.W_r, w_prev)) * self.alpha # + noise[t]
             w[t] = torch.min(w[t].relu(), torch.ones(self.input_size, device=self.device) * self.threshold)
         return w
