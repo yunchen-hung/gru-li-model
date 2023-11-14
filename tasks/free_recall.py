@@ -4,18 +4,22 @@ import gym
 
 
 class FreeRecall(gym.Env):
-    def __init__(self, vocabulary_num=20, memory_num=5, retrieve_time_limit=5, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
+    def __init__(self, vocabulary_num=20, memory_num=5, memory_var=0, retrieve_time_limit=5, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
     not_know_reward=-0.1, reset_state_before_test=False, start_recall_cue=False, encode_reward_weight=0.0, return_action=False, return_reward=False, 
     forward_smooth=0, backward_smooth=0, dt=10, tau=10, batch_size=1):
         self.vocabulary_num = vocabulary_num        # dimension of items
         self.memory_num = memory_num                # sequence length
+        self.memory_var = memory_var                # variance of memory sequence length
+        assert memory_num > memory_var
+        self.current_memory_num = memory_num        # current memory sequence length
         # rewards and penalties
         self.true_reward = true_reward
         self.false_reward = false_reward
         self.not_know_reward = not_know_reward
         self.repeat_penalty = repeat_penalty
 
-        self.retrieve_time_limit = max(retrieve_time_limit, memory_num)     # maximum time steps for retrieval, must > memory_num
+        self.retrieve_time_limit = retrieve_time_limit
+        self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
         self.reset_state_before_test = reset_state_before_test              # reset state of the model before testing
         self.start_recall_cue = start_recall_cue                            # add a cue at the beginning of recall
         self.batch_size = batch_size
@@ -49,9 +53,9 @@ class FreeRecall(gym.Env):
 
         dim of smooth matrix: memory_num * memory_num
         """
-        smooth_matrix = np.eye(self.memory_num)
-        for i in range(self.memory_num - 1):
-            for j in range(self.memory_num - i - 1):
+        smooth_matrix = np.eye(self.current_memory_num)
+        for i in range(self.current_memory_num - 1):
+            for j in range(self.current_memory_num - i - 1):
                 smooth_matrix[j+i+1][j] = math.pow(self.forward_smooth, i+1)
                 smooth_matrix[j][j+i+1] = math.pow(self.backward_smooth, i+1)
         return smooth_matrix
@@ -67,7 +71,7 @@ class FreeRecall(gym.Env):
         rand_index = np.repeat(np.arange(1, self.vocabulary_num+1).reshape(1, -1), self.batch_size, axis=0)
         for i in range(self.batch_size):
             np.random.shuffle(rand_index[i])
-        memory_sequence = rand_index[:, :self.memory_num]
+        memory_sequence = rand_index[:, :self.current_memory_num]
         return memory_sequence      # axis 0: batch size, axis 1: length of sequence
 
     def generate_stimuli(self, batch_size=None):
@@ -81,9 +85,10 @@ class FreeRecall(gym.Env):
         if batch_size is None:
             batch_size = self.batch_size
         assert batch_size <= self.batch_size
-        data = np.zeros((batch_size, self.memory_num, self.vocabulary_num+1))
+        data = np.zeros((batch_size, self.current_memory_num, self.vocabulary_num+1))
         for i in range(batch_size):
             data[i, :, :] = np.eye(self.vocabulary_num+1)[self.memory_sequence[i]]
+        self.smooth_matrix = self.generate_smooth_matrix()
         data = np.einsum('jk,ikl->ijl', self.smooth_matrix, data).transpose(2, 0, 1)
         data = data / np.linalg.norm(data, axis=0)
         data = data.transpose(1, 2, 0)
@@ -153,7 +158,7 @@ class FreeRecall(gym.Env):
         """
         check whether the trial has completed
         """
-        if self.current_timestep >= self.retrieve_time_limit or np.min(self.reported_memory) >= self.memory_num or np.sum(self.not_retrieved) == 0:
+        if self.current_timestep >= self.current_retrieve_time_limit or np.min(self.reported_memory) >= self.current_memory_num or np.sum(self.not_retrieved) == 0:
             return True
         else:
             return False
@@ -187,7 +192,7 @@ class FreeRecall(gym.Env):
                     else:
                         rewards[i] = self.false_reward * self.encode_reward_weight
             self.increase_timestep()
-            if self.current_timestep == self.memory_num:
+            if self.current_timestep == self.current_memory_num:
                 # before the first timestep of the recall phase
                 self.testing = True
                 observations = np.zeros((batch_size, self.vocabulary_num+1))
@@ -215,8 +220,10 @@ class FreeRecall(gym.Env):
         reset the trial, return the first observation
         """
         if regenerate_contexts:
+            self.current_memory_num = np.random.randint(self.memory_num - self.memory_var, self.memory_num + self.memory_var + 1)
             self.memory_sequence = self.generate_sequence(batch_size)
             self.stimuli = self.generate_stimuli()
+            self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
 
         self.current_timestep = 0
         self.current_step_within_item = 0
@@ -242,17 +249,17 @@ class FreeRecall(gym.Env):
         """
         batch_size = self.batch_size if batch_size is None else batch_size
         assert batch_size <= self.batch_size
-        data = np.zeros((self.memory_num + self.retrieve_time_limit, batch_size, self.vocabulary_num+1))
-        gt = np.zeros((self.memory_num + self.retrieve_time_limit, batch_size, self.vocabulary_num+1))
-        data[:self.memory_num, :, :] = self.stimuli.transpose(1, 0, 2)
+        data = np.zeros((self.current_memory_num + self.current_retrieve_time_limit, batch_size, self.vocabulary_num+1))
+        gt = np.zeros((self.current_memory_num + self.current_retrieve_time_limit, batch_size, self.vocabulary_num+1))
+        data[:self.current_memory_num, :, :] = self.stimuli.transpose(1, 0, 2)
         for i in range(batch_size):
-            gt[self.memory_num:self.memory_num*2, i, :] = np.eye(self.vocabulary_num+1)[self.memory_sequence[i]]
+            gt[self.current_memory_num:self.current_memory_num*2, i, :] = np.eye(self.vocabulary_num+1)[self.memory_sequence[i]]
         if self.steps_each_item > 1:
             data = np.repeat(data, self.steps_each_item, axis=0)
             gt = np.repeat(gt, self.steps_each_item, axis=0)
         if self.start_recall_cue:
-            cue = np.zeros((self.memory_num + self.retrieve_time_limit, batch_size, 1))
-            cue[self.memory_num, :, 0] = 1
+            cue = np.zeros((self.current_memory_num + self.current_retrieve_time_limit, batch_size, 1))
+            cue[self.current_memory_num, :, 0] = 1
             data = np.concatenate((data, cue), axis=2)
         return data, gt
 
@@ -269,7 +276,7 @@ class FreeRecall(gym.Env):
         wrong_actions = 0
         not_know_actions = 0
         not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=bool)
-        for actions_batch in actions[self.memory_num:]:
+        for actions_batch in actions[self.current_memory_num:]:
             for i, action in enumerate(actions_batch):
                 if action in list(self.memory_sequence[i]) and not_retrieved[i][action]:
                     correct_actions += 1
@@ -293,7 +300,7 @@ class FreeRecall(gym.Env):
         not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=bool)
         for t, action_batch in enumerate(actions[i]):
             for i, action in enumerate(action_batch):
-                if t < self.memory_num:
+                if t < self.current_memory_num:
                     rewards[i].append(0.0)
                 else:
                     if action in list(self.memory_sequence[i]):

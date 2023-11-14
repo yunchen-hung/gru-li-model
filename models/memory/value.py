@@ -45,26 +45,27 @@ class ValueMemory(BasicModule):
             self.to_be_replaced = (self.to_be_replaced + 1) % self.capacity
             self.stored_memory = min(self.stored_memory + 1, self.capacity)
     
-    def retrieve(self, query, input_weight=1.0):
+    def retrieve(self, query, input_weight=1.0, beta=None):
         if self.stored_memory == 0 or not self.retrieving:
             return torch.zeros(query.shape[0], self.value_dim).to(self.device)
         # values = self.values.detach().clone()
-        similarity = self.similarity_measure(query, self.values, input_weight)
-        similarity += torch.randn_like(similarity) * self.noise_std
-        self.write(similarity, "similarity")
+        similarity, raw_similarity = self.similarity_measure(query, self.values, input_weight, beta)
+        similarity = similarity + torch.randn_like(similarity) * self.noise_std
+        self.write(raw_similarity, "raw_similarity")
         if self.recall_method == "random":
             retrieved_idx = torch.tensor([Categorical(torch.abs(similarity[i])).sample() for i in range(similarity.shape[0])])
-            retrieved_memory = F.one_hot(retrieved_idx, self.capacity).float()
+            similarity = F.one_hot(retrieved_idx, self.capacity).float()
         elif self.recall_method == "argmax":
             retrieved_idx = torch.argmax(similarity, dim=-1)
-            retrieved_memory = F.one_hot(retrieved_idx, self.capacity).float()
+            similarity = F.one_hot(retrieved_idx, self.capacity).float()
         elif self.recall_method == "weight_sum":
-            retrieved_memory = similarity
+            pass
         else:
             raise NotImplementedError
-        # print(retrieved_memory.shape, self.values.shape)
+        self.write(similarity, "similarity")
+        retrieved_memory = torch.bmm(torch.unsqueeze(similarity, dim=1), self.values).squeeze(1)
         self.write(retrieved_memory, "retrieved_memory")
-        return torch.bmm(torch.unsqueeze(retrieved_memory, dim=1), self.values).squeeze(1)
+        return retrieved_memory, raw_similarity
 
     def get_vals(self):
         return self.values.detach().cpu().numpy()

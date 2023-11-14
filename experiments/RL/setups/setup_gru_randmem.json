@@ -14,13 +14,13 @@
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
-            "recall_method": "weight_sum",
+            "recall_method": "random",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.1
+                    "softmax_temperature": 0.05
                 }
             ]
         }]

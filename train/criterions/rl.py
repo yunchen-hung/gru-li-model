@@ -63,7 +63,7 @@ class A2CLoss(nn.Module):
         value_loss = torch.sum(value_losses)
         pi_ent = torch.sum(entropys)
         loss = policy_gradient + value_loss - pi_ent * self.eta
-        return loss, policy_gradient, value_loss
+        return loss, policy_gradient, value_loss, pi_ent * self.eta
 
 
 def pick_action(action_distribution):

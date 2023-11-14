@@ -1,5 +1,5 @@
 {
-    "run_num": 20,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -18,9 +18,12 @@
             "subclasses": [
                 {
                     "name":"similarity_measure",
-                    "class": "BasicSimilarity",
+                    "class": "LCASimilarity",
+                    "input_size": 8,
+                    "lca_cycles": 6,
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.1
+                    "softmax_beta": 0.2,
+                    "noise_std": 0.001
                 }
             ]
         }]

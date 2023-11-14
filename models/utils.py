@@ -13,7 +13,6 @@ def load_act_fn(act_fn: str):
 
 def entropy(probs, device):
     """calculate entropy.
-    I'm using log base 2!
 
     Parameters
     ----------

@@ -106,7 +106,6 @@ def run(data_all, model_all, env, paths, exp_name):
             # print some examples of similarity
             for i in range(5):
                 print("memory similarity of context {}:".format(i), readouts[i][0]["ValueMemory"]["similarity"].squeeze())
-                print("raw memory similarity of context {}:".format(i), readouts[i][0]["ValueMemory"]["raw_similarity"].squeeze())
 
             # average over all trials
             similarities = []

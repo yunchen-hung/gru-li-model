@@ -9,8 +9,9 @@ from torch.nn.functional import mse_loss
 
 
 def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, device='cpu', 
-    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, min_iter=0, beta_decay_rate=1.0, 
-    beta_decay_iter=None, randomly_flush_state=False, flush_state_prob=1.0, randomly_use_memory=False):
+    model_save_path=None, use_memory=None, train_all_time=False, train_encode=False, train_encode_2item=False, train_encode_weight=1.0, min_iter=0, step_iter=1,
+    mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, randomly_flush_state=False, flush_state_prob=1.0, randomly_use_memory=False, 
+    memory_entropy_reg=False, memory_reg_weight=0.0):
     """
     Train the model with RL
     """
@@ -26,7 +27,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
     print("start training")
     print("batch size:", batch_size)
 
-    beta = agent.softmax_beta
+    current_step_iter = 0
     
     for i in range(num_iter):
         # record time for the first iteration to estimate total time needed
@@ -53,7 +54,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
         agent.reset_memory()
 
         # create variables to store data related to outputs and results
-        actions, probs, rewards, values, entropys, actions_max, outputs = [], [], [], [], [], [], []
+        actions, probs, rewards, values, entropys, actions_max, outputs, mem_similarities, mem_sim_entropys = \
+            [], [], [], [], [], [], [], [], []
 
         # reset environment
         obs_, info = env.reset()
@@ -73,7 +75,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
             # do one step of forward pass for the agent
-            output, value, state = agent(obs, state, beta=beta)
+            output, value, state, mem_similarity = agent(obs, state)
             if isinstance(output, tuple):
                 # when generating two decisions, only record the first one as action
                 action_distribution = output[0]
@@ -92,6 +94,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             entropys.append(entropy(action_distribution, device))
             actions.append(action)
             actions_max.append(action_max)
+            mem_similarities.append(mem_similarity)
+            mem_sim_entropys.append(entropy(mem_similarity, device))
             total_reward += np.sum(reward)
         
         # print()
@@ -110,9 +114,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
         if train_all_time:
             # train both encoding and recall phase
-            loss, loss_actor, loss_critic = criterion(probs, values, rewards, entropys, print_info=print_criterion_info, device=device)
+            loss, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards, entropys, print_info=print_criterion_info, device=device)
         else:
-            loss, loss_actor, loss_critic = criterion(probs[env.memory_num:], values[env.memory_num:], rewards[env.memory_num:], entropys[env.memory_num:], print_info=print_criterion_info, device=device)
+            loss, loss_actor, loss_critic, loss_ent_reg = criterion(probs[env.current_memory_num:], values[env.current_memory_num:], rewards[env.current_memory_num:], entropys[env.current_memory_num:], print_info=print_criterion_info, device=device)
 
         if train_encode:
             # train encoding phase with supervised loss
@@ -129,23 +133,31 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
                 outputs = (outputs,)
             _, gt = env.get_batch()
             gt = torch.as_tensor(gt, dtype=torch.float).to(device)
-            loss += mse_loss(outputs[0][:env.memory_num], gt[:env.memory_num])
+            loss += train_encode_weight * mse_loss(outputs[0][:env.current_memory_num], gt[:env.current_memory_num])
             if train_encode_2item:
-                loss += mse_loss(outputs[1][1:env.memory_num], gt[:env.memory_num-1])
+                loss += train_encode_weight * mse_loss(outputs[1][1:env.current_memory_num], gt[:env.current_memory_num-1])
 
-        optimizer.zero_grad()
-        # loss.backward(retain_graph=True)
-        loss.backward()
-        # torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
-        optimizer.step()
+        if memory_entropy_reg:
+            # add (negative) entropy regularization for memory similarity
+            # to encourage the memory similarity to be closer to one-hot
+            mem_ent_reg_loss = memory_reg_weight * torch.mean(torch.stack([torch.stack(mem_sim_ent) for mem_sim_ent in mem_sim_entropys]))
+            loss += mem_ent_reg_loss
+        else:
+            mem_ent_reg_loss = None
+
+        current_step_iter += 1
+        if current_step_iter == step_iter:
+            optimizer.zero_grad()
+            # loss.backward(retain_graph=True)
+            loss.backward()
+            # torch.nn.utils.clip_grad_norm_(agent.parameters(), 1)
+            optimizer.step()
+            current_step_iter = 0
 
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
         total_critic_loss += loss_critic.item()
         total_entropy += np.mean(torch.stack([torch.stack(entropys_t) for entropys_t in entropys]).cpu().detach().numpy())
-
-        if beta_decay_iter and i % beta_decay_iter == 0 and i > 0:
-            beta *= beta_decay_rate
             
         if i % test_iter == 0:
             if i == test_iter:
@@ -153,12 +165,14 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
 
             gt = env.memory_sequence
             # show example ground truth and actions, including random sampled actions and argmax actions
-            print(gt, torch.tensor(actions[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
-                torch.tensor(actions_max[env.memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
-            if train_all_time:
+            print(gt, torch.tensor(actions[env.current_memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
+                torch.tensor(actions_max[env.current_memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
+            if train_all_time or train_encode:
                 # show example in the encoding phase
-                print(torch.tensor(actions[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
-                    torch.tensor(actions_max[:env.memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
+                print(torch.tensor(actions[:env.current_memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
+                    torch.tensor(actions_max[:env.current_memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
+
+            print("Actor loss, Critic loss, Entropy loss, Mem entropy loss:", loss_actor.item(), loss_critic.item(), loss_ent_reg.item(), mem_ent_reg_loss.item() if memory_entropy_reg else 0.0)
 
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
@@ -168,6 +182,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             mean_actor_loss = total_actor_loss / test_iter
             mean_critic_loss = total_critic_loss / test_iter
             mean_entropy = total_entropy / test_iter
+
+            if agent.mem_beta is not None:
+                print('mem_beta:', agent.mem_beta)
 
             print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
                 'critic loss: {:.4f}, entropy: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss,
@@ -193,7 +210,10 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=100
             
             if test_accuracy >= stop_test_accu and i > min_iter:
                 print("training end")
-                break
+                break  
+
+            if agent.mem_beta is not None and test_accuracy >= mem_beta_decay_acc and agent.mem_beta >= mem_beta_min:
+                agent.mem_beta *= mem_beta_decay_rate
 
             test_accuracies.append(test_accuracy)
             test_errors.append(test_error)
@@ -257,7 +277,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
             # do one step of forward pass for the agent
-            output, _, state = agent(obs, state)
+            output, _, state, _ = agent(obs, state)
             if isinstance(output, tuple):
                 # when generating two decisions, only record the first one as action
                 action_distribution = output[0]
@@ -301,17 +321,17 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         # loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])  # TODO: add an attr in env to specify how long output to use for loss4
         if isinstance(outputs, tuple):
             if train_all_time:
-                outputs_list = [output[env.memory_num:] for output in outputs]
-                outputs_list.extend([output[:env.memory_num] for output in outputs])
-                loss = criterion(tuple(outputs_list), gt[env.memory_num:])
+                outputs_list = [output[env.current_memory_num:] for output in outputs]
+                outputs_list.extend([output[:env.current_memory_num] for output in outputs])
+                loss = criterion(tuple(outputs_list), gt[env.current_memory_num:])
             else:
-                loss = criterion(tuple([output[env.memory_num:] for output in outputs]), gt[env.memory_num:])
+                loss = criterion(tuple([output[env.current_memory_num:] for output in outputs]), gt[env.current_memory_num:])
         else:
             if train_all_time:
-                loss = criterion(tuple([outputs[env.memory_num:], outputs[:env.memory_num]]), gt[env.memory_num:])
+                loss = criterion(tuple([outputs[env.current_memory_num:], outputs[:env.current_memory_num]]), gt[env.current_memory_num:])
             else:
-                loss = criterion(outputs[env.memory_num:], gt[env.memory_num:])
-
+                loss = criterion(outputs[env.current_memory_num:], gt[env.current_memory_num:])
+                
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
         loss.backward()
@@ -322,17 +342,17 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         if i % test_iter == 0:
             if isinstance(outputs, tuple):
                 if len(outputs) == 3:
-                    print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0],
-                        list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
-                        list(torch.argmax(outputs[1][env.memory_num:], dim=2).detach().cpu().numpy().reshape(-1)),
-                        list(torch.argmax(outputs[2][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)))
+                    print(env.memory_sequence[0], np.array(actions)[env.current_memory_num:,0],
+                        list(torch.argmax(outputs[0][:env.current_memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
+                        list(torch.argmax(outputs[1][env.current_memory_num:], dim=2).detach().cpu().numpy().reshape(-1)),
+                        list(torch.argmax(outputs[2][:env.current_memory_num], dim=2).detach().cpu().numpy().reshape(-1)))
                 else:
-                    print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
-                        list(torch.argmax(outputs[0][:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
+                    print(env.memory_sequence[0], np.array(actions)[env.current_memory_num:,0], 
+                        list(torch.argmax(outputs[0][:env.current_memory_num], dim=2).detach().cpu().numpy().reshape(-1)),
                         list(torch.argmax(outputs[1], dim=2).detach().cpu().numpy().reshape(-1)))
             else:
-                print(env.memory_sequence[0], np.array(actions)[env.memory_num:,0], 
-                    torch.argmax(outputs[:env.memory_num], dim=2).detach().cpu().numpy().reshape(-1))
+                print(env.memory_sequence[0], np.array(actions)[env.current_memory_num:,0], 
+                    torch.argmax(outputs[:env.current_memory_num], dim=2).detach().cpu().numpy().reshape(-1))
             # print(outputs)
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num

@@ -62,7 +62,7 @@ def record_model(agent, env, trials_per_condition=1, context_num=20, get_memory=
                     if info.get("reset_state", False):
                         state = agent.init_state(1, recall=True, prev_state=state)
                     
-                    output, value, state = agent(obs, state)
+                    output, value, state, _ = agent(obs, state)
                     if isinstance(output, tuple):
                         action_distribution = output[0]
                     else:
