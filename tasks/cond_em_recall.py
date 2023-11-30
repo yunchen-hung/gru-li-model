@@ -122,7 +122,7 @@ class ConditionalEMRecall(gym.Env):
             obs = self._generate_observation(None, self.question_type, self.question_value, include_question=True)
             info = {"phase": "recall"}
 
-            converted_action = self._convert_action(action)
+            converted_action = self.convert_action_to_stimuli(action)
             action_correct = self._check_action(converted_action)
 
             if action_correct or converted_action[0] == "stop" and self.correct_answer_num == self.num_answers:
@@ -142,6 +142,41 @@ class ConditionalEMRecall(gym.Env):
 
     def render(self, mode='human'):
         return
+    
+    def convert_action_to_stimuli(self, action):
+        """
+        convert integer action to the format of the stimuli, i.e. a list of numbers with length num_features, 
+            the value of each number is within [0, feature_dim)
+        if the action is "no action" or "stop", return the corresponding string
+        the encoding of the action is small-edian, i.e. after converting action to base feature_dim, 
+            the first feature corresponds to the last digit of the action
+        """
+        if action == self.action_space.n - 2:
+            return ["no_action"]
+        elif action == self.action_space.n - 1:
+            return ["stop"]
+        else:
+            # change action base to feature_dim
+            action_base = np.zeros(self.num_features, dtype=int)
+            for i in range(self.num_features):
+                action_base[i] = action % self.feature_dim
+                action = action // self.feature_dim
+            return action_base
+        
+    def convert_action_to_observation(self, action):
+        """
+        convert action to observation space, make no action and stop actions as two additional dimensions
+        """
+        action = self.convert_action_to_stimuli(action)
+        action_obs = np.zeros(self.feature_dim*self.num_features+2)
+        if action[0] == "no_action":
+            action_obs[-2] = 1
+        elif action[0] == "stop":
+            action_obs[-1] = 1
+        else:
+            for i in range(self.num_features):
+                action_obs[i*self.feature_dim+action[i]] = 1
+        return action_obs
 
     def _generate_question_type_dict(self):
         """
@@ -195,26 +230,6 @@ class ConditionalEMRecall(gym.Env):
             observation[self.num_features*self.feature_dim+question_type] = 1
             observation[self.num_features*self.feature_dim+self.question_space_dim+question_value] = 1
         return observation
-    
-    def _convert_action(self, action):
-        """
-        convert integer action to the format of the stimuli, i.e. a list of numbers with length num_features, 
-            the value of each number is within [0, feature_dim)
-        if the action is "no action" or "stop", return the corresponding string
-        the encoding of the action is small-edian, i.e. after converting action to base feature_dim, 
-            the first feature corresponds to the last digit of the action
-        """
-        if action == self.action_space.n - 2:
-            return ["no_action"]
-        elif action == self.action_space.n - 1:
-            return ["stop"]
-        else:
-            # change action base to feature_dim
-            action_base = np.zeros(self.num_features, dtype=int)
-            for i in range(self.num_features):
-                action_base[i] = action % self.feature_dim
-                action = action // self.feature_dim
-            return action_base
     
     def _check_action(self, action):
         """

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
-from tasks import ConditionalEMRecall
+from tasks import ConditionalEMRecall, MetaLearningEnv
 
 
 """ LCA tests """
@@ -45,6 +45,7 @@ from tasks import ConditionalEMRecall
 
 
 env = ConditionalEMRecall()
+env = MetaLearningEnv(env)
 obs, info = env.reset()
 print('memory_sequence:', env.memory_sequence)
 print('question_type:', env.question_type)
@@ -57,7 +58,6 @@ for action in actions:
     actions_int.append(action[0]+action[1]*5)
 actions_int.append(26)
 actions_int.append(27)
-actions_int.extend([27,27, 27])
 actions_int = np.array(actions_int)
 
 print(obs, info)
@@ -66,7 +66,7 @@ while True:
     # action = env.action_space.sample()
     action = actions_int[cnt]
     cnt += 1
-    print("action:", action, env._convert_action(action))
+    print("action:", action, env.convert_action_to_stimuli(action))
     obs, reward, done, info = env.step(action)
     print(obs, reward, done, info)
     if done:
