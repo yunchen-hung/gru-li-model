@@ -9,7 +9,6 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
-        "reset_param": false,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -20,6 +19,7 @@
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
+                    "similarity_measure": "l2",
                     "process_similarity": "softmax",
                     "softmax_temperature": 0.1
                 }
@@ -37,7 +37,7 @@
             "reset_state_before_test": true
         },
         "trainer": {
-            "num_iter": 10000,
+            "num_iter": 5000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,

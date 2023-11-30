@@ -81,7 +81,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             # unpack model_instance
             model, model_for_record, envs, optimizers, schedulers, criterions, training_setups, setup = model_instance
 
-            # set up model save path
+            # set up save model path
             if platform == "linux":
                 model_save_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/run_name_with_num
             else:
@@ -95,6 +95,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 load_run_name_with_path = load_run_name + "-{}".format(i)
             else:
                 load_run_name_with_path = run_name_with_num
+            # set up load model path
             if platform == "linux":
                 model_load_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/load_run_name_with_path
             else:
@@ -105,8 +106,6 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu')))
 
             model.to(device)
-
-            torch.autograd.set_detect_anomaly(True)
 
             # train the model with each training setup
             if train or not os.path.exists(model_load_path/"model.pt"):

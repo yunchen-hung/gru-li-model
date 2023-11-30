@@ -19,7 +19,8 @@
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "process_similarity": "softmax",
+                    "similarity_measure": "l2",
+                    "process_similarity": "normalize_softmax",
                     "softmax_temperature": 0.1
                 }
             ]
@@ -83,12 +84,9 @@
             "stop_test_accu": 0.99,
             "train_all_time": false,
             "train_encode": false,
-            "memory_entropy_reg": true,
-            "memory_reg_weight": 0.01,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true,
-                "eta": 0.001
+                "use_V": true
             },
             "optimizer": {
                 "class": "Adam",

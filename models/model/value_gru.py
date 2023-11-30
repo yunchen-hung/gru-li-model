@@ -25,11 +25,11 @@ class ValueMemoryGRU(BasicModule):
 
         self.noise_std = noise_std
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
-        try:
-            # self.mem_beta = self.memory_module.similarity_measure.softmax_temperature   # TODO: make it more flexible with other kinds of memory
-            self.mem_beta = torch.nn.Parameter(torch.tensor(self.memory_module.similarity_measure.softmax_temperature), requires_grad=False)
-        except:
-            self.mem_beta = None
+        # try:
+        #     # self.mem_beta = self.memory_module.similarity_measure.softmax_temperature   # TODO: make it more flexible with other kinds of memory
+        #     self.mem_beta = torch.nn.Parameter(torch.tensor(self.memory_module.similarity_measure.softmax_temperature), requires_grad=False)
+        # except:
+        self.mem_beta = None
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim

@@ -75,12 +75,16 @@ def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, t
     return shell_path
 
 
-if __name__ == "__main__":
-    experiment, setup_name, time_limit, device, train, unknown_args = parse_args()
-
+def run_cluster(experiment, setup_name, time_limit, device, train):
     exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
     setup = load_dict(exp_dir/consts.SETUP_FOLDER/setup_name)
 
     shell_path = write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit)
 
     subprocess.run(f"sbatch {shell_path}", shell=True)
+
+
+if __name__ == "__main__":
+    experiment, setup_name, time_limit, device, train, unknown_args = parse_args()
+
+    run_cluster(experiment, setup_name, time_limit, device, train)
