@@ -9,7 +9,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 class A2CLoss(nn.Module):
-    def __init__(self, returns_normalize=False, use_V=True, eta=0.0, gamma=0.0) -> None:
+    def __init__(self, returns_normalize=False, use_V=True, eta=0.0, gamma=0.0, phase='recall') -> None:
         """
         compute the objective node for policy/value networks
 
@@ -33,12 +33,18 @@ class A2CLoss(nn.Module):
         self.use_V = use_V
         self.eta = eta
         self.gamma = gamma
+        self.phase = phase
 
-    def forward(self, probs, values, rewards, entropys, print_info=False, device='cpu'):
+    def forward(self, probs, values, rewards, entropys, memory_num=8, print_info=False, device='cpu'):
         """
         probs, values: list of torch.tensor, overall size is (timesteps, batch_size, action_dim)
         rewards, entropys: list of torch.tensor, overall size is (timesteps, batch_size)
         """
+        if self.phase == 'encoding':
+            probs, values, rewards, entropys = probs[:memory_num], values[:memory_num], rewards[:memory_num], entropys[:memory_num]
+        elif self.phase == 'recall':
+            probs, values, rewards, entropys = probs[memory_num:], values[memory_num:], rewards[memory_num:], entropys[memory_num:]
+
         returns = compute_returns(rewards, gamma=self.gamma, normalize=self.returns_normalize)
         policy_grads, value_losses = [], []
         # stack all lists, transpose probs and values to (batch_size, timesteps, action_dim)
@@ -47,7 +53,7 @@ class A2CLoss(nn.Module):
                                 torch.stack(returns).to(device), \
                                 torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
         if print_info:
-            print(probs, values, rewards)
+            print("loss info:", probs, values, rewards)
         if self.use_V:
             # A2C loss
             A = rewards - values.data

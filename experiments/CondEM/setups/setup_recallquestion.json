@@ -3,8 +3,8 @@
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 103,
-        "output_dim": 51,
+        "input_dim": 32,
+        "output_dim": 27,
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
@@ -27,48 +27,13 @@
     },
     "training": [{
         "env": {
-            "class": "FreeRecall",
-            "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
-            "return_action": true,
-            "return_reward": true,
-            "reset_state_before_test": true
-        },
-        "trainer": {
-            "num_iter": 5000,
-            "test": false,
-            "test_iter": 1000,
-            "save_iter": 2000,
-            "stop_test_accu": 0.99,
-            "use_memory": true,
-            "criterion": {
-                "class": "EncodingCrossEntropyLoss",
-                "class_num": 51,
-                "no_action_weight": 0.5
-            },
-            "optimizer": {
-                "class": "Adam",
-                "lr": 2e-4,
-                "weight_decay": 2e-5,
-                "lr_decay_factor": 0.5,
-                "lr_decay_patience": 10,
-                "lr_decay_threshold": 1e-3,
-                "min_lr": 1e-7
-            }
-        }
-    }, {
-        "env": {
-            "class": "FreeRecall",
-            "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
-            "return_action": true,
-            "return_reward": true,
+            "class": "ConditionalEMRecall",
+            "wrapper": "MetaLearningEnv",
+            "num_features": 2,
+            "feature_dim": 5,
+            "sequence_len": 8,
             "reset_state_before_test": true,
-            "false_reward": -0.5,
-            "repeat_penalty": -0.5,
-            "not_know_reward": -0.5
+            "no_action_reward": -0.8
         },
         "trainer": {
             "training_function": "train_model",
@@ -80,7 +45,8 @@
             "stop_test_accu": 0.99,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true
+                "use_V": true,
+                "eta": 0.001
             },
             "optimizer": {
                 "class": "Adam",

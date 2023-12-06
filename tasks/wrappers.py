@@ -16,10 +16,10 @@ class MetaLearningEnv(Wrapper):
     def step(self,action):
         obs, reward, terminated, info = self.env.step(action)
         if hasattr(self.env, 'convert_action_to_observation'):
-            action = self.env.convert_action_to_observation(action)
+            action = self.env.convert_action_to_observation(action[0].item())
+        obs_wrapped = np.hstack([obs.reshape(-1), self.prev_action, self.prev_reward]).reshape(1, -1)
         self.prev_action = action
-        self.prev_reward = reward
-        obs_wrapped = np.hstack([obs, self.prev_action, self.prev_reward])
+        self.prev_reward = reward[0]
         return obs_wrapped,reward,terminated,info
     
     def reset(self):
@@ -28,6 +28,6 @@ class MetaLearningEnv(Wrapper):
         if hasattr(self.env, 'convert_action_to_observation'):
             self.prev_action = self.env.convert_action_to_observation(self.prev_action)
         self.prev_reward=0
-        obs_wrapped=np.hstack([obs,self.prev_action,self.prev_reward])
+        obs_wrapped=np.hstack([obs.reshape(-1),self.prev_action,self.prev_reward]).reshape(1, -1)
         return obs_wrapped,info 
 

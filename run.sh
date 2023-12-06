@@ -1,0 +1,2 @@
+srun --time=10:00:00 --mem=16000 --cpus-per-task=1 python -u main.py --exp CondEM --setup setup_recallquestion.json
+python run_cluster.py --exp CondEM --setup setup_recallquestion_pretrain.json -train --time 16

@@ -4,10 +4,13 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
+from .base import BaseEMTask
 
-class ConditionalEMRecall(gym.Env):
+
+class ConditionalEMRecall(BaseEMTask):
     def __init__(self, num_features=2, feature_dim=5, sequence_len=8, correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0,
-                 retrieve_time_limit=None, include_question_during_encode=False, question_space=("choice", "max", "min")):
+                 retrieve_time_limit=None, include_question_during_encode=False, reset_state_before_test=True, 
+                 question_space=("choice", "max", "min"), has_question=True):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -21,6 +24,9 @@ class ConditionalEMRecall(gym.Env):
             rewards: correct, wrong, no_action. When all possible stimuli have been recalled, 
                 the agent will receive a correct reward for taking an extra timestep "stop".
             retrieve_time_limit: maximum number of steps allowed in the recall phase
+            reset_state_before_test: whether to reset the state of the network before testing
+            include_question_during_encode: whether to give the question during encoding phase
+            has_question: if False, no question will be given, and the agent will be asked to recall all stimuli
             question_space:
                 choice: given one of the feature equals to a particular value
                 max: given the max value of all the features
@@ -34,11 +40,13 @@ class ConditionalEMRecall(gym.Env):
         Action space:
             feature_dim ^ num_features + 1 no_action dim + 1 stop dim, a one-hot vector overall
         """
+        super().__init__(reset_state_before_test=reset_state_before_test)
         self.num_features = num_features
         self.feature_dim = feature_dim
         self.sequence_len = sequence_len
         self.retrieve_time_limit = retrieve_time_limit if retrieve_time_limit is not None else sequence_len
         self.include_question_during_encode = include_question_during_encode
+        self.has_question = has_question
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
@@ -78,48 +86,63 @@ class ConditionalEMRecall(gym.Env):
                 raise NotImplementedError
 
         # count the number of stimuli matching the questionm, and record the index of the correct answers
-        if self.question_type_dict[self.question_type] == "choice":
-            self.num_answers = np.sum(self.memory_sequence[:, self.question_type] == self.question_value)
-            self.correct_answers_index = np.where(self.memory_sequence[:, self.question_type] == self.question_value)[0]
-        elif self.question_type_dict[self.question_type] == "max":
-            self.num_answers = np.sum(np.max(self.memory_sequence, axis=1) == self.question_value)
-            self.correct_answers_index = np.where(np.max(self.memory_sequence, axis=1) == self.question_value)[0]
-        elif self.question_type_dict[self.question_type] == "min":
-            self.num_answers = np.sum(np.min(self.memory_sequence, axis=1) == self.question_value)
-            self.correct_answers_index = np.where(np.min(self.memory_sequence, axis=1) == self.question_value)[0]
+        if self.has_question:
+            if self.question_type_dict[self.question_type] == "choice":
+                self.num_answers = np.sum(self.memory_sequence[:, self.question_type] == self.question_value)
+                self.correct_answers_index = np.where(self.memory_sequence[:, self.question_type] == self.question_value)[0]
+            elif self.question_type_dict[self.question_type] == "max":
+                self.num_answers = np.sum(np.max(self.memory_sequence, axis=1) == self.question_value)
+                self.correct_answers_index = np.where(np.max(self.memory_sequence, axis=1) == self.question_value)[0]
+            elif self.question_type_dict[self.question_type] == "min":
+                self.num_answers = np.sum(np.min(self.memory_sequence, axis=1) == self.question_value)
+                self.correct_answers_index = np.where(np.min(self.memory_sequence, axis=1) == self.question_value)[0]
+            else:
+                raise NotImplementedError
         else:
-            raise NotImplementedError
+            # no questions, recall all stimuli
+            self.num_answers = self.sequence_len
+            self.correct_answers_index = np.arange(self.sequence_len)
 
         self.phase = "encoding"     # encoding, recall
         self.timestep = 0
         self.correct_answer_num = 0
+        self.answered = np.zeros(self.num_answers, dtype=bool) # whether each answer has been outputted
 
         # convert the first observation to concatenated one-hot vectors
         obs = self._generate_observation(self.memory_sequence[0], self.question_type, self.question_value, include_question=self.include_question_during_encode)
-        info = {"phase": "encoding"}
+        if self.include_question_during_encode and not self._check_action(self.memory_sequence[self.timestep]):
+            gt = self.action_space.n - 2
+        else:
+            gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep])
+        info = {"phase": "encoding", "gt": gt}
         return obs, info
 
     def step(self, action):
         """
         action: a MultiDiscrete vector of length num_features
         """
+        action = action[0].item()
         self.timestep += 1
         if self.phase == "encoding":
             if self.timestep >= self.sequence_len:
                 # first timestep of recall phase
                 self.phase = "recall"
                 self.timestep = 0
-                obs = self._generate_observation(None, self.question_type, self.question_value, include_question=True)
-                info = {"phase": "recall"}
-                return obs, self.no_action_reward, False, info
+                obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
+                info = {"phase": "recall", "reset_state": self.reset_state_before_test}
+                return obs, [self.no_action_reward], False, info
             else:
                 # encoding phase
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_type, self.question_value, 
                                                 include_question=self.include_question_during_encode)
-                info = {"phase": "encoding"}
-                return obs, self.no_action_reward, False, info
+                if self.include_question_during_encode and not self._check_action(self.memory_sequence[self.timestep]):
+                    gt = self.action_space.n - 2
+                else:
+                    gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep])
+                info = {"phase": "encoding", "gt": gt}
+                return obs, [self.no_action_reward], False, info
         elif self.phase == "recall":
-            obs = self._generate_observation(None, self.question_type, self.question_value, include_question=True)
+            obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
             info = {"phase": "recall"}
 
             converted_action = self.convert_action_to_stimuli(action)
@@ -138,11 +161,65 @@ class ConditionalEMRecall(gym.Env):
             else:
                 done = False
             
-            return obs, reward, done, info
+            return obs, [reward], done, info
 
     def render(self, mode='human'):
-        return
+        print("memory sequence:", self.memory_sequence)
+        print("question type:", self.question_type)
+        print("question value:", self.question_value)
+        print("correct answers:", self.memory_sequence[self.correct_answers_index])
     
+    def compute_accuracy(self, actions):
+        """
+        compute the accuracy of a sequence of actions during recall phase
+        """
+        correct_actions = 0
+        wrong_actions = 0
+        no_actions = 0
+        answered = np.zeros(self.num_answers, dtype=bool)
+        for action in actions:
+            if action == self.action_space.n - 2:
+                # no action
+                no_actions += 1
+            elif correct_actions == self.num_answers:
+                # all correct answers have been outputted, all actions are wrong except for "stop"
+                if action == self.action_space.n - 1:
+                    # stop
+                    correct_actions += 1
+                else:
+                    wrong_actions += 1
+            else:
+                # check if an action is correct
+                if action == self.action_space.n - 1:
+                    wrong_actions += 1
+                else:
+                    converted_action = self.convert_action_to_stimuli(action)
+                    correct_one_action = False
+                    for i, correct_action in enumerate(self.memory_sequence[self.correct_answers_index]):
+                        if np.all(converted_action == correct_action) and not answered[i]:
+                            answered[i] = True
+                            correct_one_action = True
+                            break
+                    if correct_one_action:
+                        correct_actions += 1
+                    else:
+                        wrong_actions += 1
+        return correct_actions, wrong_actions, no_actions
+    
+    def get_ground_truth(self, phase='recall'):
+        """
+        get expected actions of a trial
+        """
+        if phase == 'encoding':
+            if self.include_question_during_encode:
+                return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) \
+                                 if i in self.correct_answers_index else self.action_space.n - 2 \
+                                      for i in range(self.sequence_len)])
+            else:
+                return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in range(self.sequence_len)])
+        elif phase == 'recall':
+            return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in self.correct_answers_index])
+
     def convert_action_to_stimuli(self, action):
         """
         convert integer action to the format of the stimuli, i.e. a list of numbers with length num_features, 
@@ -162,6 +239,18 @@ class ConditionalEMRecall(gym.Env):
                 action_base[i] = action % self.feature_dim
                 action = action // self.feature_dim
             return action_base
+        
+    def convert_stimuli_to_action(self, stimuli):
+        """
+        convert stimuli to action, i.e. a integer action
+        if the stimuli is "no action" or "stop", return the corresponding integer
+        the encoding of the action is small-edian, i.e. after converting action to base feature_dim, 
+            the first feature corresponds to the last digit of the action
+        """
+        action = 0
+        for i in range(self.num_features):
+            action += stimuli[i] * (self.feature_dim ** i)
+        return action
         
     def convert_action_to_observation(self, action):
         """
@@ -229,7 +318,7 @@ class ConditionalEMRecall(gym.Env):
         if include_question:
             observation[self.num_features*self.feature_dim+question_type] = 1
             observation[self.num_features*self.feature_dim+self.question_space_dim+question_value] = 1
-        return observation
+        return observation.reshape(1, -1)
     
     def _check_action(self, action):
         """
@@ -240,7 +329,9 @@ class ConditionalEMRecall(gym.Env):
         # check stop in "step" function
         if action[0] == "no_action" or action[0] == "stop":
             return False
-        for correct_action in self.memory_sequence[self.correct_answers_index]:
-            if np.all(action == correct_action):
+        for i, correct_action in enumerate(self.memory_sequence[self.correct_answers_index]):
+            if np.all(action == correct_action) and not self.answered[i]:
+                if self.phase == "recall":
+                    self.answered[i] = True
                 return True
         return False

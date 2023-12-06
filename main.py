@@ -4,6 +4,7 @@ import os
 import argparse
 from pathlib import Path
 import ast
+import numpy as np
 import torch
 
 import consts
@@ -117,7 +118,10 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                         training_func = training_setup["trainer"].pop("training_function", "supervised_train_model")
                         accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, device=device, 
                             model_save_path=model_save_path, **training_setup["trainer"])
-                    plot_accuracy_and_error(accuracies, errors, model_save_path)
+                    # save accuracy and error to file
+                    np.save(model_save_path/"accuracy_{}.npy".format(training_session), np.array(accuracies))
+                    np.save(model_save_path/"error_{}.npy".format(training_session), np.array(errors))
+                    plot_accuracy_and_error(accuracies, errors, model_save_path, filename="accuracy_session_{}.png".format(training_session))
 
             # record data of the model
             env = envs[-1]
