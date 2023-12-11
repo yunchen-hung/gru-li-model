@@ -10,7 +10,7 @@ from .base import BaseEMTask
 class ConditionalEMRecall(BaseEMTask):
     def __init__(self, num_features=2, feature_dim=5, sequence_len=8, correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0,
                  retrieve_time_limit=None, include_question_during_encode=False, reset_state_before_test=True, 
-                 question_space=("choice", "max", "min"), has_question=True):
+                 question_space=("choice", "max", "min"), has_question=True, one_hot_stimuli=False):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -31,6 +31,7 @@ class ConditionalEMRecall(BaseEMTask):
                 choice: given one of the feature equals to a particular value
                 max: given the max value of all the features
                 min: given the min value of all the features
+            one_hot_stimuli: whether to convert stimuli to one-hot vector
         Observation space:
             stimuli: num_features * [feature_dim one-hot vector]
             question: 
@@ -47,6 +48,7 @@ class ConditionalEMRecall(BaseEMTask):
         self.retrieve_time_limit = retrieve_time_limit if retrieve_time_limit is not None else sequence_len
         self.include_question_during_encode = include_question_during_encode
         self.has_question = has_question
+        self.one_hot_stimuli = one_hot_stimuli
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
@@ -58,7 +60,10 @@ class ConditionalEMRecall(BaseEMTask):
         self.question_space = question_space
         self.question_type_dict = self._generate_question_type_dict()
 
-        self.observation_space = spaces.MultiDiscrete([feature_dim for _ in range(num_features)]+[self.question_space_dim, feature_dim])
+        if self.one_hot_stimuli:
+            self.observation_space = spaces.MultiDiscrete([self.feature_dim ** self.num_features, self.question_space_dim, feature_dim])
+        else:
+            self.observation_space = spaces.MultiDiscrete([feature_dim for _ in range(num_features)]+[self.question_space_dim, feature_dim])
         self.action_space = spaces.Discrete(feature_dim ** num_features + 2)
         
         self.all_stimuli = self._generate_all_stimuli()
@@ -121,7 +126,10 @@ class ConditionalEMRecall(BaseEMTask):
         """
         action: a MultiDiscrete vector of length num_features
         """
-        action = action[0].item()
+        try:
+            action = action[0].item()
+        except:
+            pass
         self.timestep += 1
         if self.phase == "encoding":
             if self.timestep >= self.sequence_len:
@@ -130,7 +138,7 @@ class ConditionalEMRecall(BaseEMTask):
                 self.timestep = 0
                 obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
                 info = {"phase": "recall", "reset_state": self.reset_state_before_test}
-                return obs, [self.no_action_reward], False, info
+                return obs, [0.0], False, info
             else:
                 # encoding phase
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_type, self.question_value, 
@@ -140,7 +148,7 @@ class ConditionalEMRecall(BaseEMTask):
                 else:
                     gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep])
                 info = {"phase": "encoding", "gt": gt}
-                return obs, [self.no_action_reward], False, info
+                return obs, [0.0], False, info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
             info = {"phase": "recall"}
@@ -177,7 +185,7 @@ class ConditionalEMRecall(BaseEMTask):
         wrong_actions = 0
         no_actions = 0
         answered = np.zeros(self.num_answers, dtype=bool)
-        for action in actions:
+        for action in actions[self.sequence_len:]:
             if action == self.action_space.n - 2:
                 # no action
                 no_actions += 1
@@ -243,7 +251,6 @@ class ConditionalEMRecall(BaseEMTask):
     def convert_stimuli_to_action(self, stimuli):
         """
         convert stimuli to action, i.e. a integer action
-        if the stimuli is "no action" or "stop", return the corresponding integer
         the encoding of the action is small-edian, i.e. after converting action to base feature_dim, 
             the first feature corresponds to the last digit of the action
         """
@@ -251,6 +258,15 @@ class ConditionalEMRecall(BaseEMTask):
         for i in range(self.num_features):
             action += stimuli[i] * (self.feature_dim ** i)
         return action
+    
+    def convert_stimuli_to_one_hot(self, stimuli):
+        """
+        convert stimuli to one-hot vector, corresponding to the action
+        """
+        action = self.convert_stimuli_to_action(stimuli)
+        stimuli_one_hot = np.zeros(self.feature_dim ** self.num_features)
+        stimuli_one_hot[action] = 1
+        return stimuli_one_hot
         
     def convert_action_to_observation(self, action):
         """
@@ -312,12 +328,19 @@ class ConditionalEMRecall(BaseEMTask):
         include_question: whether to include the question in the observation
         """
         observation = np.zeros(np.sum(self.observation_space.nvec))
-        if stimuli is not None:
-            for i in range(self.num_features):
-                observation[i*self.feature_dim+stimuli[i]] = 1
+        if self.one_hot_stimuli:
+            if stimuli is not None:
+                stimuli_int = self.convert_stimuli_to_action(stimuli)
+                observation[stimuli_int] = 1
+            question_offset = self.feature_dim ** self.num_features
+        else:
+            if stimuli is not None:
+                for i in range(self.num_features):
+                    observation[i*self.feature_dim+stimuli[i]] = 1
+            question_offset = self.num_features*self.feature_dim
         if include_question:
-            observation[self.num_features*self.feature_dim+question_type] = 1
-            observation[self.num_features*self.feature_dim+self.question_space_dim+question_value] = 1
+            observation[question_offset+question_type] = 1
+            observation[question_offset+self.question_space_dim+question_value] = 1
         return observation.reshape(1, -1)
     
     def _check_action(self, action):

@@ -44,13 +44,22 @@ from tasks import ConditionalEMRecall, MetaLearningEnv
 # plt.savefig("acc_forw_asym.png")
 
 
-env = ConditionalEMRecall(include_question_during_encode=True)
+env = ConditionalEMRecall(include_question_during_encode=True, has_question=False)
 env = MetaLearningEnv(env)
 obs, info = env.reset()
 print('memory_sequence:', env.memory_sequence)
 print('question_type:', env.question_type)
 print('question_value:', env.question_value)
 print('correct_answers:', env.memory_sequence[env.correct_answers_index])
+
+# gt = env.get_ground_truth()
+# actions = np.random.choice(gt, 9)
+# correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions) 
+# print('gt:', gt)
+# print('actions:', actions)
+# print('correct_actions:', correct_actions)
+# print('wrong_actions:', wrong_actions)
+# print('not_know_actions:', not_know_actions)
 
 actions = env.memory_sequence[env.correct_answers_index]
 actions_int = [0 for _ in range(8)]
