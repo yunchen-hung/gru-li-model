@@ -164,7 +164,7 @@ class ConditionalEMRecall(BaseEMTask):
             else:
                 reward = self.wrong_reward
 
-            if converted_action[0] == "stop" or self.timestep > self.retrieve_time_limit:
+            if converted_action[0] == "stop" or self.timestep >= self.retrieve_time_limit:
                 done = True
             else:
                 done = False
@@ -227,6 +227,13 @@ class ConditionalEMRecall(BaseEMTask):
                 return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in range(self.sequence_len)])
         elif phase == 'recall':
             return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in self.correct_answers_index])
+        
+    def get_trial_data(self):
+        """
+        get trial data, including memory sequence, question type, question value, and correct answers
+        """
+        return {"memory_sequence": self.memory_sequence, "question_type": self.question_type, 
+                "question_value": self.question_value, "correct_answers": self.memory_sequence[self.correct_answers_index]}
 
     def convert_action_to_stimuli(self, action):
         """

@@ -14,3 +14,6 @@ class BaseEMTask(gym.Env):
     def get_ground_truth(self, phase="recall"):
         raise NotImplementedError
     
+    def get_trial_data(self):
+        raise NotImplementedError
+    

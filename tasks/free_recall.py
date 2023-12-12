@@ -301,6 +301,12 @@ class FreeRecall(BaseEMTask):
         output: ground truth with numbers (not one-hot), memory_num
         """
         return self.memory_sequence
+    
+    def get_trial_data(self):
+        """
+        get trial data
+        """
+        return self.memory_sequence
 
 
 # test
