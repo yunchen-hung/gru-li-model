@@ -96,7 +96,7 @@
             "feature_dim": 3,
             "sequence_len": 8,
             "reset_state_before_test": true,
-            "no_action_reward": -0.6,
+            "no_action_reward": -0.2,
             "wrong_reward": -0.75
         },
         "trainer": {
@@ -130,7 +130,7 @@
             "feature_dim": 3,
             "sequence_len": 8,
             "reset_state_before_test": true,
-            "no_action_reward": -0.6,
+            "no_action_reward": -0.2,
             "wrong_reward": -0.75
         },
         "trainer": {

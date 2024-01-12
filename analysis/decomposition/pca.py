@@ -1,6 +1,8 @@
 import numpy as np
 import sklearn.decomposition as decomposition
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import seaborn as sns
 
 from utils import savefig
 
@@ -38,7 +40,7 @@ class PCA:
         self.fit(dataset)
         return np.transpose(self.proj_act, axes=(1, 0, 2))
 
-    def visualize(self, save_path=None, ax=None, x_labels=None, title="", n_components=None, pdf=False):
+    def visualize(self, save_path=None, ax=None, x_labels=None, title="", n_components=None, format="png"):
         n_components = n_components if n_components is not None else self.n_components
         assert n_components <= self.n_components
         t = np.arange(self.n_steps) * self.dt if x_labels is None else x_labels
@@ -62,19 +64,21 @@ class PCA:
         plt.suptitle(title)
         plt.tight_layout()
         if save_path is not None:
-            savefig(save_path, "pca_temporal", pdf=pdf)
+            savefig(save_path, "pca_temporal", format=format)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, pdf=False, start_step=None, end_step=None, 
-        display_start_step=None, display_end_step=None, title=None, constrain_lim=True):
+    def visualize_state_space(self, save_path=None, show_3d=False, start_step=None, end_step=None, 
+        display_start_step=None, display_end_step=None, constrain_lim=True, title=None, format="png",
+        file_name="pca_state_space", colormap_label="timesteps"):
         if start_step is None:
             start_step = 0
         if end_step is None:
             end_step = self.n_steps
         n_steps = end_step - start_step
-        colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
+        # colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
+        colors = sns.color_palette("hls", n_steps+1)
 
-        plt.figure(figsize=(3.5, 3.1), dpi=180)
+        plt.figure(figsize=(4.8, 4.2), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
         proj_act = self.proj_act
@@ -102,23 +106,26 @@ class PCA:
         if show_3d:
             ax.set_zlabel("PC3")
 
-        display_start_step = display_start_step if display_start_step is not None else start_step
-        display_end_step = display_end_step if display_end_step is not None else end_step
-        cmap = plt.cm.rainbow.reversed()
-        norm = plt.Normalize(display_start_step+1, display_end_step)
-        cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="timesteps")
-        cb.set_ticks(np.arange(display_start_step+1, display_end_step+1))
+        # display_start_step = display_start_step if display_start_step is not None else start_step
+        # display_end_step = display_end_step if display_end_step is not None else end_step
+        # cmap = plt.cm.rainbow.reversed()
+        # norm = plt.Normalize(0.5, display_end_step-display_start_step+0.5)
+        # cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, display_end_step-display_start_step+1), ax=ax, label=colormap_label)
+        cmap = ListedColormap(colors[:-1])
+        norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
+        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label)
 
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
         if title:
-            plt.title("{}, {} trials".format(title, self.n_traj))
+            # plt.title("{}, {} trials".format(title, self.n_traj))
+            plt.title(title)
 
         plt.tight_layout()
         if save_path is not None:
-            savefig(save_path, "pca_state_space", pdf=pdf)
+            savefig(save_path, file_name, format=format)
 
 
 def plot_capture_var(captured_var, save_path=None, pdf=False):

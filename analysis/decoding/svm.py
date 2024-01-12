@@ -2,6 +2,8 @@ import numpy as np
 from sklearn import svm
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import seaborn as sns
 
 from utils import savefig
 
@@ -48,10 +50,10 @@ class SVM:
         self.results = np.array(results)
         return results
 
-    def visualize(self, save_path, pdf=False):
+    def visualize(self, save_path, format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(1.0 * self.results.shape[0], 4.0), dpi=180)
+        plt.figure(figsize=(1.0 * self.results.shape[0], 4.2), dpi=180)
         for i, result in enumerate(self.results):
             plt.plot(np.arange(1, self.results.shape[1]+1), result, label="timestep {}".format(i+1))
         plt.legend()
@@ -66,15 +68,16 @@ class SVM:
 
         plt.tight_layout()
         if save_path is not None:
-            savefig(save_path, "svm_accuracy", pdf=pdf)
+            savefig(save_path, "svm_accuracy", format=format)
 
-    def visualize_by_memory(self, save_path, save_name="svm_decode_acc_by_mem", title=None, pdf=False):
+    def visualize_by_memory(self, save_path, save_name="svm_decode_acc_by_mem", title=None, colormap_label="timesteps", format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(1.0 * self.results.shape[1], 5.0), dpi=180)
+        plt.figure(figsize=(0.7 * self.results.shape[1], 4.2), dpi=180)
+        n_steps = self.results.shape[0]
+        colors = sns.color_palette("hls", n_steps+1)
         for i in range(self.results.shape[1]):
-            plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="item {}".format(i+1))
-        plt.legend(fontsize=10)
+            plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="item {}".format(i+1), color=colors[i])
         plt.xlim(0.5, 0.5 + self.results.shape[0])
         if title:
             plt.title(title)
@@ -85,9 +88,13 @@ class SVM:
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
+        cmap = ListedColormap(colors[:-1])
+        norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
+        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label)
+
         if title:
             plt.title(title)
 
         plt.tight_layout()
         if save_path is not None:
-            savefig(save_path, save_name, pdf=pdf)
+            savefig(save_path, save_name, format=format)

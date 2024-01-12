@@ -33,12 +33,12 @@ class RecallProbability:
         self.results_all_time = self.results_all_time / self.average_times
         # self.results_all_time = self.results_all_time / np.sum(self.results_all_time)
 
-    def visualize(self, save_path, title="", pdf=False):
+    def visualize(self, save_path, title="", format="png"):
         if self.results is None or self.results_all_time is None:
             raise Exception("Please run fit() first")
         # plot at each time step
         for t in range(self.memory_num):
-            plt.figure(figsize=(4, 3.5), dpi=180)
+            plt.figure(figsize=(5, 4.2), dpi=180)
             if t != 0:
                 plt.scatter(np.arange(1, t+1), self.results[t][:t], c='b', zorder=2)
                 plt.plot(np.arange(1, t+1), self.results[t][:t], c='k', zorder=1)
@@ -55,38 +55,38 @@ class RecallProbability:
             ax.spines['right'].set_visible(False)
 
             plt.tight_layout()
+            savefig(save_path, "timestep_{}".format(t+1), format=format)
 
-            savefig(save_path, "timestep_{}".format(t+1), pdf=pdf)
-
+    def visualize_all_time(self, save_path, title="", format="png"):
         # plot of all time
-        plt.figure(figsize=(4, 3.5), dpi=180)
+        plt.figure(figsize=(5, 4.2), dpi=180)
         plt.scatter(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='b', zorder=2)
         plt.plot(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='k', zorder=1)
         plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='b', zorder=2)
         plt.plot(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='k', zorder=1)
         plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
         plt.xlabel("item position")
-        plt.ylabel("possibility of next recalling")
-        title = title if title else "recall probability of all time"
-        plt.title(title)
+        plt.ylabel("conditional recall probability")
+        # title = title if title else "conditional recall probability"
+        # plt.title(title)
 
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
+        savefig(save_path, "all_time", format=format)
 
-        savefig(save_path, "all_time", pdf=pdf)
-
+    def visualize_mat(self, save_path, format="png"):
         # plot of matrix
-        plt.figure(figsize=(4, 3.5), dpi=180)
+        plt.figure(figsize=(5, 4.2), dpi=180)
         plt.imshow(self.results, cmap="Blues")
         plt.colorbar()
         plt.xlabel("item position")
         plt.ylabel("recalling timestep")
-        plt.title("recalling probability\nmean of 10 models")
+        plt.title("recalling probability matrix")
         plt.tight_layout()
-        savefig(save_path, "recall_prob_mat", pdf=pdf)
+        savefig(save_path, "recall_prob_mat", format=format)
 
     def get_results(self):
         return self.results
@@ -148,14 +148,15 @@ class RecallProbabilityInTime:
         self.results = self.results / times_sum
         return self.results
 
-    def visualize(self, save_path, save_name="output_probability_by_time", title="output_probability_by_time", pdf=False):
+    def visualize(self, save_path, save_name="output_probability_by_time", title="output_probability_by_time", format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
+        plt.figure(figsize=(5, 4.2), dpi=180)
         plt.imshow(self.results, cmap="Blues")
-        plt.colorbar()
-        plt.xlabel("item position")
+        plt.colorbar(label="recall probability")
+        plt.xlabel("item position in sequence")
         plt.ylabel("recalling timestep")
-        plt.title(title)
+        # plt.title("output probability by time")
         plt.tight_layout()
-        savefig(save_path, save_name)
+        savefig(save_path, save_name, format=format)
         

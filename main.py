@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument("-debug", action='store_true', help="debug mode, don't save results")
     parser.add_argument("-test_accu", action='store_true', help="test accuracy when loading models")
     parser.add_argument("--run_num", default=None, help="number of runs, can be list or int")
+    parser.add_argument("--exp_file", type=str, default="experiment", help="experiment file name")
 
     args, unknown_args = parser.parse_known_args()
 
@@ -33,12 +34,14 @@ def parse_args():
     debug = args.debug
     test_accu = args.test_accu
     run_num = args.run_num
+    exp_file_name = args.exp_file
     if run_num is not None and isinstance(run_num, str) and run_num[0] == "[" and run_num[-1] == "]":
         run_num = ast.literal_eval(run_num)
 
-    return experiment, setup_name, device, train, debug, test_accu, run_num, unknown_args
+    return experiment, setup_name, device, train, debug, test_accu, run_num, exp_file_name, unknown_args
 
-def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else 'cpu', train=False, debug=False, test_accu=False, run_num=None, unknown_args=None):
+def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else 'cpu', train=False, debug=False, test_accu=False, 
+         run_num=None, exp_file_name="experiment", unknown_args=None):
     # load setup
     # exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
     exp_dir = Path(experiment.replace(".", "/"))
@@ -135,15 +138,18 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model_all[run_name_with_num] = model
             data_all[run_name_with_num] = data
 
-    paths = {"fig": Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER/setup_origin["model"]["class"]}
+    if exp_file_name == "experiment":
+        paths = {"fig": Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER/setup_origin["model"]["class"]}
+    else:
+        paths = {"fig": Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER/exp_file_name/setup_origin["model"]["class"]}
 
     # run experiment
-    run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
+    run_exp = import_attr("{}.{}.{}.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment, exp_file_name))
     if env:
         exp_name = setup_name.split(".")[0]
         run_exp(data_all, model_all, env, paths, exp_name)
 
 
 if __name__ == "__main__":
-    _experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, _unknown_args = parse_args()
-    main(_experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, _unknown_args)
+    _experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, exp_file_name, _unknown_args = parse_args()
+    main(_experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, exp_file_name, _unknown_args)

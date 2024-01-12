@@ -69,8 +69,8 @@ class PCSelectivity:
                 # decode_accuracy /= self.n_splits
                 # self.selectivity[label_name].append(decode_accuracy)
     
-    def visualize(self, save_path, file_name="pc_selectivity", title="", pdf=False):
-        plt.figure(figsize=(4, 3.5), dpi=180)
+    def visualize(self, save_path, file_name="pc_selectivity", title="", format="png"):
+        plt.figure(figsize=(5, 4.2), dpi=180)
         c = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
         for i, label_name in enumerate(self.label_name):
             plt.plot(np.arange(1, self.n_components+1), self.selectivity[i], label=label_name, color=c[i])
@@ -93,7 +93,7 @@ class PCSelectivity:
         
         plt.tight_layout()
 
-        savefig(save_path, file_name, pdf)
+        savefig(save_path, file_name, format=format)
 
     def set_results(self, label_name, selectivity, explained_variance, selectivity_error, explained_variance_error):
         self.label_name = label_name

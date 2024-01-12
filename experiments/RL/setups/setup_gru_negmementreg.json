@@ -42,7 +42,6 @@
             "save_iter": 2000,
             "stop_test_accu": 0.99,
             "use_memory": true,
-            "train_all_time": true,
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
                 "class_num": 51
@@ -78,14 +77,12 @@
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "train_all_time": false,
-            "train_encode": false,
             "memory_entropy_reg": true,
             "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.0005
+                "eta": 0.001
             },
             "optimizer": {
                 "class": "Adam",

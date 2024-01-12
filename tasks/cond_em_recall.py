@@ -233,7 +233,8 @@ class ConditionalEMRecall(BaseEMTask):
         get trial data, including memory sequence, question type, question value, and correct answers
         """
         return {"memory_sequence": self.memory_sequence, "question_type": self.question_type, 
-                "question_value": self.question_value, "correct_answers": self.memory_sequence[self.correct_answers_index]}
+                "question_value": self.question_value, "correct_answers": self.memory_sequence[self.correct_answers_index],
+                "memory_sequence_int": self.convert_stimuli_to_action(self.memory_sequence)}
 
     def convert_action_to_stimuli(self, action):
         """
