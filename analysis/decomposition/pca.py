@@ -76,15 +76,17 @@ class PCA:
             end_step = self.n_steps
         n_steps = end_step - start_step
         # colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
-        colors = sns.color_palette("hls", n_steps+1)
+        # colors = sns.color_palette("Spectral", n_steps+1)
+        # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
+        colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
 
-        plt.figure(figsize=(4.8, 4.2), dpi=180)
+        plt.figure(figsize=(3.8, 3.3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
         proj_act = self.proj_act
         for i in range(self.n_traj):
             if not show_3d:
-                ax.plot(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], color="grey", zorder=1)
+                ax.plot(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], color="grey", zorder=1, linewidth=0.7)
             else:
                 ax.plot3D(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], proj_act[i, start_step:end_step, 2], color="grey")
         for i in range(start_step, end_step):
@@ -101,8 +103,8 @@ class PCA:
             plt.xlim(min_x - 0.5, max_x + 0.5)
             plt.ylim(min_y - 0.5, max_y + 0.5)
 
-        ax.set_xlabel("PC1")
-        ax.set_ylabel("PC2")
+        ax.set_xlabel("PC1 of hidden states")
+        ax.set_ylabel("PC2 of hidden states")
         if show_3d:
             ax.set_zlabel("PC3")
 

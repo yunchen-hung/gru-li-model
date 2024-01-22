@@ -15,22 +15,22 @@ class TemporalFactor:
                 # print("t:", t)
                 position1 = np.where(memory_contexts[i] == actions[i][t])
                 position2 = np.where(memory_contexts[i] == actions[i][t+1])
+                # get a transition i->j that i and j are not wrong, not recalled and not the same
                 if position1[0].shape[0] != 0 and position2[0].shape[0] != 0 and \
                     not recalled[position1[0][0]] and not recalled[position2[0][0]]\
                         and not position1[0][0] == position2[0][0]:
                     recalled[position1[0][0]] = True
+                    # possible next memory to recall (delete all recalled ones)
                     possible_transitions = ~np.isin(memory_contexts[i], actions[i][:t+1])
-                    # print("possible_transitions:", possible_transitions)
+                    # find the actual transition in the possible transitions
                     actual_transition = memory_contexts[i][possible_transitions] == actions[i][t+1]
-                    # print("actual_transition:", actual_transition)
+                    # compute the distance of each possible transition to the current recalled item
                     possible_temporal_transitions = np.arange(self.memory_num)[possible_transitions] - position1[0][0]
-                    # print("possible_temporal_transitions:", possible_temporal_transitions)
-                    if len(possible_temporal_transitions) > 1 and np.any(actual_transition) :
+                    if len(possible_temporal_transitions) > 1 and np.any(actual_transition):
+                        # compute the rank number of all the possible transitions (the farer the transition is, the lower the rank is)
                         ranks = rankdata(-np.abs(possible_temporal_transitions))
-                        # print(ranks)
+                        # compute the rank of the actual transition / the largest rank
                         self.results[i][t+1] = (ranks[actual_transition] - 1) / (len(ranks) - 1)
-                    #     print(self.results[i][t+1])
-                    # print()
         return self.results
     
 

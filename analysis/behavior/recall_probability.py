@@ -21,6 +21,8 @@ class RecallProbability:
                     position2 = position2[0][0]
                     self.results[position1][position2] += 1
 
+        self.forward_asymmetry = np.sum(np.triu(self.results, k=1)) / np.sum(self.results)
+
         times_sum = np.expand_dims(np.sum(self.results, axis=1), axis=1)
         times_sum[times_sum == 0] = 1
         self.results = self.results / times_sum
