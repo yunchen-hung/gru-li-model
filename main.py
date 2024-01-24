@@ -65,6 +65,20 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
     print("device:", device)
 
+    # build soft link for saved models and figures
+    if platform == "linux":
+        exp_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER
+        if not os.path.exists(exp_path):
+            os.mkdir(exp_path)
+            os.symlink(exp_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER)
+        figuire_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.FIGURE_FOLDER
+        if not os.path.exists(figuire_path):
+            os.mkdir(figuire_path)
+            os.symlink(figuire_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER)
+    else:
+        exp_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER
+        figuire_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER
+
     model_all, data_all = {}, {}
     for i in run_nums:
         print("run {}".format(i))
@@ -86,10 +100,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model, model_for_record, envs, optimizers, schedulers, criterions, training_setups, setup = model_instance
 
             # set up save model path
-            if platform == "linux":
-                model_save_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/run_name_with_num
-            else:
-                model_save_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
+            model_save_path = exp_path/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
             model_save_path.mkdir(parents=True, exist_ok=True)
 
             # load trained model when not specified to train again
@@ -100,10 +111,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             else:
                 load_run_name_with_path = run_name_with_num
             # set up load model path
-            if platform == "linux":
-                model_load_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/load_run_name_with_path
-            else:
-                model_load_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/load_run_name_with_path
+                
+            model_load_path = exp_path/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/load_run_name_with_path
             if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
                 if setup.get("load_saved_model", False):
                     print("load saved model from {}".format(load_run_name_with_path))
@@ -139,9 +148,9 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             data_all[run_name_with_num] = data
 
     if exp_file_name == "experiment":
-        paths = {"fig": Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER/setup_origin["model"]["class"]}
+        paths = {"fig": figuire_path/setup_origin["model"]["class"]}
     else:
-        paths = {"fig": Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER/exp_file_name/setup_origin["model"]["class"]}
+        paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
 
     # run experiment
     run_exp = import_attr("{}.{}.{}.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment, exp_file_name))

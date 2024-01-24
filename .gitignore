@@ -1,6 +1,9 @@
 saved_models/
+saved_models
 figures/
+figures
 logs/
+logs
 todo.md
 upload.sh
 upload_run.sh

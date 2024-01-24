@@ -34,7 +34,8 @@ def parse_args():
 
 def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit=5, exp_file_name="experiment"):
     run_name = setup.get("run_name", setup_name.split(".")[0])
-    save_dir = exp_dir/consts.LOG_FOLDER/setup["model"]["class"]/run_name
+    os.makedirs(exp_dir/setup["model"]["class"]/run_name, exist_ok=True)
+    save_dir = exp_dir/setup["model"]["class"]/run_name
 
     # parse run_num
     # if run_num is a int, number the runs with 1~run_num
@@ -78,8 +79,11 @@ def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, t
 
 
 def run_cluster(experiment, setup_name, time_limit, device, train, exp_file_name):
-    exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
-    setup = load_dict(exp_dir/consts.SETUP_FOLDER/setup_name)
+    exp_dir = Path("{}/{}".format(consts.CLUSTER_FOLDER, experiment).replace(".", "/")) / consts.LOG_FOLDER
+    if not os.path.exists(exp_dir):
+        os.makedirs(exp_dir)
+        os.symlink(exp_dir, Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/")) / consts.LOG_FOLDER)
+    setup = load_dict(Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))/consts.SETUP_FOLDER/setup_name)
 
     shell_path = write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit, exp_file_name)
 
