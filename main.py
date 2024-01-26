@@ -4,6 +4,7 @@ import os
 import argparse
 from pathlib import Path
 import ast
+import numpy as np
 import torch
 
 import consts
@@ -20,6 +21,7 @@ def parse_args():
     parser.add_argument("-debug", action='store_true', help="debug mode, don't save results")
     parser.add_argument("-test_accu", action='store_true', help="test accuracy when loading models")
     parser.add_argument("--run_num", default=None, help="number of runs, can be list or int")
+    parser.add_argument("--exp_file", type=str, default="experiment", help="experiment file name")
 
     args, unknown_args = parser.parse_known_args()
 
@@ -32,12 +34,14 @@ def parse_args():
     debug = args.debug
     test_accu = args.test_accu
     run_num = args.run_num
+    exp_file_name = args.exp_file
     if run_num is not None and isinstance(run_num, str) and run_num[0] == "[" and run_num[-1] == "]":
         run_num = ast.literal_eval(run_num)
 
-    return experiment, setup_name, device, train, debug, test_accu, run_num, unknown_args
+    return experiment, setup_name, device, train, debug, test_accu, run_num, exp_file_name, unknown_args
 
-def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else 'cpu', train=False, debug=False, test_accu=False, run_num=None, unknown_args=None):
+def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else 'cpu', train=False, debug=False, test_accu=False, 
+         run_num=None, exp_file_name="experiment", unknown_args=None):
     # load setup
     # exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
     exp_dir = Path(experiment.replace(".", "/"))
@@ -61,6 +65,20 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
     print("device:", device)
 
+    # build soft link for saved models and figures
+    if platform == "linux":
+        exp_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER
+        if not os.path.exists(exp_path):
+            os.mkdir(exp_path)
+            os.symlink(exp_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER)
+        figuire_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.FIGURE_FOLDER
+        if not os.path.exists(figuire_path):
+            os.mkdir(figuire_path)
+            os.symlink(figuire_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER)
+    else:
+        exp_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER
+        figuire_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER
+
     model_all, data_all = {}, {}
     for i in run_nums:
         print("run {}".format(i))
@@ -81,11 +99,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             # unpack model_instance
             model, model_for_record, envs, optimizers, schedulers, criterions, training_setups, setup = model_instance
 
-            # set up model save path
-            if platform == "linux":
-                model_save_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/run_name_with_num
-            else:
-                model_save_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
+            # set up save model path
+            model_save_path = exp_path/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
             model_save_path.mkdir(parents=True, exist_ok=True)
 
             # load trained model when not specified to train again
@@ -95,10 +110,9 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 load_run_name_with_path = load_run_name + "-{}".format(i)
             else:
                 load_run_name_with_path = run_name_with_num
-            if platform == "linux":
-                model_load_path = Path(consts.CLUSTER_SAVE_MODEL_FOLDER)/exp_dir/setup["model_name"]/load_run_name_with_path
-            else:
-                model_load_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/load_run_name_with_path
+            # set up load model path
+                
+            model_load_path = exp_path/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/load_run_name_with_path
             if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
                 if setup.get("load_saved_model", False):
                     print("load saved model from {}".format(load_run_name_with_path))
@@ -106,19 +120,20 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
             model.to(device)
 
-            torch.autograd.set_detect_anomaly(True)
-
             # train the model with each training setup
             if train or not os.path.exists(model_load_path/"model.pt"):
                 training_session = 1
                 for env, optimizer, scheduler, criterion, training_setup in zip(envs, optimizers, schedulers, criterions, training_setups):
                     if env and optimizer and scheduler and criterion:
                         print("\ntraining session {}".format(training_session))
-                        training_session += 1
                         training_func = training_setup["trainer"].pop("training_function", "supervised_train_model")
                         accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, device=device, 
                             model_save_path=model_save_path, **training_setup["trainer"])
-                    plot_accuracy_and_error(accuracies, errors, model_save_path)
+                        # save accuracy and error to file
+                        np.save(model_save_path/"accuracy_{}.npy".format(training_session), np.array(accuracies))
+                        np.save(model_save_path/"error_{}.npy".format(training_session), np.array(errors))
+                        plot_accuracy_and_error(accuracies, errors, model_save_path, filename="accuracy_session_{}.png".format(training_session))
+                        training_session += 1
 
             # record data of the model
             env = envs[-1]
@@ -132,15 +147,18 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model_all[run_name_with_num] = model
             data_all[run_name_with_num] = data
 
-    paths = {"fig": Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER/setup_origin["model"]["class"]}
+    if exp_file_name == "experiment":
+        paths = {"fig": figuire_path/setup_origin["model"]["class"]}
+    else:
+        paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
 
     # run experiment
-    run_exp = import_attr("{}.{}.experiment.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment))
+    run_exp = import_attr("{}.{}.{}.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment, exp_file_name))
     if env:
         exp_name = setup_name.split(".")[0]
         run_exp(data_all, model_all, env, paths, exp_name)
 
 
 if __name__ == "__main__":
-    _experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, _unknown_args = parse_args()
-    main(_experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, _unknown_args)
+    _experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, exp_file_name, _unknown_args = parse_args()
+    main(_experiment, _setup_name, _device, _train, _debug, _test_accu, run_num, exp_file_name, _unknown_args)

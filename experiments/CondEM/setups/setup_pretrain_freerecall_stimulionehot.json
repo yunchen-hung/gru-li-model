@@ -1,0 +1,165 @@
+{
+    "run_num": 5,
+    "model": {
+        "class": "ValueMemoryGRU",
+        "hidden_dim": 128,
+        "input_dim": 65,
+        "output_dim": 29,
+        "use_memory": true,
+        "softmax_beta": 1.0,
+        "evolve_state_between_phases": true,
+        "em_gate_type": "scalar_sigmoid",
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 128,
+            "capacity": 8,
+            "recall_method": "weight_sum",
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.1
+                }
+            ]
+        }]
+    },
+    "training": [{
+        "env": {
+            "class": "ConditionalEMRecall",
+            "wrapper": "OriginMetaLearningEnv",
+            "num_features": 3,
+            "feature_dim": 3,
+            "sequence_len": 8,
+            "reset_state_before_test": true,
+            "one_hot_stimuli": true
+        },
+        "trainer": {
+            "num_iter": 5000,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "stop_test_accu": 0.99,
+            "use_memory": true,
+            "criterion": {
+                "class": "EncodingCrossEntropyLoss",
+                "class_num": 29
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 1e-3,
+                "weight_decay": 2e-5,
+                "lr_decay_factor": 0.5,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }, {
+        "env": {
+            "class": "ConditionalEMRecall",
+            "wrapper": "OriginMetaLearningEnv",
+            "num_features": 3,
+            "feature_dim": 3,
+            "sequence_len": 8,
+            "reset_state_before_test": true,
+            "has_question": false,
+            "no_action_reward": -0.75,
+            "wrong_reward": -0.75,
+            "one_hot_stimuli": true
+        },
+        "trainer": {
+            "training_function": "train_model",
+            "num_iter": 200000,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "use_memory": true,
+            "stop_test_accu": 0.99,
+            "criterion": {
+                "class": "A2CLoss",
+                "use_V": true,
+                "eta": 0.001
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 3e-3,
+                "weight_decay": 1e-5,
+                "lr_decay_factor": 0.1,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }, {
+        "env": {
+            "class": "ConditionalEMRecall",
+            "wrapper": "OriginMetaLearningEnv",
+            "num_features": 3,
+            "feature_dim": 3,
+            "sequence_len": 8,
+            "reset_state_before_test": true,
+            "include_question_during_encode": true,
+            "one_hot_stimuli": true
+        },
+        "trainer": {
+            "num_iter": 20000,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "stop_test_accu": 0.99,
+            "use_memory": true,
+            "criterion": {
+                "class": "EncodingCrossEntropyLoss",
+                "class_num": 29
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 1e-3,
+                "weight_decay": 2e-5,
+                "lr_decay_factor": 0.5,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }, {
+        "env": {
+            "class": "ConditionalEMRecall",
+            "wrapper": "OriginMetaLearningEnv",
+            "num_features": 3,
+            "feature_dim": 3,
+            "sequence_len": 8,
+            "reset_state_before_test": true,
+            "no_action_reward": -0.6,
+            "wrong_reward": -0.75,
+            "one_hot_stimuli": true
+        },
+        "trainer": {
+            "training_function": "train_model",
+            "num_iter": 100000,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "use_memory": true,
+            "stop_test_accu": 0.99,
+            "criterion": {
+                "class": "A2CLoss",
+                "use_V": true,
+                "eta": 0.001,
+                "gamma": 0.5
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 3e-3,
+                "lr_decay_factor": 0.1,
+                "lr_decay_patience": 30,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }],
+    "load_saved_model": true,
+    "context_num": 1000
+}

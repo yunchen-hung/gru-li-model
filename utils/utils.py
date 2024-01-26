@@ -16,7 +16,10 @@ def import_attr(module_and_attr_name):
     return attr_
 
 
-def savefig(save_dir, filename, pdf=False):
+def savefig(save_dir, filename, format='png'):
+    """
+    format: 'png' | 'pdf' | 'svg'
+    """
     if save_dir is None:
         return None
     if isinstance(save_dir, str):
@@ -25,6 +28,7 @@ def savefig(save_dir, filename, pdf=False):
     filename = filename.replace('.', '-')
     pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-    plt.savefig(save_dir/filename)
-    plt.savefig(save_dir/(filename + ".pdf"), transparent=True) if pdf else None
+    plt.savefig(save_dir/(filename + "." + format))
+    if format != 'png':
+        plt.savefig(save_dir/(filename + ".png"))
     plt.close()

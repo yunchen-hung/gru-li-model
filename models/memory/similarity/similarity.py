@@ -22,9 +22,9 @@ class BasicSimilarity(BasicModule):
             # print(query.shape, values.shape)
             origin_similarities = F.cosine_similarity(query.to(self.device), values.permute(1, 0, 2).to(self.device), dim=-1).permute(1, 0)
         elif self.measure == 'l1':
-            origin_similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=1, dim=-1).permute(1, 0)
+            origin_similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=1).permute(1, 0)
         elif self.measure == 'l2':
-            origin_similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=2, dim=-1).permute(1, 0)
+            origin_similarities = - F.pairwise_distance(query.to(self.device), values.permute(1, 0, 2).to(self.device), p=2).permute(1, 0)
         elif self.measure == 'inner_product':
             origin_similarities = torch.bmm(F.normalize(values, p=2, dim=2), F.normalize(torch.unsqueeze(query, dim=2), p=2)).squeeze(2)
         else:
@@ -36,9 +36,13 @@ class BasicSimilarity(BasicModule):
         elif self.process_similarity == 'softmax':
             beta = self.softmax_temperature if beta is None else beta
             similarities = softmax(origin_similarities, beta=beta)
+        elif self.process_similarity == 'normalize_softmax':
+            beta = self.softmax_temperature if beta is None else beta
+            similarities = (origin_similarities - torch.mean(origin_similarities)) / torch.std(origin_similarities)
+            similarities = softmax(similarities, beta=beta)
         elif self.process_similarity == 'none':
             pass
-        return similarities * input_weight, softmax(origin_similarities, beta=1.0)
+        return similarities * input_weight, similarities # softmax(origin_similarities, beta=1.0)
 
 
 class LCASimilarity(BasicModule):
@@ -56,6 +60,8 @@ class LCASimilarity(BasicModule):
     def forward(self, query, values, input_weight=1.0, beta=None):
         # similarities = self.measure(query.to(self.device), values.to(self.device))
         similarities = F.cosine_similarity(query.to(self.device), values.permute(1, 0, 2).to(self.device), dim=-1).permute(1, 0)
+        similarities_norm = (similarities - torch.mean(similarities)) / torch.std(similarities)
+        similarities_norm = torch.exp(similarities_norm / self.softmax_beta) / torch.sum(torch.exp(similarities_norm / self.softmax_beta))
         lcas = self.lca(similarities.repeat(self.lca_cycles, 1), input_weight)
         lca = lcas[-1]
         lca_out = lca.reshape(1, -1)

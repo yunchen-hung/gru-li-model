@@ -15,6 +15,7 @@ def parse_args():
     parser.add_argument("--setup", type=str, default="setup.json", help="setup file name")
     parser.add_argument("--time", type=int, default=5, help="time limit for each run")
     parser.add_argument("-train", action='store_true', help="train the model from beginning, ignore the stored models")
+    parser.add_argument("--exp_file", type=str, default="experiment", help="experiment file name")
     parser.add_argument("--device", type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
 
     args, unknown_args = parser.parse_known_args()
@@ -26,13 +27,15 @@ def parse_args():
     time_limit = args.time
     device = args.device
     train = args.train
+    exp_file_name = args.exp_file
 
-    return experiment, setup_name, time_limit, device, train, unknown_args
+    return experiment, setup_name, time_limit, device, train, exp_file_name, unknown_args
 
 
-def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit=5):
+def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit=5, exp_file_name="experiment"):
     run_name = setup.get("run_name", setup_name.split(".")[0])
-    save_dir = exp_dir/consts.LOG_FOLDER/setup["model"]["class"]/run_name
+    os.makedirs(exp_dir/setup["model"]["class"]/run_name, exist_ok=True)
+    save_dir = exp_dir/setup["model"]["class"]/run_name
 
     # parse run_num
     # if run_num is a int, number the runs with 1~run_num
@@ -67,7 +70,7 @@ def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, t
         f"#SBATCH --array=0-{len(run_nums)-1}\n" + 
         f"\n" +
 
-        inspect.cleandoc(f"python -u main.py --exp {experiment} --setup {setup_name} --run_num \"[$SLURM_ARRAY_TASK_ID]\" --device {device}")
+        inspect.cleandoc(f"python -u main.py --exp {experiment} --setup {setup_name} --run_num \"[$SLURM_ARRAY_TASK_ID]\" --device {device} --exp_file {exp_file_name}")
     )
     if train:
         shell_file.write(" -train")
@@ -75,12 +78,19 @@ def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, t
     return shell_path
 
 
-if __name__ == "__main__":
-    experiment, setup_name, time_limit, device, train, unknown_args = parse_args()
+def run_cluster(experiment, setup_name, time_limit, device, train, exp_file_name):
+    exp_dir = Path("{}/{}".format(consts.CLUSTER_FOLDER, experiment).replace(".", "/")) / consts.LOG_FOLDER
+    if not os.path.exists(exp_dir):
+        os.makedirs(exp_dir)
+        os.symlink(exp_dir, Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/")) / consts.LOG_FOLDER)
+    setup = load_dict(Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))/consts.SETUP_FOLDER/setup_name)
 
-    exp_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))
-    setup = load_dict(exp_dir/consts.SETUP_FOLDER/setup_name)
-
-    shell_path = write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit)
+    shell_path = write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit, exp_file_name)
 
     subprocess.run(f"sbatch {shell_path}", shell=True)
+
+
+if __name__ == "__main__":
+    experiment, setup_name, time_limit, device, train, exp_file_name, unknown_args = parse_args()
+
+    run_cluster(experiment, setup_name, time_limit, device, train, exp_file_name)

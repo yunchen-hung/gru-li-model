@@ -2,13 +2,16 @@ import numpy as np
 from sklearn import svm
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import seaborn as sns
 
 from utils import savefig
 
 
-class SVM:
-    def __init__(self, n_splits=5):
+class ItemIdentityDecoder:
+    def __init__(self, decoder=svm.SVC(decision_function_shape='ovo'), n_splits=5):
         self.n_splits = n_splits
+        self.decoder = decoder
         self.results = None
 
     def fit(self, all_data, gts, mask=None):
@@ -38,9 +41,8 @@ class SVM:
                 for train_index, test_index in kf.split(data):
                     data_train, data_test = data[train_index], data[test_index]
                     gt_train, gt_test = gt[train_index], gt[test_index]
-                    decoder = svm.SVC(decision_function_shape='ovo')
-                    decoder.fit(data_train, gt_train)
-                    pred = decoder.predict(data_test)
+                    self.decoder.fit(data_train, gt_train)
+                    pred = self.decoder.predict(data_test)
                     decode_accuracy += np.sum(pred == gt_test) / gt_test.shape[0]
                 decode_accuracy /= self.n_splits
                 data_accuracy.append(decode_accuracy)
@@ -48,10 +50,10 @@ class SVM:
         self.results = np.array(results)
         return results
 
-    def visualize(self, save_path, pdf=False):
+    def visualize(self, save_path, format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(1.0 * self.results.shape[0], 4.0), dpi=180)
+        plt.figure(figsize=(1.0 * self.results.shape[0], 4.2), dpi=180)
         for i, result in enumerate(self.results):
             plt.plot(np.arange(1, self.results.shape[1]+1), result, label="timestep {}".format(i+1))
         plt.legend()
@@ -66,28 +68,35 @@ class SVM:
 
         plt.tight_layout()
         if save_path is not None:
-            savefig(save_path, "svm_accuracy", pdf=pdf)
+            savefig(save_path, "svm_accuracy", format=format)
 
-    def visualize_by_memory(self, save_path, save_name="svm_decode_acc_by_mem", title=None, pdf=False):
+    def visualize_by_memory(self, save_path, save_name="item_identity_decoding", title=None, xlabel="timesteps", colormap_label="timesteps", format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(1.0 * self.results.shape[1], 5.0), dpi=180)
+        plt.figure(figsize=(0.6 * self.results.shape[1], 3.3), dpi=180)
+        n_steps = self.results.shape[0]
+        # colors = sns.color_palette("Spectral", n_steps+1)
+        # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
+        colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
         for i in range(self.results.shape[1]):
-            plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="item {}".format(i+1))
-        plt.legend(fontsize=10)
+            plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="item {}".format(i+1), color=colors[i])
         plt.xlim(0.5, 0.5 + self.results.shape[0])
         if title:
             plt.title(title)
-        plt.xlabel("timesteps")
-        plt.ylabel("decoding accuracy")
+        plt.xlabel(xlabel)
+        plt.ylabel("item identity\ndecoding accuracy")
 
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+
+        cmap = ListedColormap(colors[:-1])
+        norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
+        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label)
 
         if title:
             plt.title(title)
 
         plt.tight_layout()
         if save_path is not None:
-            savefig(save_path, save_name, pdf=pdf)
+            savefig(save_path, save_name, format=format)
