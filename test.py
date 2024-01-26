@@ -183,9 +183,6 @@ for exp in exp_names:
 accuracy_dict = {}
 forward_asymmetry_dict = {}
 temporal_factor_dict = {}
-accuracy_list = []
-forward_asymmetry_list = []
-temporal_factor_list = []
 
 for exp in exp_names:
     accuracy_dict[exp] = []
@@ -193,16 +190,13 @@ for exp in exp_names:
     temporal_factor_dict[exp] = []
     for i in range(20):
         run_name = exp + "-{}".format(i)
-        with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name, run_name), "r") as f:
+        with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
             reader = csv.reader(f)
             for row in reader:
                 if float(row[0])>=0.65:
                     accuracy_dict[exp].append(float(row[0]))
                     forward_asymmetry_dict[exp].append(float(row[1]))
                     temporal_factor_dict[exp].append(float(row[2]))
-    accuracy_list.extend(accuracy_dict[exp])
-    forward_asymmetry_list.extend(forward_asymmetry_dict[exp])
-    temporal_factor_list.extend(temporal_factor_dict[exp])
 
 
 # temporal discount factor - forward asymmetry & temporal factor
@@ -241,7 +235,28 @@ plt.tight_layout()
 savefig("./figures", "tdf_temporal_factor", format="svg")
 
 
+
+
 # accuracy - forward asymmetry & temporal factor
+exp = "setup_gru_negmementreg_gamma06"
+
+accuracy_list = []
+forward_asymmetry_list = []
+temporal_factor_list = []
+
+for i in range(100):
+    run_name = exp + "-{}".format(i)
+    with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if float(row[0])>=0.65:
+                accuracy_list.append(float(row[0]))
+                forward_asymmetry_list.append(float(row[1]))
+                temporal_factor_list.append(float(row[2]))
+            # if float(row[0]) > 0.85 and float(row[0]) < 0.9 and float(row[2]) > 0.45 and float(row[2]) < 0.55:
+            #     print(i)
+
+
 regressor = LinearRegression()
 regressor.fit(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
 slope = regressor.coef_[0][0]
@@ -258,8 +273,18 @@ else:
 
 plt.figure(figsize=(4, 3.3), dpi=180)
 plt.scatter(forward_asymmetry_list, accuracy_list, alpha=0.5)
+
+plt.scatter([forward_asymmetry_list[9]], [accuracy_list[9]], color='k', alpha=0.5)   # model C
+plt.text(forward_asymmetry_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
+plt.scatter([forward_asymmetry_list[62]], [accuracy_list[62]], color='k', alpha=0.5)   # model B
+plt.text(forward_asymmetry_list[62]-0.02, accuracy_list[62]+0.02, "2", fontsize=11)
+plt.scatter([forward_asymmetry_list[14]], [accuracy_list[14]], color='k', alpha=0.5)   # model B
+plt.text(forward_asymmetry_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=11)
+plt.scatter([forward_asymmetry_list[18]], [accuracy_list[18]], color='k', alpha=0.5)   # model A
+plt.text(forward_asymmetry_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
+
 plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
-plt.text((np.max(forward_asymmetry_list)+np.min(forward_asymmetry_list))/2, 0.98, "R2={:.2f}".format(score), fontsize=11)
+plt.text((np.max(forward_asymmetry_list)+np.min(forward_asymmetry_list))/2, 0.98, "R2={:.2f}".format(score), fontsize=12)
 plt.ylabel("task accuracy")
 plt.xlabel("forward asymmetry")
 
@@ -286,6 +311,16 @@ else:
 
 plt.figure(figsize=(4, 3.3), dpi=180)
 plt.scatter(temporal_factor_list, accuracy_list, alpha=0.5, color='tab:green')
+
+plt.scatter([temporal_factor_list[9]], [accuracy_list[9]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
+plt.scatter([temporal_factor_list[62]], [accuracy_list[62]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[62]-0.02, accuracy_list[62]+0.02, "2", fontsize=11)
+plt.scatter([temporal_factor_list[14]], [accuracy_list[14]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=11)
+plt.scatter([temporal_factor_list[18]], [accuracy_list[18]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
+
 plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
 plt.text((np.max(temporal_factor_list)+np.min(temporal_factor_list))/2, 0.98, "R2={:.2f}".format(score), fontsize=11)
 plt.ylabel("task accuracy")
@@ -299,8 +334,8 @@ savefig("./figures", "acc_temporal_factor", format="svg")
 
 
 # recall probability multiple models
-exp_names = ["setup_gru_negmementreg_gamma-8", "setup_gru_negmementreg_gamma01-1",
-             "setup_gru_negmementreg_gamma01-3", "setup_gru_negmementreg_gamma01-5"]
+exp_names = ["setup_gru_negmementreg_gamma06-9", "setup_gru_negmementreg_gamma06-62",
+             "setup_gru_negmementreg_gamma06-14", "setup_gru_negmementreg_gamma06-18"]
 recall_probs = []
 for exp in exp_names:
     with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/recall_probability.csv".format(exp), "r") as f:
