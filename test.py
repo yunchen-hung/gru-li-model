@@ -2,6 +2,7 @@ import csv
 import torch
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.isotonic import IsotonicRegression
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import ColorConverter
@@ -27,18 +28,16 @@ plt.rcParams['font.size'] = 14
 
 """ plot cogsci """
 exp_names = []
-temporal_discount_factors = []
-exp_names.append("setup_gru_negmementreg")
-temporal_discount_factors.append(0.0)
-for i in range(1, 10):
-    exp_names.append("setup_gru_negmementreg_gamma0{}".format(i))
-    temporal_discount_factors.append(float(i)/10)
+# exp_names.append("setup_gru_negmementreg")
+# for i in range(1, 10):
+#     exp_names.append("setup_gru_negmementreg_gamma0{}".format(i))
 exp_names.append("setup_gru_negmementreg_gamma")
-temporal_discount_factors.append(1.0)
 
 for exp in exp_names:
     run_names = []
-    for i in range(20):
+    for i in range(100):
+        # if i not in [3, 6, 7, 9, 15, 16, 19]:
+            # print(i)
         run_names.append(exp + "-{}".format(i))
 
     ridge_encoding_res = []
@@ -160,11 +159,11 @@ for exp in exp_names:
     label_names = ["item identity", "item index"]
     for i, label_name in enumerate(label_names):
         plt.plot(np.arange(1, 129), pc_selectivity_res[i], label=label_name, color=c[i])
-        # plt.fill_between(np.arange(1, 129), pc_selectivity_res[i] - pc_selectivity_std[i],
-        #                 pc_selectivity_res[i] + pc_selectivity_std[i], color=c[i], alpha=0.2)
+        plt.fill_between(np.arange(1, 129), pc_selectivity_res[i] - pc_selectivity_std[i],
+                        pc_selectivity_res[i] + pc_selectivity_std[i], color=c[i], alpha=0.2)
     plt.plot(np.arange(1, 129), explained_var_res, label="explained variance", color='k')
-    # plt.fill_between(np.arange(1, 129), explained_var_res - explained_var_std,
-    #                 explained_var_res + explained_var_std, color='k', alpha=0.2)
+    plt.fill_between(np.arange(1, 129), explained_var_res - explained_var_std,
+                    explained_var_res + explained_var_std, color='k', alpha=0.2)
     plt.xlabel("PC of hidden states")
     plt.ylabel("decoding accuracy")
     plt.legend(fontsize=11)
@@ -179,6 +178,16 @@ for exp in exp_names:
 
 
 
+
+exp_names = []
+temporal_discount_factors = []
+exp_names.append("setup_gru_negmementreg")
+temporal_discount_factors.append(0.0)
+for i in range(1, 10):
+    exp_names.append("setup_gru_negmementreg_gamma0{}".format(i))
+    temporal_discount_factors.append(float(i)/10)
+exp_names.append("setup_gru_negmementreg_gamma")
+temporal_discount_factors.append(1.0)
 
 accuracy_dict = {}
 forward_asymmetry_dict = {}
@@ -211,28 +220,25 @@ for exp in exp_names:
     std_temporal_factor.append(np.std(temporal_factor_dict[exp]))
 
 
-plt.figure(figsize=(4, 3.3), dpi=180)
-plt.errorbar(temporal_discount_factors, mean_forward_asymmetry, yerr=std_forward_asymmetry, fmt='o', capsize=3)
-plt.xlabel("temporal discount factor")
-plt.ylabel("forward asymmetry")
+fig = plt.figure(figsize=(4.3, 3.3), dpi=180)
+ax = fig.add_subplot(111)
+ax.errorbar(temporal_discount_factors, mean_forward_asymmetry, yerr=std_forward_asymmetry, fmt='o',
+            alpha=0.4, capsize=3, label="FA")
+ax.set_xlabel("temporal discount factor ($\gamma$)")
+ax.set_ylabel("forward asymmetry (FA)")
 
-ax = plt.gca()
+ax2 = ax.twinx()
+ax2.errorbar(temporal_discount_factors, mean_temporal_factor, yerr=std_temporal_factor, fmt='o',  
+             alpha=0.4, capsize=3, color='tab:orange', label="TF")
+ax2.set_ylabel("temporal factor (TF)")
+
 ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
+ax2.spines['top'].set_visible(False)
+
+fig.legend(loc=2, fontsize=11, bbox_to_anchor=(0, 1), bbox_transform=ax.transAxes, framealpha=0.5)
+
 plt.tight_layout()
-savefig("./figures", "tdf_forw_asym", format="svg")
-
-
-plt.figure(figsize=(4, 3.3), dpi=180)
-plt.errorbar(temporal_discount_factors, mean_temporal_factor, yerr=std_temporal_factor, fmt='o', capsize=3, color='tab:green')
-plt.xlabel("temporal discount factor")
-plt.ylabel("temporal factor")
-
-ax = plt.gca()
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-plt.tight_layout()
-savefig("./figures", "tdf_temporal_factor", format="svg")
+savefig("./figures", "tdf_contiguity", format="svg")
 
 
 
@@ -257,19 +263,24 @@ for i in range(100):
             #     print(i)
 
 
-regressor = LinearRegression()
-regressor.fit(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-slope = regressor.coef_[0][0]
-intercept = regressor.intercept_[0]
-score = regressor.score(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-if slope*np.min(forward_asymmetry_list)+intercept > np.min(accuracy_list):
-    fit_line_point1 = [np.min(forward_asymmetry_list)*0.95, slope*np.min(forward_asymmetry_list)*0.95+intercept]
-else:
-    fit_line_point1 = [(np.min(accuracy_list)*0.95-intercept)/slope, np.min(accuracy_list)*0.95]
-if slope*np.max(forward_asymmetry_list)+intercept < np.max(accuracy_list):
-    fit_line_point2 = [np.max(forward_asymmetry_list)*1.05, slope*np.max(forward_asymmetry_list)*1.05+intercept]
-else:
-    fit_line_point2 = [(np.max(accuracy_list)*1.05-intercept)/slope, np.max(accuracy_list)*1.05]
+regressor = IsotonicRegression()
+# print(np.array(forward_asymmetry_list).shape, np.array(accuracy_list).shape)
+regressor.fit(np.array(forward_asymmetry_list), np.array(accuracy_list))
+# score = regressor.score(np.array(forward_asymmetry_list), np.array(accuracy_list))
+
+# regressor = LinearRegression()
+# regressor.fit(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# slope = regressor.coef_[0][0]
+# intercept = regressor.intercept_[0]
+# score = regressor.score(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# if slope*np.min(forward_asymmetry_list)+intercept > np.min(accuracy_list):
+#     fit_line_point1 = [np.min(forward_asymmetry_list)*0.95, slope*np.min(forward_asymmetry_list)*0.95+intercept]
+# else:
+#     fit_line_point1 = [(np.min(accuracy_list)*0.95-intercept)/slope, np.min(accuracy_list)*0.95]
+# if slope*np.max(forward_asymmetry_list)+intercept < np.max(accuracy_list):
+#     fit_line_point2 = [np.max(forward_asymmetry_list)*1.05, slope*np.max(forward_asymmetry_list)*1.05+intercept]
+# else:
+#     fit_line_point2 = [(np.max(accuracy_list)*1.05-intercept)/slope, np.max(accuracy_list)*1.05]
 
 plt.figure(figsize=(4, 3.3), dpi=180)
 plt.scatter(forward_asymmetry_list, accuracy_list, alpha=0.5)
@@ -283,10 +294,10 @@ plt.text(forward_asymmetry_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=
 plt.scatter([forward_asymmetry_list[18]], [accuracy_list[18]], color='k', alpha=0.5)   # model A
 plt.text(forward_asymmetry_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
 
-plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
-plt.text((np.max(forward_asymmetry_list)+np.min(forward_asymmetry_list))/2, 0.98, "R2={:.2f}".format(score), fontsize=12)
+# plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
+# plt.text((np.max(forward_asymmetry_list)+np.min(forward_asymmetry_list))/2, 0.98, "$r^2$={:.2f}".format(score), fontsize=12)
 plt.ylabel("task accuracy")
-plt.xlabel("forward asymmetry")
+plt.xlabel("forward asymmetry (FA)")
 
 ax = plt.gca()
 ax.spines['top'].set_visible(False)
@@ -295,22 +306,26 @@ plt.tight_layout()
 savefig("./figures", "acc_forw_asym", format="svg")
 
 
-regressor = LinearRegression()
-regressor.fit(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-slope = regressor.coef_[0][0]
-intercept = regressor.intercept_[0]
-score = regressor.score(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-if slope*np.min(temporal_factor_list)+intercept > np.min(accuracy_list):
-    fit_line_point1 = [np.min(temporal_factor_list), slope*np.min(temporal_factor_list)+intercept]
-else:
-    fit_line_point1 = [(np.min(accuracy_list)-intercept)/slope, np.min(accuracy_list)]
-if slope*np.max(temporal_factor_list)+intercept < np.max(accuracy_list):
-    fit_line_point2 = [np.max(temporal_factor_list), slope*np.max(temporal_factor_list)+intercept]
-else:
-    fit_line_point2 = [(np.max(accuracy_list)-intercept)/slope, np.max(accuracy_list)]
+regressor = IsotonicRegression()
+regressor.fit(np.array(temporal_factor_list), np.array(accuracy_list))
+# score = regressor.score(np.array(temporal_factor_list), np.array(accuracy_list))
+
+# regressor = LinearRegression()
+# regressor.fit(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# slope = regressor.coef_[0][0]
+# intercept = regressor.intercept_[0]
+# score = regressor.score(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# if slope*np.min(temporal_factor_list)+intercept > np.min(accuracy_list):
+#     fit_line_point1 = [np.min(temporal_factor_list), slope*np.min(temporal_factor_list)+intercept]
+# else:
+#     fit_line_point1 = [(np.min(accuracy_list)-intercept)/slope, np.min(accuracy_list)]
+# if slope*np.max(temporal_factor_list)+intercept < np.max(accuracy_list):
+#     fit_line_point2 = [np.max(temporal_factor_list), slope*np.max(temporal_factor_list)+intercept]
+# else:
+#     fit_line_point2 = [(np.max(accuracy_list)-intercept)/slope, np.max(accuracy_list)]
 
 plt.figure(figsize=(4, 3.3), dpi=180)
-plt.scatter(temporal_factor_list, accuracy_list, alpha=0.5, color='tab:green')
+plt.scatter(temporal_factor_list, accuracy_list, alpha=0.5, color='tab:orange')
 
 plt.scatter([temporal_factor_list[9]], [accuracy_list[9]], color='k', alpha=0.5)
 plt.text(temporal_factor_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
@@ -321,10 +336,10 @@ plt.text(temporal_factor_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=11
 plt.scatter([temporal_factor_list[18]], [accuracy_list[18]], color='k', alpha=0.5)
 plt.text(temporal_factor_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
 
-plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
-plt.text((np.max(temporal_factor_list)+np.min(temporal_factor_list))/2, 0.98, "R2={:.2f}".format(score), fontsize=11)
+# plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
+# plt.text((np.max(temporal_factor_list)+np.min(temporal_factor_list))/2, 0.98, "$r^2$={:.2f}".format(score), fontsize=11)
 plt.ylabel("task accuracy")
-plt.xlabel("temporal factor")
+plt.xlabel("temporal factor (TF)")
 
 ax = plt.gca()
 ax.spines['top'].set_visible(False)
@@ -360,6 +375,49 @@ plt.ylabel("conditional recall probability")
     # plt.title(title)
 
 plt.legend(fontsize=11)
+
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "crp_different", format="svg")
+
+
+
+
+recall_probs = []
+exp = "setup_gru_negmementreg_gamma06"
+i_valid = []
+for i in range(100):
+    run_name = exp + "-{}".format(i)
+    with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if float(row[0])>=0.65:
+                i_valid.append(i)
+                break
+for i, i_v in enumerate(i_valid):
+    run_name = exp + "-{}".format(i_v)
+    if temporal_factor_list[i] < 0.45 or temporal_factor_list[i] > 0.6:
+        continue
+    with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/recall_probability.csv".format(run_name), "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            for k in range(len(row)):
+                row[k] = float(row[k])
+            recall_probs.append(np.array(row))
+            break
+recall_prob_avg = np.mean(np.array(recall_probs), axis=0)
+
+plt.figure(figsize=(4, 3.3), dpi=180)
+
+plt.scatter(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='w', marker="o", edgecolors='k', zorder=2)
+plt.plot(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='k', zorder=1)
+plt.scatter(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='w', marker="o", edgecolors='k', zorder=2)
+plt.plot(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='k', zorder=1)
+
+plt.xlabel("lag")
+plt.ylabel("conditional recall probability")
 
 ax = plt.gca()
 ax.spines['top'].set_visible(False)

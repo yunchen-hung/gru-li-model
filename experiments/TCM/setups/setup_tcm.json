@@ -1,18 +1,18 @@
 {
-    "run_num": 5,
+    "run_num": 1,
     "model": {
         "class": "TCM",
-        "dim": 21,
+        "dim": 51,
         "rand_mem": true,
         "start_recall_with_ith_item_init": 1,
-        "softmax_temperature": 0.1
+        "softmax_temperature": 0.2
     },
     "training": [{
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 20,
-            "memory_num": 5,
-            "retrieve_time_limit": 5,
+            "vocabulary_num": 50,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
             "start_recall_cue": false,
             "reset_state_before_test": true
         },
@@ -24,7 +24,8 @@
             "stop_test_accu": 0.99,
             "use_memory": true,
             "criterion": {
-                "class": "FreeRecallSumMSELoss"
+                "class": "EncodingCrossEntropyLoss",
+                "class_num": 51
             },
             "optimizer": {
                 "class": "Adam",

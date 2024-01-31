@@ -69,11 +69,11 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     if platform == "linux":
         exp_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER
         if not os.path.exists(exp_path):
-            os.mkdir(exp_path)
+            os.makedirs(exp_path)
             os.symlink(exp_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER)
         figuire_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.FIGURE_FOLDER
         if not os.path.exists(figuire_path):
-            os.mkdir(figuire_path)
+            os.makedirs(figuire_path)
             os.symlink(figuire_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER)
     else:
         exp_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER

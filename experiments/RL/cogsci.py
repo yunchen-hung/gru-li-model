@@ -110,7 +110,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
         """ PCA """
         states = []
-        for i in range(context_num):
+        for i in range(10):
             states.append(readouts[i]['state'])
         states = np.stack(states).squeeze()
         
