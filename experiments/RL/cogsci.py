@@ -71,10 +71,12 @@ def run(data_all, model_all, env, paths, exp_name):
         similarity = np.mean(similarities, axis=0)
 
         plt.figure(figsize=(4, 3.3), dpi=180)
-        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], cmap="Blues")
+        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], cmap="Blues", origin="lower")
         plt.colorbar(label="cosine similarity\nbetween hidden states")
         plt.xlabel("time in encoding phase")
         plt.ylabel("time in recall phase")
+        plt.xticks([0,2,4,6], [0,2,4,6])
+        plt.yticks([0,2,4,6], [0,2,4,6])
         # plt.title("encoding-recalling state similarity")
         plt.tight_layout()
         savefig(fig_path/"state_similarity", "encode_recall", format="svg")
@@ -132,27 +134,6 @@ def run(data_all, model_all, env, paths, exp_name):
         c_memorizing = np.stack([readouts[i]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)])   # context_num * time * state_dim
         c_recalling = np.stack([readouts[i]['state'][-timestep_each_phase:].squeeze() for i in range(all_context_num)])
         memory_sequence = np.stack([memory_contexts[i] for i in range(all_context_num)]) - 1    # context_num * time
-        
-        # SVM
-        # svm = ItemIdentityDecoder()
-        # svm_encoding_res = svm.fit(c_memorizing.transpose(1, 0, 2), memory_sequence.transpose(1, 0))
-        # svm.visualize_by_memory(save_path=fig_path/"svm", save_name="c_enc", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase", format="svg")
-        # np.save(fig_path/"svm_encoding.npy", svm_encoding_res)
-
-        # # svm = SVM()
-        # # svm.fit(c_recalling, retrieved_memories)
-        # # svm.visualize_by_memory(save_path=fig_path/"svm", save_name="svm_item_index", title="item retrieval", colormap_label="item in recall order", format="svg")
-
-        # svm_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
-        # for i in range(all_context_num):
-        #     for t in range(env.memory_num):
-        #         if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
-        #             svm_mask[i][t] = 1
-        # svm_recall_res = svm.fit(c_recalling.transpose(1, 0, 2), actions[:, -timestep_each_phase:].transpose(1, 0), svm_mask.transpose(1, 0))
-        # svm.visualize_by_memory(save_path=fig_path/"svm", save_name="c_rec", colormap_label="item position\nin recall order",
-        #                         xlabel="time in recall phase", format="svg")
-        # np.save(fig_path/"svm_recall.npy", svm_recall_res)
 
         # Ridge
         ridge_decoder = RidgeClassifier()
@@ -183,16 +164,6 @@ def run(data_all, model_all, env, paths, exp_name):
                 if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
                     index_mask[i][t] = 1
                     recall_index[i][t] = np.where(memory_contexts[i] == actions[i][-timestep_each_phase+t])[0][0]
-
-        # SVM
-        # svm = ItemIndexDecoder()
-        # svm_encoding_res = svm.fit(c_memorizing, encoding_index)
-        # svm.visualize(save_path=fig_path/"svm_index", save_name="c_enc", xlabel="time in encoding phase", format="svg")
-        # np.save(fig_path/"svm_encoding_index.npy", svm_encoding_res)
-
-        # svm_recall_res = svm.fit(c_recalling, recall_index, index_mask)
-        # svm.visualize(save_path=fig_path/"svm_index", save_name="c_rec", xlabel="time in recall phase", format="svg")
-        # np.save(fig_path/"svm_recall_index.npy", svm_recall_res)
 
         # Ridge
         ridge_decoder = RidgeClassifier()

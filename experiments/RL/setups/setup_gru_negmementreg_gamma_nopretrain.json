@@ -1,5 +1,5 @@
 {
-    "run_num": 20,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -33,37 +33,6 @@
             "retrieve_time_limit": 8,
             "return_action": true,
             "return_reward": true,
-            "reset_state_before_test": true
-        },
-        "trainer": {
-            "num_iter": 5000,
-            "test": false,
-            "test_iter": 1000,
-            "save_iter": 2000,
-            "stop_test_accu": 0.99,
-            "use_memory": true,
-            "criterion": {
-                "class": "EncodingCrossEntropyLoss",
-                "class_num": 51
-            },
-            "optimizer": {
-                "class": "Adam",
-                "lr": 2e-4,
-                "weight_decay": 2e-5,
-                "lr_decay_factor": 0.5,
-                "lr_decay_patience": 10,
-                "lr_decay_threshold": 1e-3,
-                "min_lr": 1e-7
-            }
-        }
-    }, {
-        "env": {
-            "class": "FreeRecall",
-            "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
-            "return_action": true,
-            "return_reward": true,
             "reset_state_before_test": true,
             "false_reward": -0.75,
             "repeat_penalty": -0.75,
@@ -82,7 +51,8 @@
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.001
+                "eta": 0.001,
+                "gamma": 0.99
             },
             "optimizer": {
                 "class": "Adam",
