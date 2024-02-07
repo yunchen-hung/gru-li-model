@@ -5,9 +5,9 @@
         "hidden_dim": 128,
         "input_dim": 103,
         "output_dim": 51,
-        "use_memory": true,
+        "use_memory": false,
         "softmax_beta": 1.0,
-        "evolve_state_between_phases": true,
+        "evolve_state_between_phases": false,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
@@ -44,14 +44,14 @@
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
-            "use_memory": true,
+            "use_memory": false,
             "stop_test_accu": 0.99,
-            "memory_entropy_reg": true,
+            "memory_entropy_reg": false,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
                 "eta": 0.001,
-                "gamma": 0.9
+                "gamma": 0.0
             },
             "optimizer": {
                 "class": "Adam",

@@ -177,6 +177,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, test=False, 
                 test_accuracy = accuracy
                 test_mean_loss = mean_loss
 
+            print()
+
             if i != 0:
                 scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
 
