@@ -50,8 +50,8 @@
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.001,
-                "gamma": 0.9
+                "eta": 0.005,
+                "gamma": 0.0
             },
             "optimizer": {
                 "class": "Adam",

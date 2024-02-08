@@ -3,8 +3,8 @@
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 256,
-        "input_dim": 103,
-        "output_dim": 51,
+        "input_dim": 123,
+        "output_dim": 61,
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": false,
@@ -28,7 +28,7 @@
     "training": [{
         "env": {
             "class": "FreeRecall",
-            "vocabulary_num": 50,
+            "vocabulary_num": 60,
             "memory_num": 15,
             "retrieve_time_limit": 15,
             "return_action": true,
@@ -50,8 +50,8 @@
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.005,
-                "gamma": 0.9
+                "eta": 0.01,
+                "gamma": 0.0
             },
             "optimizer": {
                 "class": "Adam",

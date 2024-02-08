@@ -115,8 +115,11 @@ class RecallProbabilityInTime:
 
     def fit(self, memory_contexts, actions, condition=None):
         """
-        condition: a tuple (i, t) with 2 int indicating "given recalling ith item at timestep t"
-            or an int i indicating "given recalling ith item at timestep i"
+        Params:
+            condition: a tuple (i, t) with 2 int indicating "given recalling ith item at timestep t"
+                or an int i indicating "given recalling ith item at timestep i"
+        Returns:
+            results: a 2D array with shape (memory_num, memory_num), data at position (i, j) indicates the probability of recalling ith item at timestep j
         """
         if condition is not None:
             if isinstance(condition, tuple):
@@ -144,8 +147,8 @@ class RecallProbabilityInTime:
         self.results = np.zeros((self.memory_num, self.memory_num))
         for i in range(self.context_num):
             for t in range(self.memory_num):
-                # position1 = np.where(memory_contexts[i] == actions[i][t])
-                position1 = np.where(actions[i] == memory_contexts[i][t])
+                position1 = np.where(memory_contexts[i] == actions[i][t])
+                # position1 = np.where(actions[i] == memory_contexts[i][t])
                 if position1[0].shape[0] != 0:
                     position1 = position1[0][0]
                     self.results[t][position1] += 1
