@@ -17,7 +17,7 @@ def record_model(agent, env, context_num=20, get_memory=False, device='cpu'):
     actions_total_num, actions_correct_num, actions_wrong_num = 0, 0, 0
     for i in range(context_num):
         # actions, probs, rewards, values, readouts, mem_contexts = [], [], [], [], [], []
-        obs_, info = env.reset()
+        obs_, info = env.reset(1)
         agent.reset_memory()
         obs = torch.Tensor(obs_).to(device)
         done = False
@@ -45,7 +45,7 @@ def record_model(agent, env, context_num=20, get_memory=False, device='cpu'):
                 obs_, reward, done, info = env.step(action)
                 obs = torch.Tensor(obs_).to(device)
 
-                actions_trial.append(int(action[0].detach().cpu()))
+                actions_trial.append(action.detach().cpu())
                 probs_trial.append(log_prob_action)
                 rewards_trial.append(reward)
                 values_trial.append(value)

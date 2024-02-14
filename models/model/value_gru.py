@@ -116,6 +116,8 @@ class ValueMemoryGRU(BasicModule):
         return state
 
     def forward(self, inp, state, beta=None, mem_beta=None):
+        batch_size = inp.shape[0]
+
         if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
             # do a timestep of forward pass between encoding and retrieval phases
             gate_h = self.fc_hidden(state)
@@ -141,9 +143,9 @@ class ValueMemoryGRU(BasicModule):
                 raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
             self.write(mem_gate, 'mem_gate_recall')
         else:
-            retrieved_memory = torch.zeros(1, self.hidden_dim)
+            retrieved_memory = torch.zeros(batch_size, self.hidden_dim)
             mem_gate = 0.0
-            memory_similarity = torch.zeros(1, self.memory_module.capacity)
+            memory_similarity = torch.zeros(batch_size, self.memory_module.capacity)
 
         # compute forward pass
         for i in range(self.step_for_each_timestep):
