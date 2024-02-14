@@ -80,9 +80,10 @@ def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, t
 
 def run_cluster(experiment, setup_name, time_limit, device, train, exp_file_name):
     exp_dir = Path("{}/{}".format(consts.CLUSTER_FOLDER, experiment).replace(".", "/")) / consts.LOG_FOLDER
-    if not os.path.exists(exp_dir):
-        os.makedirs(exp_dir)
-        os.symlink(exp_dir, Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/")) / consts.LOG_FOLDER)
+    link_dir = Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/")) / consts.LOG_FOLDER
+    if not os.path.exists(exp_dir) or not os.path.exists(link_dir):
+        os.makedirs(exp_dir, exist_ok=True)
+        os.symlink(exp_dir, link_dir)
     setup = load_dict(Path("{}/{}".format(consts.EXPERIMENT_FOLDER, experiment).replace(".", "/"))/consts.SETUP_FOLDER/setup_name)
 
     shell_path = write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, time_limit, exp_file_name)

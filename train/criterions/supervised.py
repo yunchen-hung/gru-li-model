@@ -107,4 +107,29 @@ class EncodingCrossEntropyLoss(nn.Module):
         else:
             raise AttributeError("phase must be encoding, recall or all")
         return loss
+    
+
+class EncodingNBackCrossEntropyLoss(nn.Module):
+    def __init__(self, class_num, phase='all', no_action_weight=1.0, nback=1) -> None:
+        super().__init__()
+        self.class_num = class_num
+        self.nback = nback
+        self.phase = phase
+        self.class_weights = torch.ones(class_num)
+        self.class_weights[-1] = no_action_weight
+        self.class_weights[-2] = no_action_weight
+
+    def forward(self, output, gt, memory_num):
+        assert self.nback < memory_num
+        if self.phase == 'encoding':
+            loss = cross_entropy(output[self.nback:memory_num].reshape(-1, output[self.nback:memory_num].shape[-1]), 
+                                 gt[:memory_num-self.nback].reshape(-1), weight=self.class_weights)
+        elif self.phase == 'recall':
+            loss = cross_entropy(output[memory_num:].reshape(-1, output[memory_num:].shape[-1]), 
+                                 gt[memory_num-self.nback:-self.nback].reshape(-1), weight=self.class_weights)
+        elif self.phase == 'all':
+            loss = cross_entropy(output.reshape(-1, output.shape[-1]), gt.reshape(-1), weight=self.class_weights)
+        else:
+            raise AttributeError("phase must be encoding, recall or all")
+        return loss
 

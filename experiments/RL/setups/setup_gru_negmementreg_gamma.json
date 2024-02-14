@@ -1,5 +1,5 @@
 {
-    "run_num": 20,
+    "run_num": [8],
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -83,7 +83,7 @@
                 "class": "A2CLoss",
                 "use_V": true,
                 "eta": 0.001,
-                "gamma": 0.9
+                "gamma": 1.0
             },
             "optimizer": {
                 "class": "Adam",

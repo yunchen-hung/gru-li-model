@@ -1,5 +1,5 @@
 {
-    "run_num": 20,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -14,13 +14,13 @@
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
-            "recall_method": "random",
+            "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.05
+                    "softmax_temperature": 0.1
                 }
             ]
         }]
@@ -42,13 +42,10 @@
             "save_iter": 2000,
             "stop_test_accu": 0.99,
             "use_memory": true,
-            "train_all_time": true,
             "criterion": {
-                "class": "FreeRecallSumCETrainEncodeLoss",
-                "var_weight": 2.0,
-                "output_weight": [1.0],
-                "encode_weight": 1.0,
-                "only_encode": true
+                "class": "EncodingNBackCrossEntropyLoss",
+                "class_num": 51,
+                "nback": 1
             },
             "optimizer": {
                 "class": "Adam",
@@ -69,9 +66,9 @@
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true,
-            "false_reward": -0.5,
-            "repeat_penalty": -0.5,
-            "not_know_reward": -0.5
+            "false_reward": -0.75,
+            "repeat_penalty": -0.75,
+            "not_know_reward": -0.75
         },
         "trainer": {
             "training_function": "train_model",
@@ -81,11 +78,13 @@
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "train_all_time": false,
-            "train_encode": false,
+            "memory_entropy_reg": true,
+            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true
+                "use_V": true,
+                "eta": 0.001,
+                "gamma": 1.0
             },
             "optimizer": {
                 "class": "Adam",

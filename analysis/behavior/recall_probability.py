@@ -35,11 +35,15 @@ class RecallProbability:
         self.results_all_time = self.results_all_time / self.average_times
         # self.results_all_time = self.results_all_time / np.sum(self.results_all_time)
 
-    def visualize(self, save_path, title="", format="png"):
+    def visualize(self, save_path, timesteps=None, title="", format="png"):
+        """
+        timestep: a list of int indicating the time steps to plot
+        """
         if self.results is None or self.results_all_time is None:
             raise Exception("Please run fit() first")
-        # plot at each time step
-        for t in range(self.memory_num):
+        if timesteps is None:
+            timesteps = range(self.memory_num)      # plot at each time step
+        for t in timesteps:
             plt.figure(figsize=(5, 4.2), dpi=180)
             if t != 0:
                 plt.scatter(np.arange(1, t+1), self.results[t][:t], c='b', zorder=2)
@@ -111,8 +115,11 @@ class RecallProbabilityInTime:
 
     def fit(self, memory_contexts, actions, condition=None):
         """
-        condition: a tuple (i, t) with 2 int indicating "given recalling ith item at timestep t"
-            or an int i indicating "given recalling ith item at timestep i"
+        Params:
+            condition: a tuple (i, t) with 2 int indicating "given recalling ith item at timestep t"
+                or an int i indicating "given recalling ith item at timestep i"
+        Returns:
+            results: a 2D array with shape (memory_num, memory_num), data at position (i, j) indicates the probability of recalling ith item at timestep j
         """
         if condition is not None:
             if isinstance(condition, tuple):
@@ -140,8 +147,8 @@ class RecallProbabilityInTime:
         self.results = np.zeros((self.memory_num, self.memory_num))
         for i in range(self.context_num):
             for t in range(self.memory_num):
-                # position1 = np.where(memory_contexts[i] == actions[i][t])
-                position1 = np.where(actions[i] == memory_contexts[i][t])
+                position1 = np.where(memory_contexts[i] == actions[i][t])
+                # position1 = np.where(actions[i] == memory_contexts[i][t])
                 if position1[0].shape[0] != 0:
                     position1 = position1[0][0]
                     self.results[t][position1] += 1
@@ -150,7 +157,18 @@ class RecallProbabilityInTime:
         self.results = self.results / times_sum
         return self.results
 
-    def visualize(self, save_path, save_name="output_probability_by_time", title="output_probability_by_time", format="png"):
+    def visualize(self, save_path, timesteps=[0], save_name="output_probability", format="png"):
+        for t in timesteps:
+            plt.figure(figsize=(5, 4.2), dpi=180)
+            plt.scatter(np.arange(1, self.memory_num+1), self.results[t], c='b', zorder=2)
+            plt.plot(np.arange(1, self.memory_num+1), self.results[t], c='k', zorder=1)
+            plt.xlabel("item position")
+            plt.ylabel("output probability")
+            plt.title("output probability at timestep {}".format(t+1))
+            plt.tight_layout()
+            savefig(save_path, save_name+"_timestep{}".format(t), format=format)
+
+    def visualize_mat(self, save_path, save_name="output_probability_by_time_mat", title="output_probability_by_time", format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
         plt.figure(figsize=(5, 4.2), dpi=180)

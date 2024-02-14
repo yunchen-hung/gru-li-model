@@ -68,12 +68,12 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     # build soft link for saved models and figures
     if platform == "linux":
         exp_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER
-        if not os.path.exists(exp_path):
-            os.mkdir(exp_path)
+        if not os.path.exists(exp_path) or not os.path.exists(Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER):
+            os.makedirs(exp_path, exist_ok=True)
             os.symlink(exp_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER)
         figuire_path = Path(consts.CLUSTER_FOLDER)/exp_dir/consts.FIGURE_FOLDER
-        if not os.path.exists(figuire_path):
-            os.mkdir(figuire_path)
+        if not os.path.exists(figuire_path) or not os.path.exists(Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER):
+            os.makedirs(figuire_path, exist_ok=True)
             os.symlink(figuire_path, Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER)
     else:
         exp_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.SAVE_MODEL_FOLDER

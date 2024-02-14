@@ -25,7 +25,8 @@ class TCM(BasicModule):
         self.softmax_temperature = softmax_temperature
 
         self.W_cf = torch.zeros((dim, dim), device=device)
-        self.W_fc = torch.eye(dim, device=device) * (1 - lr_fc)
+        # self.W_fc = torch.eye(dim, device=device) * (1 - lr_fc)
+        self.W_fc = torch.eye(dim, device=device)
         # self.W_cf = torch.zeros((1, dim, dim), device=device, requires_grad=True)
         # self.W_fc = (torch.eye(dim, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
 
@@ -62,13 +63,16 @@ class TCM(BasicModule):
             if self.current_timestep == self.start_recall_with_ith_item_init:
                 self.ith_item_state = state.detach().clone()
 
-            return inp, torch.zeros((1, self.dim)), state
+            self.not_recalled += inp.squeeze()
+
+            return inp, torch.zeros((1, self.dim)), state, None
         elif self.retrieving:
             # print(state.shape, self.W_cf.shape)
             # f_in_raw = torch.bmm(F.normalize(self.W_cf, p=2, dim=2), F.normalize(torch.unsqueeze(state, dim=2), p=2)).squeeze(2)
             f_in_raw = torch.mv(self.W_cf, state.squeeze())
             # f_in_filtered = (F.relu(f_in_raw - torch.max(f_in_raw) * self.threshold)) * self.not_recalled
-            f_in = softmax(f_in_raw.unsqueeze(0) * self.not_recalled, self.softmax_temperature).squeeze(0)
+            f_in = (softmax(f_in_raw.unsqueeze(0), self.softmax_temperature) * self.not_recalled).squeeze(0) 
+            f_in = f_in / torch.sum(f_in)
             # print(f_in, f_in_filtered)
             if self.rand_mem:
                 retrieved_idx = Categorical(f_in).sample()
@@ -82,11 +86,12 @@ class TCM(BasicModule):
             state = F.normalize(state, p=2, dim=1)
             self.not_recalled = self.not_recalled * (1 - retrieved_memory)
             # print(f_in, retrieved_idx, retrieved_memory, c_in, state)
-            self.write(f_in, 'f_in')
+            self.write(f_in_raw, 'similarity')
             self.write(retrieved_idx, 'retrieved_idx')
             self.write(retrieved_memory, 'retrieved_memory')
             self.write(state, 'state')
-            return retrieved_memory.unsqueeze(0), torch.zeros((1, self.dim)), state
+            self.write(self.not_recalled, 'not_recalled')
+            return retrieved_memory.unsqueeze(0), torch.zeros((1, self.dim)), state, None
     
     def set_encoding(self, status):
         self.encoding = status
@@ -97,4 +102,4 @@ class TCM(BasicModule):
     def reset_memory(self):
         self.W_cf = torch.zeros((self.dim, self.dim), device=self.device)
         self.W_fc = torch.eye(self.dim, device=self.device) * (1 - self.lr_fc)
-        self.not_recalled = torch.ones(self.dim, device=self.device)
+        self.not_recalled = torch.zeros(self.dim, device=self.device)

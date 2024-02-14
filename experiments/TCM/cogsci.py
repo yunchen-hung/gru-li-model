@@ -46,19 +46,10 @@ def run(data_all, model_all, env, paths, exp_name):
         rewards = np.array(rewards)
         rewards = rewards.squeeze()
         rewards = rewards.reshape(-1, rewards.shape[-1])        # (trials, timesteps per trial)
-
-        if "ValueMemory" in readouts[0] and "similarity" in readouts[0]["ValueMemory"]:
-            has_memory = True
-        else:
-            has_memory = False
         
         # print ground truths, actions and rewards for 5 trials
         for i in range(5):
-            if has_memory:
-                print("context {}, gt: {}, action: {}, retrieved memory: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
-                np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=1)+1, rewards[i][env.memory_num:]))
-            else:
-                print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
+            print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
                 rewards[i][env.memory_num:]))
 
         """ similarity of states """
@@ -71,12 +62,10 @@ def run(data_all, model_all, env, paths, exp_name):
         similarity = np.mean(similarities, axis=0)
 
         plt.figure(figsize=(4, 3.3), dpi=180)
-        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], cmap="Blues", origin="lower")
+        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], cmap="Blues")
         plt.colorbar(label="cosine similarity\nbetween hidden states")
         plt.xlabel("time in encoding phase")
         plt.ylabel("time in recall phase")
-        plt.xticks([0,2,4,6], [0,2,4,6])
-        plt.yticks([0,2,4,6], [0,2,4,6])
         # plt.title("encoding-recalling state similarity")
         plt.tight_layout()
         savefig(fig_path/"state_similarity", "encode_recall", format="svg")
@@ -87,9 +76,9 @@ def run(data_all, model_all, env, paths, exp_name):
         recall_probability.visualize_all_time(fig_path/"recall_prob", format="svg")
         results_all_time = recall_probability.get_results_all_time()
         # write to csv file
-        with open(fig_path/"recall_probability.csv", "w") as f:
-            writer = csv.writer(f)
-            writer.writerow(results_all_time)
+        # with open(fig_path/"recall_probability.csv", "w") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow(results_all_time)
 
         """ count temporal factor and forward asymmetry """
         recall_probability = RecallProbability()
@@ -101,9 +90,9 @@ def run(data_all, model_all, env, paths, exp_name):
         print("forward asymmetry:[{},{}]".format(data['accuracy'], forward_asymmetry))
         print("temporal factor:[{},{}]".format(data['accuracy'], temp_fact))
         # write to csv file
-        with open(fig_path/"contiguity_effect.csv", "w") as f:
-            writer = csv.writer(f)
-            writer.writerow([data['accuracy'], forward_asymmetry, temp_fact])
+        # with open(fig_path/"contiguity_effect.csv", "w") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([data['accuracy'], forward_asymmetry, temp_fact])
 
         """ recall probability by time (recall probability matrix) """
         recall_probability_in_time = RecallProbabilityInTime()
@@ -126,8 +115,7 @@ def run(data_all, model_all, env, paths, exp_name):
         """ decode item identity """
         retrieved_memories = []
         for i in range(all_context_num):
-            retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
-            retrieved_memory = np.argmax(retrieved_memory, axis=-1)
+            retrieved_memory = readouts[i]["retrieved_memory"].squeeze()
             retrieved_memories.append(retrieved_memory)
         retrieved_memories = np.stack(retrieved_memories)
 
@@ -141,7 +129,7 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge_encoding_res = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequence.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc", colormap_label="item position\nin study order",
                                 xlabel="time in encoding phase", format="svg")
-        np.save(fig_path/"ridge_encoding.npy", ridge_encoding_res)
+        # np.save(fig_path/"ridge_encoding.npy", ridge_encoding_res)
 
         ridge_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
         for i in range(all_context_num):
@@ -151,61 +139,5 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge_recall_res = ridge.fit(c_recalling.transpose(1, 0, 2), actions[:, -timestep_each_phase:].transpose(1, 0), ridge_mask.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec", colormap_label="item position\nin recall order",
                                 xlabel="time in recall phase", format="svg")
-        np.save(fig_path/"ridge_recall.npy", ridge_recall_res)
+        # np.save(fig_path/"ridge_recall.npy", ridge_recall_res)
 
-
-        """ decode item index """
-        encoding_index = np.repeat(np.arange(env.memory_num).reshape(1, -1), all_context_num, axis=0)
-
-        recall_index = np.zeros_like(actions[:, -timestep_each_phase:])
-        index_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
-        for i in range(all_context_num):
-            for t in range(env.memory_num):
-                if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
-                    index_mask[i][t] = 1
-                    recall_index[i][t] = np.where(memory_contexts[i] == actions[i][-timestep_each_phase+t])[0][0]
-
-        # Ridge
-        ridge_decoder = RidgeClassifier()
-        ridge = ItemIndexDecoder(decoder=ridge_decoder)
-        ridge_encoding_res = ridge.fit(c_memorizing, encoding_index)
-        ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_enc", xlabel="time in encoding phase", format="svg")
-        np.save(fig_path/"ridge_encoding_index.npy", ridge_encoding_res)
-
-        ridge_recall_res = ridge.fit(c_recalling, recall_index, index_mask)
-        ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_rec", xlabel="time in recall phase", format="svg")
-        np.save(fig_path/"ridge_recall_index.npy", ridge_recall_res)
-
-
-        """ PC selectivity """
-        # convert actions and item index to one-hot
-        actions_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
-        for i in range(all_context_num):
-            actions_one_hot[i] = np.eye(env.vocabulary_num)[actions[i, env.memory_num:]-1]
-
-        # memory content
-        memories_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
-        for i in range(all_context_num):
-            memories_one_hot[i] = np.eye(env.vocabulary_num)[memory_contexts[i]-1]
-
-        # memory index
-        # print(retrieved_memories.shape)
-        retrieved_memories_one_hot = np.zeros((all_context_num, env.memory_num, env.memory_num))
-        for i in range(all_context_num):
-            retrieved_memories_one_hot[i] = np.eye(env.memory_num)[retrieved_memories[i]]
-        
-        # labels = {"actions": actions[:, env.memory_num:], "memory index": retrieved_memories}
-
-        pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # labels = {"memory content": memories_one_hot, "memory index": retrieved_memories_one_hot}
-        labels = {"memory content": memory_contexts-1, "memory index": retrieved_memories}
-        selectivity, explained_var = pc_selectivity.fit(c_memorizing, labels)
-        pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="encoding", format="svg")
-        np.savez(fig_path/"pc_selectivity_encoding.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
-
-        pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # labels = {"recalled memory": actions_one_hot, "memory index": retrieved_memories_one_hot}
-        labels = {"recalled memory": actions[:, env.memory_num:]-1, "memory index": retrieved_memories}
-        selectivity, explained_var = pc_selectivity.fit(c_recalling, labels)
-        pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="recalling", format="svg")
-        np.savez(fig_path/"pc_selectivity_recalling.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)

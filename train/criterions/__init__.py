@@ -1,5 +1,5 @@
 from .supervised import FreeRecallSumMSELoss, FreeRecallSumMSEMultipleOutputLoss, \
     FreeRecallSumMSETrainEncodeLoss, FreeRecallSumCETrainEncodeLoss, \
-    EncodingCrossEntropyLoss
+    EncodingCrossEntropyLoss, EncodingNBackCrossEntropyLoss
 from .rl import A2CLoss
 from .criterion import Criterion
