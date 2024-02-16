@@ -9,6 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
+        "two_output": true,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -43,6 +44,10 @@
             "stop_test_accu": 0.99,
             "use_memory": true,
             "criterion": {
+                "class": "EncodingCrossEntropyLoss",
+                "class_num": 51
+            },
+            "sl_criterion": {
                 "class": "EncodingNBackCrossEntropyLoss",
                 "class_num": 51,
                 "nback": 1
@@ -84,7 +89,12 @@
                 "class": "A2CLoss",
                 "use_V": true,
                 "eta": 0.001,
-                "gamma": 1.0
+                "gamma": 0.9
+            },
+            "sl_criterion": {
+                "class": "EncodingNBackCrossEntropyLoss",
+                "class_num": 51,
+                "nback": 1
             },
             "optimizer": {
                 "class": "Adam",

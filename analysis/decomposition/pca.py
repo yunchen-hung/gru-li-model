@@ -115,7 +115,7 @@ class PCA:
         # cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, display_end_step-display_start_step+1), ax=ax, label=colormap_label)
         cmap = ListedColormap(colors[:-1])
         norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
-        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label)
+        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label, ax=ax)
 
         ax = plt.gca()
         ax.spines['top'].set_visible(False)

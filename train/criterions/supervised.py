@@ -128,7 +128,7 @@ class EncodingNBackCrossEntropyLoss(nn.Module):
             loss = cross_entropy(output[memory_num:].reshape(-1, output[memory_num:].shape[-1]), 
                                  gt[memory_num-self.nback:-self.nback].reshape(-1), weight=self.class_weights)
         elif self.phase == 'all':
-            loss = cross_entropy(output.reshape(-1, output.shape[-1]), gt.reshape(-1), weight=self.class_weights)
+            loss = cross_entropy(output[self.nback:].reshape(-1, output[self.nback:].shape[-1]), gt[:-self.nback].reshape(-1), weight=self.class_weights)
         else:
             raise AttributeError("phase must be encoding, recall or all")
         return loss

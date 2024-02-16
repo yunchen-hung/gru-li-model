@@ -92,7 +92,7 @@ class ItemIdentityDecoder:
 
         cmap = ListedColormap(colors[:-1])
         norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
-        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label)
+        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label, ax=ax)
 
         if title:
             plt.title(title)

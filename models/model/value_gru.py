@@ -9,13 +9,15 @@ from ..memory import ValueMemory
 
 class ValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
-    init_state_type="zeros", evolve_state_between_phases=False, noise_std=0, softmax_beta=1.0, use_memory=True,
-    start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, device: str = 'cpu'):
+    init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
+    start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, two_output=False,
+    device: str = 'cpu'):
         super().__init__()
         self.device = device
 
         self.memory_module = memory_module      # memory module of the model, pre-instantiated
         self.use_memory = use_memory            # if false, do not use memory module in the forward pass
+        self.two_output = two_output            # if true, output two decisions in the forward pass
 
         self.step_for_each_timestep = step_for_each_timestep
 
@@ -41,6 +43,9 @@ class ValueMemoryGRU(BasicModule):
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, output_dim)
         self.fc_critic = nn.Linear(hidden_dim, 1)
+        if self.two_output:
+            self.fc_decision2 = nn.Linear(hidden_dim, output_dim)
+            self.fc_critic2 = nn.Linear(hidden_dim, 1)
 
         # gate when adding episodic memory to hidden state
         self.em_gate_type = em_gate_type
@@ -55,6 +60,7 @@ class ValueMemoryGRU(BasicModule):
 
         # if true, compute forward pass for an extra timestep between encoding and retrieval phases
         self.evolve_state_between_phases = evolve_state_between_phases
+        self.evolve_steps = evolve_steps
         self.last_encoding = False
 
         self.start_recall_with_ith_item_init = start_recall_with_ith_item_init
@@ -119,15 +125,16 @@ class ValueMemoryGRU(BasicModule):
         batch_size = inp.shape[0]
 
         if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
-            # do a timestep of forward pass between encoding and retrieval phases
-            gate_h = self.fc_hidden(state)
-            h_r, h_i, h_n = gate_h.chunk(3, 1)
-            resetgate = torch.sigmoid(h_r)
-            inputgate = torch.sigmoid(h_i)
-            newgate = torch.tanh(resetgate * h_n)
-            state = newgate + inputgate * (state - newgate)
-            self.last_encoding = False
-            self.write(state, 'state')
+            for _ in range(self.evolve_steps):
+                # do a timestep of forward pass between encoding and retrieval phases
+                gate_h = self.fc_hidden(state)
+                h_r, h_i, h_n = gate_h.chunk(3, 1)
+                resetgate = torch.sigmoid(h_r)
+                inputgate = torch.sigmoid(h_i)
+                newgate = torch.tanh(resetgate * h_n)
+                state = newgate + inputgate * (state - newgate)
+                self.last_encoding = False
+                self.write(state, 'state')
 
         # retrieve memory
         if self.use_memory and self.retrieving:
@@ -181,10 +188,16 @@ class ValueMemoryGRU(BasicModule):
         decision = softmax(self.fc_decision(state), beta)
         self.write(decision, 'decision')
         value = self.fc_critic(state)
+        if self.two_output:
+            decision2 = softmax(self.fc_decision2(state), beta)
+            value2 = self.fc_critic2(state)
+        else:
+            decision2 = None
+            value2 = None
 
         self.write(self.use_memory, 'use_memory')
         
-        return decision, value, state, memory_similarity
+        return decision, value, decision2, value2, state, memory_similarity
 
     def set_encoding(self, status):
         """

@@ -8,7 +8,7 @@ from .utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
-def train_model(agent, env, optimizer, scheduler, setup, criterion, test=False, stop_test_accu=1.0, model_save_path=None, device='cpu',
+def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion=None, test=False, stop_test_accu=1.0, model_save_path=None, device='cpu',
     num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, step_iter=1, batch_size=1, use_memory=None,
     mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, 
     randomly_flush_state=False, flush_state_prob=1.0, use_memory_together_with_flush=False, 
@@ -57,6 +57,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, test=False, 
         # create variables to store data related to outputs and results
         actions, probs, rewards, values, entropys, actions_max, outputs, mem_similarities, mem_sim_entropys = \
             [], [], [], [], [], [], [], [], []
+        outputs2 = []
 
         # reset environment
         obs_, info = env.reset(batch_size)
@@ -79,7 +80,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, test=False, 
 
             # do one step of forward pass for the agent
             # output: batch_size x action_space, value: batch_size x 1
-            output, value, state, mem_similarity = agent(obs, state)
+            output, value, output2, value2, state, mem_similarity = agent(obs, state)
             # action_distribution: batch_size x action_space
             if isinstance(output, tuple):
                 # when generating two decisions, only record the first one as action
@@ -94,6 +95,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, test=False, 
             obs = torch.Tensor(obs_).to(device)
 
             outputs.append(output)
+            outputs2.append(output2)
             probs.append(log_prob_action)
             rewards.append(reward)
             values.append(value)
@@ -130,6 +132,16 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, test=False, 
         else:
             mem_ent_reg_loss = None
 
+        if sl_criterion is not None:
+            gt = torch.tensor(env.get_ground_truth(phase="encoding")).to(device)
+            if outputs2[0] is not None:
+                # print(outputs[:memory_num], gt.T)
+                outputs2 = torch.stack(outputs2)
+                loss += sl_criterion(outputs2[:memory_num], gt.T, memory_num=memory_num)
+            else:
+                outputs = torch.stack(outputs)
+                loss += sl_criterion(outputs[:memory_num], gt.T, memory_num=memory_num)
+
         current_step_iter += 1
         if current_step_iter == step_iter:
             optimizer.zero_grad()
@@ -158,6 +170,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, test=False, 
             gt_encoding = env.get_ground_truth(phase="encoding")
             print("encoding gt, actions, max_actions:", gt_encoding[0], torch.stack(actions[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.stack(actions_max[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
+            if sl_criterion is not None and outputs2[0] is not None:
+                print("gt2, encoding action2:", gt[0], torch.argmax(outputs2[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
 
             # print("Actor loss, Critic loss, Entropy loss, Mem entropy loss:", loss_actor.item(), loss_critic.item(), loss_ent_reg.item(), mem_ent_reg_loss.item() if memory_entropy_reg else 0.0)
 
