@@ -29,6 +29,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
     print("batch size:", batch_size)
 
     current_step_iter = 0
+
+    forward_time, backward_time = 0.0, 0.0
+    loss_time = 0.0
     
     for i in range(num_iter):
         # record time for the first iteration to estimate total time needed
@@ -58,6 +61,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         actions, probs, rewards, values, entropys, actions_max, outputs, mem_similarities, mem_sim_entropys = \
             [], [], [], [], [], [], [], [], []
         outputs2 = []
+
+        forward_start_time = time.time()
 
         # reset environment
         obs_, info = env.reset(batch_size)
@@ -115,6 +120,10 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
 
+        forward_time += time.time() - forward_start_time
+
+        loss_start_time = time.time()
+
         if i % test_iter == 0:
             print_criterion_info = True
             print('Action distribution:', action_distribution[0])
@@ -142,12 +151,18 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
                 outputs = torch.stack(outputs)
                 loss += sl_criterion(outputs[:memory_num], gt.T, memory_num=memory_num)
 
+        loss_time += time.time() - loss_start_time
+
+        backward_start_time = time.time()
+
         current_step_iter += 1
         if current_step_iter == step_iter:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             current_step_iter = 0
+
+        backward_time += time.time() - backward_start_time
 
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
@@ -157,6 +172,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         if i % test_iter == 0:
             if i == test_iter:
                 print("Estimated time needed: {:2f}h".format((time.time()-start_time)/test_iter*num_iter/3600))
+            
+            print("Forward time: {:.2f}s, Loss time: {:.2f}s, Backward time: {:.2f}s".format(forward_time, loss_time, backward_time))
 
             env.render()
             gt = env.get_ground_truth()
