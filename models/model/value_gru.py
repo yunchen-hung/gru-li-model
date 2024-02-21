@@ -10,8 +10,8 @@ from ..memory import ValueMemory
 class ValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
     init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
-    start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, two_output=False,
-    device: str = 'cpu'):
+    start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
+    two_output=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -33,6 +33,7 @@ class ValueMemoryGRU(BasicModule):
         # except:
         self.mem_beta = None
         self.flush_noise = flush_noise
+        self.random_init_noise = random_init_noise
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
@@ -102,6 +103,8 @@ class ValueMemoryGRU(BasicModule):
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == 'noise':
                 state = prev_state + torch.randn_like(prev_state) * self.flush_noise
+            elif self.init_state_type == 'random':
+                state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             elif self.init_state_type == 'train':
                 state = self.h0.repeat(batch_size, 1)
             elif self.init_state_type == 'train_diff':
@@ -115,6 +118,8 @@ class ValueMemoryGRU(BasicModule):
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == "train" or self.init_state_type == "train_diff":
                 state = torch.tanh(self.h0.repeat(batch_size, 1))
+            elif self.init_state_type == "random":
+                state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
         
