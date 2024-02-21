@@ -1,5 +1,5 @@
 {
-    "run_num": 50,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -9,7 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": false,
         "init_state_type": "noise",
-        "flush_noise": 1.0,
+        "flush_noise": 10.0,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
