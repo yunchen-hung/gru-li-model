@@ -268,7 +268,7 @@ class FreeRecall(BaseEMTask):
         """
         compute accuracy for all timesteps
 
-        input: actions, (batch_size, timesteps)
+        input: actions, (timesteps, batch_size)
         outputs: number of three types of results: correct, wrong, not_know, i.e. 3 int
         """
         batch_size = len(actions)
@@ -283,9 +283,10 @@ class FreeRecall(BaseEMTask):
         
         for action_batch in actions[self.current_memory_num:]:
             for i, action in enumerate(action_batch):
-                if action in list(self.memory_sequence) and not_retrieved[i, action]:
+                action = int(action)
+                if action in self.memory_sequence[i] and not_retrieved[i, action]:
                     correct_actions += 1
-                    not_retrieved[action] = False
+                    not_retrieved[i, action] = False
                 elif action == 0:
                     not_know_actions += 1
                 else:

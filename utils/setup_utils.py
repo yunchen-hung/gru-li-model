@@ -27,7 +27,7 @@ def parse_setup(general_setup, device):
             model_for_record = None
 
         training_setups = setup.pop("training")
-        envs, optimizers, schedulers, criterions = [], [], [], []
+        envs, optimizers, schedulers, criterions, sl_criterions = [], [], [], [], []
         for training_setup in training_setups:
             if "env" in training_setup:
                 env = load_environment(training_setup.pop("env"))
@@ -36,13 +36,18 @@ def parse_setup(general_setup, device):
             if "trainer" in training_setup:
                 optimizer, scheduler = load_optimizer(training_setup["trainer"].pop("optimizer"), model)
                 criterion = load_criterion(training_setup["trainer"].pop("criterion"))
+                if "sl_criterion" in training_setup["trainer"]:
+                    sl_criterion = load_criterion(training_setup["trainer"].pop("sl_criterion"))
+                else:
+                    sl_criterion = None
             else:
-                optimizer, scheduler, criterion = None, None, None
+                optimizer, scheduler, criterion, sl_criterion = None, None, None, None
             envs.append(env)
             optimizers.append(optimizer)
             schedulers.append(scheduler)
             criterions.append(criterion)
-        model_instances[run_name] = model, model_for_record, envs, optimizers, schedulers, criterions, training_setups, setup
+            sl_criterions.append(sl_criterion)
+        model_instances[run_name] = model, model_for_record, envs, optimizers, schedulers, criterions, sl_criterions, training_setups, setup
     
     return model_instances
 

@@ -8,8 +8,9 @@ from .base import BaseEMTask
 
 
 class ConditionalEMRecall(BaseEMTask):
-    def __init__(self, num_features=2, feature_dim=5, sequence_len=8, correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0,
-                 retrieve_time_limit=None, include_question_during_encode=False, reset_state_before_test=True, 
+    def __init__(self, num_features=2, feature_dim=5, sequence_len=8, retrieve_time_limit=None, 
+                 correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, early_stop_reward=-8.0,
+                 include_question_during_encode=False, reset_state_before_test=True, 
                  question_space=("choice", "max", "min"), has_question=True, one_hot_stimuli=False):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
@@ -49,10 +50,12 @@ class ConditionalEMRecall(BaseEMTask):
         self.include_question_during_encode = include_question_during_encode
         self.has_question = has_question
         self.one_hot_stimuli = one_hot_stimuli
+        self.vocabulary_num = feature_dim ** num_features
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
         self.no_action_reward = no_action_reward
+        self.early_stop_reward = early_stop_reward
 
         self.question_space_dim = len(question_space)
         if "choice" in question_space:
@@ -68,7 +71,7 @@ class ConditionalEMRecall(BaseEMTask):
         
         self.all_stimuli = self._generate_all_stimuli()
 
-    def reset(self):
+    def reset(self, batch_size=1):
         """
         question_during_encode: whether to give the question during encoding phase, default: False
         """
@@ -138,7 +141,7 @@ class ConditionalEMRecall(BaseEMTask):
                 self.timestep = 0
                 obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
                 info = {"phase": "recall", "reset_state": self.reset_state_before_test}
-                return obs, [0.0], False, info
+                return obs, [0.0], np.array([False]), info
             else:
                 # encoding phase
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_type, self.question_value, 
@@ -148,7 +151,7 @@ class ConditionalEMRecall(BaseEMTask):
                 else:
                     gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep])
                 info = {"phase": "encoding", "gt": gt}
-                return obs, [0.0], False, info
+                return obs, [0.0], np.array([False]), info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
             info = {"phase": "recall"}
@@ -161,6 +164,8 @@ class ConditionalEMRecall(BaseEMTask):
                 self.correct_answer_num += 1
             elif converted_action[0] == "no_action":
                 reward = self.no_action_reward
+            elif converted_action[0] == "stop":
+                reward = self.early_stop_reward
             else:
                 reward = self.wrong_reward
 
@@ -169,7 +174,7 @@ class ConditionalEMRecall(BaseEMTask):
             else:
                 done = False
             
-            return obs, [reward], done, info
+            return obs, [reward], np.array([done]), info
 
     def render(self, mode='human'):
         print("memory sequence:", self.memory_sequence)
@@ -220,21 +225,23 @@ class ConditionalEMRecall(BaseEMTask):
         """
         if phase == 'encoding':
             if self.include_question_during_encode:
-                return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) \
+                gt = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) \
                                  if i in self.correct_answers_index else self.action_space.n - 2 \
                                       for i in range(self.sequence_len)])
             else:
-                return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in range(self.sequence_len)])
+                gt = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in range(self.sequence_len)])
         elif phase == 'recall':
-            return np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in self.correct_answers_index])
-        
+            gt = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in self.correct_answers_index])
+        gt = gt.reshape(1, -1)
+        return gt
+
     def get_trial_data(self):
         """
         get trial data, including memory sequence, question type, question value, and correct answers
         """
         return {"memory_sequence": self.memory_sequence, "question_type": self.question_type, 
                 "question_value": self.question_value, "correct_answers": self.memory_sequence[self.correct_answers_index],
-                "memory_sequence_int": self.convert_stimuli_to_action(self.memory_sequence)}
+                "memory_sequence_int": np.array([self.convert_stimuli_to_action(m) for m in self.memory_sequence])}
 
     def convert_action_to_stimuli(self, action):
         """

@@ -3,8 +3,8 @@
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 103,
-        "output_dim": 51,
+        "input_dim": 29,
+        "output_dim": 29,
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
@@ -27,29 +27,28 @@
     },
     "training": [{
         "env": {
-            "class": "FreeRecall",
-            "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
-            "return_action": true,
-            "return_reward": true,
+            "class": "ConditionalEMRecall",
+            "wrapper": "MetaLearningEnv",
+            "num_features": 3,
+            "feature_dim": 3,
+            "sequence_len": 8,
             "reset_state_before_test": true
         },
         "trainer": {
-            "num_iter": 3000,
+            "num_iter": 5000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
             "stop_test_accu": 0.99,
             "use_memory": true,
-            "batch_size": 5,
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
-                "class_num": 51
+                "class_num": 29,
+                "no_action_weight": 0.5
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 2e-4,
+                "lr": 1e-3,
                 "weight_decay": 2e-5,
                 "lr_decay_factor": 0.5,
                 "lr_decay_patience": 10,
@@ -59,37 +58,64 @@
         }
     }, {
         "env": {
-            "class": "FreeRecall",
-            "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
-            "return_action": true,
-            "return_reward": true,
+            "class": "ConditionalEMRecall",
+            "wrapper": "MetaLearningEnv",
+            "num_features": 3,
+            "feature_dim": 3,
+            "sequence_len": 8,
             "reset_state_before_test": true,
-            "false_reward": -0.75,
-            "repeat_penalty": -0.75,
-            "not_know_reward": -0.75
+            "include_question_during_encode": true
+        },
+        "trainer": {
+            "num_iter": 20000,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "stop_test_accu": 0.99,
+            "use_memory": true,
+            "criterion": {
+                "class": "EncodingCrossEntropyLoss",
+                "class_num": 29,
+                "no_action_weight": 0.5
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 1e-3,
+                "weight_decay": 2e-5,
+                "lr_decay_factor": 0.5,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }, {
+        "env": {
+            "class": "ConditionalEMRecall",
+            "wrapper": "MetaLearningEnv",
+            "num_features": 3,
+            "feature_dim": 3,
+            "sequence_len": 8,
+            "reset_state_before_test": true,
+            "no_action_reward": -0.0,
+            "wrong_reward": -0.75
         },
         "trainer": {
             "training_function": "train_model",
-            "num_iter": 50000,
+            "num_iter": 200000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "batch_size": 5,
-            "memory_entropy_reg": true,
-            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.001,
-                "gamma": 1.0
+                "eta": 0.005,
+                "gamma": 0.9
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 3e-3,
+                "lr": 1e-3,
                 "lr_decay_factor": 0.1,
                 "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,

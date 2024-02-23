@@ -41,11 +41,14 @@ def run(data_all, model_all, env, paths, exp_name):
         # convert data to numpy array
         memory_contexts = np.array(data['trial_data'])     # ground truth of memory for each trial
         memory_contexts = memory_contexts.reshape(-1, memory_contexts.shape[-1])    # reshape to (trials, sequence_len)
-        actions = np.array(actions)
+        actions = np.array(actions).squeeze(-1)
+        # print(actions.shape)
         actions = actions.reshape(-1, actions.shape[-1])        # (trials, timesteps per trial)
         rewards = np.array(rewards)
         rewards = rewards.squeeze()
         rewards = rewards.reshape(-1, rewards.shape[-1])        # (trials, timesteps per trial)
+
+        print(memory_contexts.shape, actions.shape, rewards.shape)
 
         if "ValueMemory" in readouts[0] and "similarity" in readouts[0]["ValueMemory"]:
             has_memory = True
@@ -79,11 +82,26 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.tight_layout()
         savefig(fig_path/"state_similarity", "encode_recall")
 
+        """ memory gate """
+        if "mem_gate_recall" in readouts[0]:
+            plt.figure(figsize=(4, 3), dpi=180)
+            for i in range(context_num):
+                em_gates = readouts[i]['mem_gate_recall']
+                plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:timestep_each_phase], label="context {}".format(i))
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            plt.xlabel("time of recall phase")
+            plt.ylabel("memory gate")
+            plt.tight_layout()
+            savefig(fig_path, "em_gate_recall")
+
         """ recall probability (output) (CRP curve) """
         recall_probability = RecallProbability()
         recall_probability.fit(memory_contexts, actions[:, -timestep_each_phase:])
         # plot CRP curve
         recall_probability.visualize_all_time(fig_path/"recall_prob")
+        recall_probability.visualize(fig_path/"recall_prob")
         results_all_time = recall_probability.get_results_all_time()
         # write to csv file
         with open(fig_path/"recall_probability.csv", "w") as f:
@@ -104,7 +122,7 @@ def run(data_all, model_all, env, paths, exp_name):
             writer = csv.writer(f)
             writer.writerow([data['accuracy'], forward_asymmetry, temp_fact])
 
-        """ recall probability by time (recall probability matrix) """
+        """ recall probability of first timestep (see primacy and recency) """
         recall_probability_in_time = RecallProbabilityInTime()
         recall_probability_in_time.fit(memory_contexts, actions[:, -timestep_each_phase:])
         recall_probability_in_time.visualize(fig_path)

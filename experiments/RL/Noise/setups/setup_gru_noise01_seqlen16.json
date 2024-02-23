@@ -2,18 +2,20 @@
     "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
-        "hidden_dim": 128,
+        "hidden_dim": 256,
         "input_dim": 103,
         "output_dim": 51,
         "use_memory": true,
         "softmax_beta": 1.0,
-        "evolve_state_between_phases": true,
+        "evolve_state_between_phases": false,
+        "init_state_type": "noise",
+        "flush_noise": 0.1,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 128,
-            "capacity": 8,
+            "value_dim": 256,
+            "capacity": 16,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -29,20 +31,19 @@
         "env": {
             "class": "FreeRecall",
             "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
+            "memory_num": 16,
+            "retrieve_time_limit": 16,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true
         },
         "trainer": {
-            "num_iter": 3000,
+            "num_iter": 5000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
             "stop_test_accu": 0.99,
             "use_memory": true,
-            "batch_size": 5,
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
                 "class_num": 51
@@ -61,8 +62,8 @@
         "env": {
             "class": "FreeRecall",
             "vocabulary_num": 50,
-            "memory_num": 8,
-            "retrieve_time_limit": 8,
+            "memory_num": 16,
+            "retrieve_time_limit": 16,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true,
@@ -72,20 +73,18 @@
         },
         "trainer": {
             "training_function": "train_model",
-            "num_iter": 50000,
+            "num_iter": 200000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "batch_size": 5,
             "memory_entropy_reg": true,
-            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.001,
-                "gamma": 1.0
+                "eta": 0.01,
+                "gamma": 0.0
             },
             "optimizer": {
                 "class": "Adam",

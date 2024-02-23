@@ -13,7 +13,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp", type=str, default="", help="experiment name")
     parser.add_argument("--setup", type=str, default="setup.json", help="setup file name")
-    parser.add_argument("--time", type=int, default=5, help="time limit for each run")
+    parser.add_argument("--time", type=int, default=5, help="time limit for each run (hours)")
     parser.add_argument("-train", action='store_true', help="train the model from beginning, ignore the stored models")
     parser.add_argument("--exp_file", type=str, default="experiment", help="experiment file name")
     parser.add_argument("--device", type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -64,7 +64,7 @@ def write_sbatch_script(experiment, setup_name, exp_dir, device, train, setup, t
         f"#SBATCH --job-name={experiment}.{run_name}\n" +
         f"#SBATCH --cpus-per-task=1\n" +
         f"#SBATCH --time={time_limit}:00:00\n" +
-        f"#SBATCH --mem-per-cpu=8G\n" +
+        f"#SBATCH --mem-per-cpu=16G\n" +
         f"#SBATCH -e {save_dir}/stderr/slurm-%A_%a.err\n" +
         f"#SBATCH -o {save_dir}/stdout/slurm-%A_%a.out\n" +
         f"#SBATCH --array=0-{len(run_nums)-1}\n" + 

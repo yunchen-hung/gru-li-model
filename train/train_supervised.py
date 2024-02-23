@@ -8,7 +8,7 @@ from .utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
-def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
+def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion=None, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
     device='cpu', model_save_path=None, use_memory=None, min_iter=0, batch_size=1):
     actions_correct_num, actions_wrong_num, actions_total_num, total_loss = 0, 0, 0, 0.0
     test_accuracies = []
@@ -32,7 +32,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         agent.set_retrieval(False)
 
         # create variables to store data related to outputs and results
-        actions, probs, rewards, actions_max, outputs = [], [], [], [], []
+        actions, probs, rewards, actions_max, outputs, outputs2 = [], [], [], [], [], []
 
         # reset environment
         obs_, info = env.reset(batch_size)
@@ -56,7 +56,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
             # do one step of forward pass for the agent
-            output, _, state, _ = agent(obs, state)
+            output, _, output2, _, state, _ = agent(obs, state)
             if isinstance(output, tuple):
                 # when generating two decisions, only record the first one as action
                 action_distribution = output[0]
@@ -73,6 +73,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
             actions.append(action)
             actions_max.append(action_max)
             outputs.append(output)
+            outputs2.append(output2)
         if isinstance(outputs[0], tuple):
             outputs_ts = [[] for _ in range(len(outputs[0]))]
             for output in outputs:
@@ -83,8 +84,11 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
             outputs = tuple(outputs_ts)
         else:
             outputs = torch.stack(outputs)
+            if outputs2[0] is not None:
+                outputs2 = torch.stack(outputs2)
 
         gt = torch.tensor(env.get_ground_truth(phase="encoding")).to(device)
+        # print(gt)
 
         # if random_action:
         #     correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(np.array([action[0].item() for action in actions]))
@@ -107,7 +111,9 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
         actions_wrong_num += wrong_actions
 
         # print(outputs.shape, gt.shape)
-        loss = criterion(outputs[:memory_num], gt, memory_num=memory_num)
+        loss = criterion(outputs[:memory_num], gt.T, memory_num=memory_num)
+        if sl_criterion is not None and outputs2[0] is not None:
+            loss += sl_criterion(outputs2[:memory_num], gt.T, memory_num=memory_num)  
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
@@ -123,6 +129,9 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
             # print(gt.shape, np.array(actions).shape)
             print("gt, action, encoding action:", gt[0].detach().cpu().numpy(), np.array(actions)[:memory_num,0], 
                     torch.argmax(outputs[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
+            if sl_criterion is not None and outputs2[0] is not None:
+                print("gt2, encoding action2:", gt[0].detach().cpu().numpy(), 
+                    torch.argmax(outputs2[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error
@@ -141,6 +150,8 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, n
                 test_error = error
                 test_accuracy = accuracy
                 test_mean_loss = mean_loss
+
+            print()
 
             if i != 0:
                 scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?

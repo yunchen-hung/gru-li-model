@@ -76,9 +76,9 @@ class PCA:
             end_step = self.n_steps
         n_steps = end_step - start_step
         # colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
-        # colors = sns.color_palette("Spectral", n_steps+1)
+        colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
-        colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
+        # colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
 
         plt.figure(figsize=(3.8, 3.3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
@@ -115,7 +115,7 @@ class PCA:
         # cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, display_end_step-display_start_step+1), ax=ax, label=colormap_label)
         cmap = ListedColormap(colors[:-1])
         norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
-        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label)
+        plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label, ax=ax)
 
         ax = plt.gca()
         ax.spines['top'].set_visible(False)

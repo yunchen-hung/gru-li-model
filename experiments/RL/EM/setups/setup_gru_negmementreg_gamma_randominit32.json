@@ -9,6 +9,8 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
+        "init_state_type": "random",
+        "random_init_noise": 3.2,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -36,13 +38,12 @@
             "reset_state_before_test": true
         },
         "trainer": {
-            "num_iter": 3000,
+            "num_iter": 5000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
             "stop_test_accu": 0.99,
             "use_memory": true,
-            "batch_size": 5,
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
                 "class_num": 51
@@ -72,20 +73,19 @@
         },
         "trainer": {
             "training_function": "train_model",
-            "num_iter": 50000,
+            "num_iter": 100000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "batch_size": 5,
             "memory_entropy_reg": true,
             "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
                 "eta": 0.001,
-                "gamma": 1.0
+                "gamma": 0.9
             },
             "optimizer": {
                 "class": "Adam",
