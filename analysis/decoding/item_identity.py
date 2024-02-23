@@ -75,9 +75,9 @@ class ItemIdentityDecoder:
             raise Exception("Please run fit() first")
         plt.figure(figsize=(0.6 * self.results.shape[1], 3.3), dpi=180)
         n_steps = self.results.shape[0]
-        # colors = sns.color_palette("Spectral", n_steps+1)
+        colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
-        colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
+        # colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
         for i in range(self.results.shape[1]):
             plt.plot(np.arange(1, self.results.shape[0]+1), self.results[:, i], label="item {}".format(i+1), color=colors[i])
         plt.xlim(0.5, 0.5 + self.results.shape[0])

@@ -45,10 +45,14 @@ def record_model(agent, env, context_num=20, get_memory=False, device='cpu'):
                 obs_, reward, done, info = env.step(action)
                 obs = torch.Tensor(obs_).to(device)
 
+                # action = [a.item() for a in action]
+                # print(action)
                 actions_trial.append(action.detach().cpu())
+                # actions_trial.append(action)
                 probs_trial.append(log_prob_action)
                 rewards_trial.append(reward)
                 values_trial.append(value)
+            # print(actions_trial)
             readout = agent.readout()
             trial_data = env.get_trial_data()
             # actions.append(actions_trial)

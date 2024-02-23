@@ -120,9 +120,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
 
-        forward_time += time.time() - forward_start_time
+        # forward_time += time.time() - forward_start_time
 
-        loss_start_time = time.time()
+        # loss_start_time = time.time()
 
         if i % test_iter == 0:
             print_criterion_info = True
@@ -151,9 +151,9 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
                 outputs = torch.stack(outputs)
                 loss += sl_criterion(outputs[:memory_num], gt.T, memory_num=memory_num)
 
-        loss_time += time.time() - loss_start_time
+        # loss_time += time.time() - loss_start_time
 
-        backward_start_time = time.time()
+        # backward_start_time = time.time()
 
         current_step_iter += 1
         if current_step_iter == step_iter:
@@ -162,7 +162,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             optimizer.step()
             current_step_iter = 0
 
-        backward_time += time.time() - backward_start_time
+        # backward_time += time.time() - backward_start_time
 
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
@@ -173,7 +173,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             if i == test_iter:
                 print("Estimated time needed: {:2f}h".format((time.time()-start_time)/test_iter*num_iter/3600))
             
-            print("Forward time: {:.2f}s, Loss time: {:.2f}s, Backward time: {:.2f}s".format(forward_time, loss_time, backward_time))
+            # print("Forward time: {:.2f}s, Loss time: {:.2f}s, Backward time: {:.2f}s".format(forward_time, loss_time, backward_time))
 
             env.render()
             gt = env.get_ground_truth()

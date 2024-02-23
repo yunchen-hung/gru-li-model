@@ -26,7 +26,7 @@ class MetaLearningEnv(Wrapper):
         self.prev_reward = reward[0]
         return obs_wrapped,reward,terminated,info
     
-    def reset(self):
+    def reset(self, batch_size=1):
         obs,info=self.env.reset()
         self.prev_action = self.env.action_space.sample()
         if hasattr(self.env, 'convert_action_to_observation'):

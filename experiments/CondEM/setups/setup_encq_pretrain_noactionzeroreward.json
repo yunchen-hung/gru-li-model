@@ -97,8 +97,9 @@
             "sequence_len": 8,
             "reset_state_before_test": true,
             "correct_reward": 2.5,
-            "no_action_reward": -0.1,
-            "wrong_reward": -0.75
+            "no_action_reward": -0.0,
+            "wrong_reward": -0.75,
+            "include_question_during_encode": true
         },
         "trainer": {
             "training_function": "train_model",
@@ -132,8 +133,9 @@
             "sequence_len": 8,
             "reset_state_before_test": true,
             "correct_reward": 2.5,
-            "no_action_reward": -0.1,
-            "wrong_reward": -0.75
+            "no_action_reward": -0.0,
+            "wrong_reward": -0.75,
+            "include_question_during_encode": true
         },
         "trainer": {
             "training_function": "train_model",

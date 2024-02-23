@@ -88,6 +88,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
                 outputs2 = torch.stack(outputs2)
 
         gt = torch.tensor(env.get_ground_truth(phase="encoding")).to(device)
+        # print(gt)
 
         # if random_action:
         #     correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(np.array([action[0].item() for action in actions]))

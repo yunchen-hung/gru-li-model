@@ -36,7 +36,7 @@
             "reset_state_before_test": true
         },
         "trainer": {
-            "num_iter": 5000,
+            "num_iter": 6000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
@@ -65,9 +65,9 @@
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true,
-            "false_reward": -0.75,
-            "repeat_penalty": -0.75,
-            "not_know_reward": -0.75
+            "false_reward": -1.0,
+            "repeat_penalty": -1.0,
+            "not_know_reward": -1.0
         },
         "trainer": {
             "training_function": "train_model",
@@ -82,8 +82,8 @@
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.005,
-                "gamma": 0.1
+                "eta": 0.01,
+                "gamma": 0.5
             },
             "optimizer": {
                 "class": "Adam",
