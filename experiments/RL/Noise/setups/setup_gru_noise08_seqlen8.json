@@ -9,7 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "init_state_type": "noise",
-        "flush_noise": 0.0,
+        "flush_noise": 0.8,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",

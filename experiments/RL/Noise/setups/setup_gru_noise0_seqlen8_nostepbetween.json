@@ -7,7 +7,7 @@
         "output_dim": 51,
         "use_memory": true,
         "softmax_beta": 1.0,
-        "evolve_state_between_phases": true,
+        "evolve_state_between_phases": false,
         "init_state_type": "noise",
         "flush_noise": 0.0,
         "em_gate_type": "scalar_sigmoid",

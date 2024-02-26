@@ -9,8 +9,9 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "init_state_type": "noise",
-        "flush_noise": 0.0,
+        "flush_noise": 1.0,
         "em_gate_type": "scalar_sigmoid",
+        "layer_norm": true,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
