@@ -11,7 +11,7 @@ class ValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
     init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
     start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
-    two_output=False, device: str = 'cpu'):
+    two_output=False, layer_norm=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -34,6 +34,7 @@ class ValueMemoryGRU(BasicModule):
         self.mem_beta = None
         self.flush_noise = flush_noise
         self.random_init_noise = random_init_noise
+        self.layer_norm = layer_norm
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
@@ -47,6 +48,11 @@ class ValueMemoryGRU(BasicModule):
         if self.two_output:
             self.fc_decision2 = nn.Linear(hidden_dim, output_dim)
             self.fc_critic2 = nn.Linear(hidden_dim, 1)
+
+        self.ln_i2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
+        self.ln_h2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
+        self.ln_cell_1 = torch.nn.LayerNorm(hidden_dim, elementwise_affine=False)
+        self.ln_cell_2 = torch.nn.LayerNorm(hidden_dim, elementwise_affine=False)
 
         # gate when adding episodic memory to hidden state
         self.em_gate_type = em_gate_type
@@ -101,8 +107,8 @@ class ValueMemoryGRU(BasicModule):
                 state = self.ith_item_state.clone()
             elif self.init_state_type == 'zeros':
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
-            elif self.init_state_type == 'noise':
-                state = (1 - self.flush_noise) * prev_state + torch.randn_like(prev_state) * self.flush_noise
+            elif self.init_state_type == 'noise' or self.init_state_type == 'noise_all':
+                state = (1 - self.flush_noise) * prev_state + self.flush_noise * torch.randn_like(prev_state) * torch.std(prev_state)
             elif self.init_state_type == 'random':
                 state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             elif self.init_state_type == 'train':
@@ -118,7 +124,7 @@ class ValueMemoryGRU(BasicModule):
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == "train" or self.init_state_type == "train_diff":
                 state = torch.tanh(self.h0.repeat(batch_size, 1))
-            elif self.init_state_type == "random":
+            elif self.init_state_type == "random" or self.init_state_type == "noise_all":
                 state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
@@ -131,13 +137,9 @@ class ValueMemoryGRU(BasicModule):
 
         if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
             for _ in range(self.evolve_steps):
+                inp = torch.zeros_like(inp)
                 # do a timestep of forward pass between encoding and retrieval phases
-                gate_h = self.fc_hidden(state)
-                h_r, h_i, h_n = gate_h.chunk(3, 1)
-                resetgate = torch.sigmoid(h_r)
-                inputgate = torch.sigmoid(h_i)
-                newgate = torch.tanh(resetgate * h_n)
-                state = newgate + inputgate * (state - newgate)
+                state = self.gru(inp, state)
                 self.last_encoding = False
                 self.write(state, 'state')
 
@@ -161,23 +163,7 @@ class ValueMemoryGRU(BasicModule):
 
         # compute forward pass
         for i in range(self.step_for_each_timestep):
-            gate_x = self.fc_input(inp)
-            gate_h = self.fc_hidden(state)
-            # gate_m = self.fc_memory(retrieved_memory)
-            i_r, i_i, i_n = gate_x.chunk(3, 1)
-            h_r, h_i, h_n = gate_h.chunk(3, 1)
-            # m_r, m_i, m_n = gate_m.chunk(3, 1)
-            resetgate = torch.sigmoid(i_r + h_r)
-            inputgate = torch.sigmoid(i_i + h_i)
-            # resetgate = torch.sigmoid(i_r + h_r + m_r)
-            # inputgate = torch.sigmoid(i_i + h_i + m_i)
-            # TODO: try whether to input retrieved memory every timestep or only the first timestep
-            if i == 0:
-                newgate = torch.tanh(i_n + resetgate * h_n + mem_gate * retrieved_memory)
-            else:
-                newgate = torch.tanh(i_n + resetgate * h_n)
-            # newgate = torch.tanh(i_n + resetgate * h_n + m_n)
-            state = newgate + inputgate * (state - newgate)
+            state = self.gru(inp, state, mem_gate, retrieved_memory)
         self.write(state, 'state')
 
         # store memory
@@ -203,6 +189,26 @@ class ValueMemoryGRU(BasicModule):
         self.write(self.use_memory, 'use_memory')
         
         return decision, value, decision2, value2, state, memory_similarity
+    
+    def gru(self, inp, state, mem_gate=None, retrieved_memory=None):
+        gate_x = self.fc_input(inp)
+        gate_h = self.fc_hidden(state)
+        if self.layer_norm:
+            i_r, i_i = self.ln_i2h(gate_x[:, :2*self.hidden_dim]).chunk(2, 1)
+            h_r, h_i = self.ln_h2h(gate_h[:, :2*self.hidden_dim]).chunk(2, 1)
+            i_n = self.ln_cell_1(gate_x[:, 2*self.hidden_dim:])
+            h_n = self.ln_cell_2(gate_h[:, 2*self.hidden_dim:])
+        else:
+            i_r, i_i, i_n = gate_x.chunk(3, 1)
+            h_r, h_i, h_n = gate_h.chunk(3, 1)
+        resetgate = torch.sigmoid(i_r + h_r)
+        inputgate = torch.sigmoid(i_i + h_i)
+        newgate_preact = i_n + resetgate * h_n
+        if mem_gate is not None and retrieved_memory is not None:
+            newgate_preact += mem_gate * retrieved_memory
+        newgate = torch.tanh(newgate_preact)
+        state = newgate + inputgate * (state - newgate)
+        return state
 
     def set_encoding(self, status):
         """

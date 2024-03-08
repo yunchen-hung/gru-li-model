@@ -228,3 +228,34 @@ def run(data_all, model_all, env, paths, exp_name):
         selectivity, explained_var = pc_selectivity.fit(c_recalling, labels)
         pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="recalling")
         np.savez(fig_path/"pc_selectivity_recalling.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
+
+
+        """ policy distribution over all memory items """
+        policy = []
+        for i in range(all_context_num):
+            policy.append(readouts[i]['decision'])
+        policy = np.stack(policy).squeeze()
+        print(policy.shape, actions.shape)
+
+        policy_sorted = []
+        for i in range(all_context_num):
+            policy_sorted.append(policy[i, -env.memory_num:, actions[i, -env.memory_num:]])
+        policy_sorted = np.stack(policy_sorted).squeeze()
+        print(policy_sorted.shape)
+
+        plt.imshow(policy_sorted[0], cmap="Blues")
+        plt.colorbar()
+        plt.title("policy distribution, one trial")
+        plt.xlabel("time step")
+        plt.ylabel("memory item")
+        plt.tight_layout()
+        savefig(fig_path/"policy", "one_trial.png")
+
+        plt.imshow(np.mean(policy_sorted, axis=0), cmap="Blues")
+        plt.colorbar()
+        plt.title("policy distribution, averaged")
+        plt.xlabel("time step")
+        plt.ylabel("memory item")
+        plt.tight_layout()
+        savefig(fig_path/"policy", "all_trial.png")
+

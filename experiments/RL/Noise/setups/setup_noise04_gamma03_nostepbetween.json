@@ -1,5 +1,5 @@
 {
-    "run_num": 10,
+    "run_num": 20,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -9,7 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": false,
         "init_state_type": "noise",
-        "flush_noise": 1.0,
+        "flush_noise": 0.4,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
@@ -80,11 +80,12 @@
             "use_memory": true,
             "stop_test_accu": 0.99,
             "memory_entropy_reg": true,
+            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
                 "eta": 0.005,
-                "gamma": 0.0
+                "gamma": 0.3
             },
             "optimizer": {
                 "class": "Adam",

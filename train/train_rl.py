@@ -82,6 +82,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             # reset state between phases
             if info.get("reset_state", False):
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
+                prev_state = state
 
             # do one step of forward pass for the agent
             # output: batch_size x action_space, value: batch_size x 1
@@ -203,6 +204,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
 
             if agent.mem_beta is not None:
                 print('mem_beta:', agent.mem_beta)
+            
+            print('variance of hidden state:', torch.var(prev_state).item())
 
             print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
                 'critic loss: {:.4f}, entropy: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss,

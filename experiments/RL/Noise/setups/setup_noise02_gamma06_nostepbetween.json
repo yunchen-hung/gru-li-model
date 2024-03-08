@@ -1,21 +1,21 @@
 {
-    "run_num": 10,
+    "run_num": 20,
     "model": {
         "class": "ValueMemoryGRU",
-        "hidden_dim": 256,
+        "hidden_dim": 128,
         "input_dim": 103,
         "output_dim": 51,
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": false,
         "init_state_type": "noise",
-        "flush_noise": 0.0,
+        "flush_noise": 0.2,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
-            "capacity": 16,
+            "value_dim": 128,
+            "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -31,8 +31,8 @@
         "env": {
             "class": "FreeRecall",
             "vocabulary_num": 50,
-            "memory_num": 16,
-            "retrieve_time_limit": 16,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true
@@ -62,8 +62,8 @@
         "env": {
             "class": "FreeRecall",
             "vocabulary_num": 50,
-            "memory_num": 16,
-            "retrieve_time_limit": 16,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
             "return_action": true,
             "return_reward": true,
             "reset_state_before_test": true,
@@ -80,11 +80,12 @@
             "use_memory": true,
             "stop_test_accu": 0.99,
             "memory_entropy_reg": true,
+            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.01,
-                "gamma": 0.0
+                "eta": 0.005,
+                "gamma": 0.6
             },
             "optimizer": {
                 "class": "Adam",

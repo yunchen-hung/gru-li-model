@@ -23,9 +23,11 @@ class RecallProbability:
 
         self.forward_asymmetry = np.sum(np.triu(self.results, k=1)) / np.sum(self.results)
 
-        times_sum = np.expand_dims(np.sum(self.results, axis=1), axis=1)
-        times_sum[times_sum == 0] = 1
-        self.results = self.results / times_sum
+        self.baseline_all_time = np.zeros((self.memory_num, self.memory_num*2-1))
+        for i in range(self.memory_num):
+            self.baseline_all_time[i, self.memory_num-1-i:self.memory_num*2-1-i] = np.ones(self.memory_num)
+        self.baseline_all_time = np.sum(self.baseline_all_time, axis=0)
+        self.baseline_all_time = self.baseline_all_time / np.sum(self.baseline_all_time)
 
         self.results_all_time = np.zeros((self.memory_num, self.memory_num*2-1))
         for i in range(self.memory_num):
@@ -33,7 +35,12 @@ class RecallProbability:
         self.results_all_time = np.sum(self.results_all_time, axis=0)
         self.average_times = np.concatenate((np.arange(1, self.memory_num+1),np.arange(self.memory_num-1, 0, -1)), axis=0)
         self.results_all_time = self.results_all_time / self.average_times
+        self.results_all_time = self.results_all_time / np.sum(self.results_all_time)
         # self.results_all_time = self.results_all_time / np.sum(self.results_all_time)
+
+        times_sum = np.expand_dims(np.sum(self.results, axis=1), axis=1)
+        times_sum[times_sum == 0] = 1
+        self.results = self.results / times_sum
 
     def visualize(self, save_path, timesteps=None, title="", format="png"):
         """
