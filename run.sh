@@ -12,12 +12,15 @@
 
 
 noise=('0' '02' '04' '06' '08' '1')
+seqlen=('4' '12' '16')
 
-for n in "${noise[@]}"
-do 
-    for g in {0..9..3}
+for s in "${seqlen[@]}"
+do
+    for n in "${noise[@]}"
     do
-    python run_cluster.py --exp RL.Noise --setup setup_noise${n}_gamma0${g}.json --time 8
-    python run_cluster.py --exp RL.Noise --setup setup_noise${n}_gamma0${g}_nostepbetween.json --time 8
+        for g in {0..9..3}
+        do
+        python run_cluster.py --exp RL.Noise.Seq${s} --setup setup_seq${s}_noise${n}_gamma0${g}.json --time 10
+        done
     done
 done

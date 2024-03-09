@@ -1,3 +1,5 @@
+from pathlib import Path
+import json
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,6 +7,8 @@ import matplotlib.pyplot as plt
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
 from tasks import ConditionalEMRecall, MetaLearningEnv
+
+from utils import load_dict
 
 """ LCA tests """
 # s = torch.ones(8) / 8.0
@@ -44,40 +48,58 @@ from tasks import ConditionalEMRecall, MetaLearningEnv
 
 
 """ Conditional EM Recall tests """
-env = ConditionalEMRecall(include_question_during_encode=True, has_question=False)
-env = MetaLearningEnv(env)
-obs, info = env.reset()
-print('memory_sequence:', env.memory_sequence)
-print('question_type:', env.question_type)
-print('question_value:', env.question_value)
-print('correct_answers:', env.memory_sequence[env.correct_answers_index])
+# env = ConditionalEMRecall(include_question_during_encode=True, has_question=False)
+# env = MetaLearningEnv(env)
+# obs, info = env.reset()
+# print('memory_sequence:', env.memory_sequence)
+# print('question_type:', env.question_type)
+# print('question_value:', env.question_value)
+# print('correct_answers:', env.memory_sequence[env.correct_answers_index])
 
-gt = env.get_ground_truth()
-actions = np.random.choice(gt, 9)
-correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions) 
-print('gt:', gt)
-print('actions:', actions)
-print('correct_actions:', correct_actions)
-print('wrong_actions:', wrong_actions)
-print('not_know_actions:', not_know_actions)
+# gt = env.get_ground_truth()
+# actions = np.random.choice(gt, 9)
+# correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions) 
+# print('gt:', gt)
+# print('actions:', actions)
+# print('correct_actions:', correct_actions)
+# print('wrong_actions:', wrong_actions)
+# print('not_know_actions:', not_know_actions)
 
-actions = env.memory_sequence[env.correct_answers_index]
-actions_int = [0 for _ in range(8)]
-for action in actions:
-    actions_int.append(action[0]+action[1]*5)
-    actions_int.append(action[0]+action[1]*5)
-actions_int.append(26)
-actions_int.append(27)
-actions_int = np.array(actions_int)
+# actions = env.memory_sequence[env.correct_answers_index]
+# actions_int = [0 for _ in range(8)]
+# for action in actions:
+#     actions_int.append(action[0]+action[1]*5)
+#     actions_int.append(action[0]+action[1]*5)
+# actions_int.append(26)
+# actions_int.append(27)
+# actions_int = np.array(actions_int)
 
-print(obs, info)
-cnt = 0
-while True:
-    # action = env.action_space.sample()
-    action = actions_int[cnt]
-    cnt += 1
-    print("action:", action, env.convert_action_to_stimuli(action))
-    obs, reward, done, info = env.step(action)
-    print(obs, reward, done, info)
-    if done:
-        break
+# print(obs, info)
+# cnt = 0
+# while True:
+#     # action = env.action_space.sample()
+#     action = actions_int[cnt]
+#     cnt += 1
+#     print("action:", action, env.convert_action_to_stimuli(action))
+#     obs, reward, done, info = env.step(action)
+#     print(obs, reward, done, info)
+#     if done:
+#         break
+
+
+""" vary param for noise injection """
+seq_len = 4
+
+setup_dir = Path("./experiments/RL/Noise/Seq{}/setups".format(seq_len))
+setup_file = setup_dir / "setup_seq{}.json".format(seq_len)
+setup = load_dict(setup_file)
+
+for noise in [0, 0.2, 0.4, 0.6, 0.8, 1]:
+    for gamma in [0.0, 0.3, 0.6, 0.9]:
+        setup["model"]["flush_noise"] = noise
+        setup["training"][-1]["trainer"]["criterion"]["gamma"] = gamma
+        setup["training"][-1]["trainer"]["criterion"]["eta"] = 0.005
+        with open(setup_dir / "setup_seq{}_noise{}_gamma{}.json".format(seq_len, str(noise).replace(".", ""), str(gamma).replace(".", "")), "w") as f:
+            json.dump(setup, f, indent=4)
+
+
