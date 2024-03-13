@@ -1,0 +1,54 @@
+
+    Copy/Paste this in your local terminal to ssh tunnel with remote
+    -----------------------------------------------------------------
+    ssh -N -L 8041:10.32.34.104:8041 ml8736@scotty.princeton.edu
+    -----------------------------------------------------------------
+
+    Then open a browser on your local machine to the following address
+    ------------------------------------------------------------------
+    localhost:8041  (prefix w/ https:// if using password)
+    ------------------------------------------------------------------
+    
+[I 2024-03-12 17:18:23.578 ServerApp] Package notebook took 0.0000s to import
+[I 2024-03-12 17:18:23.795 ServerApp] Package jupyter_lsp took 0.2157s to import
+[W 2024-03-12 17:18:23.795 ServerApp] A `_jupyter_server_extension_points` function was not found in jupyter_lsp. Instead, a `_jupyter_server_extension_paths` function was found and will be used for now. This function name will be deprecated in future releases of Jupyter Server.
+[I 2024-03-12 17:18:23.865 ServerApp] Package jupyter_server_terminals took 0.0703s to import
+[I 2024-03-12 17:18:23.866 ServerApp] Package jupyterlab took 0.0000s to import
+[I 2024-03-12 17:18:24.068 ServerApp] Package notebook_shim took 0.0000s to import
+[W 2024-03-12 17:18:24.068 ServerApp] A `_jupyter_server_extension_points` function was not found in notebook_shim. Instead, a `_jupyter_server_extension_paths` function was found and will be used for now. This function name will be deprecated in future releases of Jupyter Server.
+[I 2024-03-12 17:18:24.077 ServerApp] jupyter_lsp | extension was successfully linked.
+[I 2024-03-12 17:18:24.081 ServerApp] jupyter_server_terminals | extension was successfully linked.
+[I 2024-03-12 17:18:24.084 ServerApp] jupyterlab | extension was successfully linked.
+[I 2024-03-12 17:18:24.088 ServerApp] notebook | extension was successfully linked.
+[I 2024-03-12 17:18:24.090 ServerApp] Writing Jupyter server cookie secret to /home/ml8736/.local/share/jupyter/runtime/jupyter_cookie_secret
+[I 2024-03-12 17:18:28.595 ServerApp] notebook_shim | extension was successfully linked.
+[I 2024-03-12 17:18:28.698 ServerApp] notebook_shim | extension was successfully loaded.
+[I 2024-03-12 17:18:28.700 ServerApp] jupyter_lsp | extension was successfully loaded.
+[I 2024-03-12 17:18:28.701 ServerApp] jupyter_server_terminals | extension was successfully loaded.
+[I 2024-03-12 17:18:28.712 LabApp] JupyterLab extension loaded from /scratch/ml8736/ml/lib/python3.10/site-packages/jupyterlab
+[I 2024-03-12 17:18:28.712 LabApp] JupyterLab application directory is /scratch/ml8736/ml/share/jupyter/lab
+[I 2024-03-12 17:18:28.713 LabApp] Extension Manager is 'pypi'.
+[I 2024-03-12 17:18:28.715 ServerApp] jupyterlab | extension was successfully loaded.
+[I 2024-03-12 17:18:28.717 ServerApp] notebook | extension was successfully loaded.
+[I 2024-03-12 17:18:28.717 ServerApp] Serving notebooks from local directory: /home/ml8736/memory-replay
+[I 2024-03-12 17:18:28.717 ServerApp] Jupyter Server 2.10.0 is running at:
+[I 2024-03-12 17:18:28.717 ServerApp] http://10.32.34.104:8041/tree?token=d9f0d2ecd054f51c8a70bcf0e23a95d626d197ae19acd254
+[I 2024-03-12 17:18:28.717 ServerApp]     http://127.0.0.1:8041/tree?token=d9f0d2ecd054f51c8a70bcf0e23a95d626d197ae19acd254
+[I 2024-03-12 17:18:28.717 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 2024-03-12 17:18:28.726 ServerApp] 
+    
+    To access the server, open this file in a browser:
+        file:///home/ml8736/.local/share/jupyter/runtime/jpserver-795663-open.html
+    Or copy and paste one of these URLs:
+        http://10.32.34.104:8041/tree?token=d9f0d2ecd054f51c8a70bcf0e23a95d626d197ae19acd254
+        http://127.0.0.1:8041/tree?token=d9f0d2ecd054f51c8a70bcf0e23a95d626d197ae19acd254
+[I 2024-03-12 17:18:28.767 ServerApp] Skipped non-installed server(s): bash-language-server, dockerfile-language-server-nodejs, javascript-typescript-langserver, jedi-language-server, julia-language-server, pyright, python-language-server, python-lsp-server, r-languageserver, sql-language-server, texlab, typescript-language-server, unified-language-server, vscode-css-languageserver-bin, vscode-html-languageserver-bin, vscode-json-languageserver-bin, yaml-language-server
+[W 2024-03-12 17:20:03.505 ServerApp] 404 GET /hub/api (@10.32.32.4) 74.23ms referer=None
+[I 2024-03-12 17:20:03.511 JupyterNotebookApp] 302 GET /tree? (@10.32.32.4) 0.41ms
+[W 2024-03-12 17:20:08.255 ServerApp] 404 GET /hub/api (@10.32.32.4) 1.11ms referer=None
+[I 2024-03-12 17:20:08.258 JupyterNotebookApp] 302 GET /tree? (@10.32.32.4) 0.36ms
+[W 2024-03-12 17:20:23.736 ServerApp] 404 GET /hub/api (@10.32.32.4) 1.05ms referer=None
+[I 2024-03-12 17:20:23.739 JupyterNotebookApp] 302 GET /tree? (@10.32.32.4) 0.35ms
+[I 2024-03-12 17:20:23.820 ServerApp] Kernel started: 49670f73-962c-47c0-b8cf-84daa656e54c
+[I 2024-03-12 17:20:24.674 ServerApp] Connecting to kernel 49670f73-962c-47c0-b8cf-84daa656e54c.
+slurmstepd: error: *** JOB 44015568 ON cs360 CANCELLED AT 2024-03-12T18:01:36 ***

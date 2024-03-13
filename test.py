@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import json
 import torch
@@ -88,18 +89,39 @@ from utils import load_dict
 
 
 """ vary param for noise injection """
-seq_len = 4
+# seq_len = 4
 
-setup_dir = Path("./experiments/RL/Noise/Seq{}/setups".format(seq_len))
-setup_file = setup_dir / "setup_seq{}.json".format(seq_len)
-setup = load_dict(setup_file)
+# setup_dir = Path("./experiments/RL/Noise/Seq{}/setups".format(seq_len))
+# setup_file = setup_dir / "setup_seq{}.json".format(seq_len)
+# setup = load_dict(setup_file)
 
-for noise in [0, 0.2, 0.4, 0.6, 0.8, 1]:
-    for gamma in [0.0, 0.3, 0.6, 0.9]:
-        setup["model"]["flush_noise"] = noise
-        setup["training"][-1]["trainer"]["criterion"]["gamma"] = gamma
-        setup["training"][-1]["trainer"]["criterion"]["eta"] = 0.005
-        with open(setup_dir / "setup_seq{}_noise{}_gamma{}.json".format(seq_len, str(noise).replace(".", ""), str(gamma).replace(".", "")), "w") as f:
-            json.dump(setup, f, indent=4)
+# for noise in [0, 0.2, 0.4, 0.6, 0.8, 1]:
+#     for gamma in [0.0, 0.3, 0.6, 0.9]:
+#         setup["model"]["flush_noise"] = noise
+#         setup["training"][-1]["trainer"]["criterion"]["gamma"] = gamma
+#         setup["training"][-1]["trainer"]["criterion"]["eta"] = 0.005
+#         with open(setup_dir / "setup_seq{}_noise{}_gamma{}.json".format(seq_len, str(noise).replace(".", ""), str(gamma).replace(".", "")), "w") as f:
+#             json.dump(setup, f, indent=4)
 
+""" change param for n-back task """
+
+setup_dir = Path("./experiments/RL/NBack/VarySeq/setups")
+files = os.listdir(setup_dir)
+for file in files:
+    with open(setup_dir / file, "r") as f:
+        setup = json.load(f)
+    setup["run_num"] = 50
+    setup["model"]["two_output"] = True
+    setup["training"][0]["trainer"]["sl_criterion"] = {
+        "class": "EncodingNBackCrossEntropyLoss",
+        "class_num": 51,
+        "nback": 1
+    }
+    setup["training"][1]["trainer"]["sl_criterion"] = {
+        "class": "EncodingNBackCrossEntropyLoss",
+        "class_num": 51,
+        "nback": 1
+    }
+    with open(setup_dir / file, "w") as f:
+        json.dump(setup, f, indent=4)
 

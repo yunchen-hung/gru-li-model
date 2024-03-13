@@ -1,5 +1,5 @@
 {
-    "run_num": 100,
+    "run_num": 50,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -9,7 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "init_state_type": "noise",
-        "flush_noise": 0.8,
+        "flush_noise": 0.6,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [
             {
@@ -27,7 +27,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "two_output": true
     },
     "training": [
         {
@@ -59,6 +60,11 @@
                     "lr_decay_patience": 10,
                     "lr_decay_threshold": 0.001,
                     "min_lr": 1e-07
+                },
+                "sl_criterion": {
+                    "class": "EncodingNBackCrossEntropyLoss",
+                    "class_num": 51,
+                    "nback": 1
                 }
             }
         },
@@ -98,6 +104,11 @@
                     "lr_decay_patience": 30,
                     "lr_decay_threshold": 0.001,
                     "min_lr": 1e-07
+                },
+                "sl_criterion": {
+                    "class": "EncodingNBackCrossEntropyLoss",
+                    "class_num": 51,
+                    "nback": 1
                 }
             }
         }

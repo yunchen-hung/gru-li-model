@@ -4,6 +4,7 @@ figures/
 figures
 logs/
 logs
+jupyter-log/
 todo.md
 upload.sh
 upload_run.sh

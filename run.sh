@@ -12,15 +12,48 @@
 
 
 noise=('0' '02' '04' '06' '08' '1')
-seqlen=('4' '12' '16')
+# seqlen=('4' '12' '16')
 
-for s in "${seqlen[@]}"
-do
-    for n in "${noise[@]}"
-    do
-        for g in {0..9..3}
-        do
-        python run_cluster.py --exp RL.Noise.Seq${s} --setup setup_seq${s}_noise${n}_gamma0${g}.json --time 10
-        done
-    done
+# for s in "${seqlen[@]}"
+# do
+#     for n in "${noise[@]}"
+#     do
+#         for g in {0..9..3}
+#         do
+#         python run_cluster.py --exp RL.Noise.Seq${s} --setup setup_seq${s}_noise${n}_gamma0${g}.json --time 10
+#         done
+#     done
+# done
+
+# for n in "${noise[@]}"
+# do
+#     python run_cluster.py --exp RL.Noise.Seq4 --setup setup_seq4_noise${n}_gamma09.json --time 10
+# done
+
+# for n in "${noise[@]}"
+# do
+#     python run_cluster.py --exp RL.Noise.Seq12 --setup setup_seq12_noise${n}_gamma00.json --time 10
+# done
+
+# for n in "${noise[@]}"
+# do
+#     python run_cluster.py --exp RL.Noise.Seq16 --setup setup_seq16_noise${n}_gamma00.json --time 10
+# done
+
+python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise0_gamma00.json --time 10
+python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise02_gamma00.json --time 10
+python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise04_gamma00.json --time 10
+python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise06_gamma00.json --time 10
+python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise08_gamma03.json --time 10
+
+
+nback_dir="./experiments/RL/NBack/VarySeq/setups"
+if [ ! -d "$directory" ]; then
+  exit 1
+fi
+
+for file in "$directory"/*; do
+  if [ -f "$file" ]; then
+    python run_cluster.py --exp RL.NBack.VarySeq --setup $file --time 10
+  fi
 done

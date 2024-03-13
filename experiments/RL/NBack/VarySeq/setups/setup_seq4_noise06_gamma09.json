@@ -1,5 +1,5 @@
 {
-    "run_num": 100,
+    "run_num": 50,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -9,14 +9,15 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "init_state_type": "noise",
-        "flush_noise": 0.8,
+        "flush_noise": 0.6,
         "em_gate_type": "scalar_sigmoid",
+        "two_output": true,
         "subclasses": [
             {
                 "name": "memory_module",
                 "class": "ValueMemory",
                 "value_dim": 128,
-                "capacity": 16,
+                "capacity": 4,
                 "recall_method": "weight_sum",
                 "subclasses": [
                     {
@@ -34,8 +35,8 @@
             "env": {
                 "class": "FreeRecall",
                 "vocabulary_num": 50,
-                "memory_num": 16,
-                "retrieve_time_limit": 16,
+                "memory_num": 4,
+                "retrieve_time_limit": 4,
                 "return_action": true,
                 "return_reward": true,
                 "reset_state_before_test": true
@@ -50,6 +51,11 @@
                 "criterion": {
                     "class": "EncodingCrossEntropyLoss",
                     "class_num": 51
+                },
+                "sl_criterion": {
+                    "class": "EncodingNBackCrossEntropyLoss",
+                    "class_num": 51,
+                    "nback": 1
                 },
                 "optimizer": {
                     "class": "Adam",
@@ -66,8 +72,8 @@
             "env": {
                 "class": "FreeRecall",
                 "vocabulary_num": 50,
-                "memory_num": 16,
-                "retrieve_time_limit": 16,
+                "memory_num": 4,
+                "retrieve_time_limit": 4,
                 "return_action": true,
                 "return_reward": true,
                 "reset_state_before_test": true,
@@ -88,8 +94,13 @@
                 "criterion": {
                     "class": "A2CLoss",
                     "use_V": true,
-                    "eta": 0.01,
-                    "gamma": 0.0
+                    "eta": 0.005,
+                    "gamma": 0.9
+                },
+                "sl_criterion": {
+                    "class": "EncodingNBackCrossEntropyLoss",
+                    "class_num": 51,
+                    "nback": 1
                 },
                 "optimizer": {
                     "class": "Adam",
