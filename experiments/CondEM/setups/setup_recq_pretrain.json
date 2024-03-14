@@ -97,7 +97,7 @@
             "sequence_len": 8,
             "reset_state_before_test": true,
             "correct_reward": 2.5,
-            "no_action_reward": -0.1,
+            "no_action_reward": -0.0,
             "wrong_reward": -0.75
         },
         "trainer": {
@@ -132,7 +132,7 @@
             "sequence_len": 8,
             "reset_state_before_test": true,
             "correct_reward": 2.5,
-            "no_action_reward": -0.1,
+            "no_action_reward": -0.0,
             "wrong_reward": -0.75
         },
         "trainer": {
@@ -146,7 +146,7 @@
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.01,
+                "eta": 0.02,
                 "gamma": 0.4
             },
             "optimizer": {

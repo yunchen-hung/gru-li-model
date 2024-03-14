@@ -40,6 +40,8 @@ noise=('0' '02' '04' '06' '08' '1')
 #     python run_cluster.py --exp RL.Noise.Seq16 --setup setup_seq16_noise${n}_gamma00.json --time 10
 # done
 
+python run_cluster.py --exp RL.Noise.Seq16 --setup setup_seq16_noise1_gamma00.json --time 10
+
 python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise0_gamma00.json --time 10
 python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise02_gamma00.json --time 10
 python run_cluster.py --exp RL.Noise.Seq8 --setup setup_noise04_gamma00.json --time 10
