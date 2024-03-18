@@ -39,7 +39,7 @@
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
-            "stop_test_accu": 0.99,
+            "stop_test_accu": 1.01,
             "use_memory": true,
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
@@ -139,7 +139,7 @@
         },
         "trainer": {
             "training_function": "train_model",
-            "num_iter": 100000,
+            "num_iter": 200000,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,

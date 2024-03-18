@@ -6,7 +6,7 @@ from .base import BaseEMTask
 
 
 class FreeRecall(BaseEMTask):
-    def __init__(self, vocabulary_num=20, memory_num=5, memory_var=0, retrieve_time_limit=5, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
+    def __init__(self, vocabulary_num=20, memory_num=5, memory_var=0, retrieve_time_limit=None, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
     not_know_reward=-0.1, reset_state_before_test=False, start_recall_cue=False, encode_reward_weight=0.0, return_action=False, return_reward=False, 
     #forward_smooth=0, backward_smooth=0, 
     dt=10, tau=10):
@@ -22,7 +22,7 @@ class FreeRecall(BaseEMTask):
         self.not_know_reward = not_know_reward
         self.repeat_penalty = repeat_penalty
 
-        self.retrieve_time_limit = retrieve_time_limit
+        self.retrieve_time_limit = retrieve_time_limit if retrieve_time_limit is not None else memory_num
         self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
         self.start_recall_cue = start_recall_cue                            # add a cue at the beginning of recall
         self.encode_reward_weight = encode_reward_weight                    # weight of reward during encoding

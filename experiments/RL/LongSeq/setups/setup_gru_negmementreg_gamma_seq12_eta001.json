@@ -82,7 +82,7 @@
             "criterion": {
                 "class": "A2CLoss",
                 "use_V": true,
-                "eta": 0.02,
+                "eta": 0.01,
                 "gamma": 0.9
             },
             "optimizer": {

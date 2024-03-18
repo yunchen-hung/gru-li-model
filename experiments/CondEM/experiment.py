@@ -65,6 +65,9 @@ def run(data_all, model_all, env, paths, exp_name):
         print("Accuracy:", accuracy)
         print("Recall:", recall)
         print("F1:", f1)
+        with open(fig_path/"performance.csv", "w") as f:
+            writer = csv.writer(f)
+            writer.writerow([accuracy, recall, f1])
 
 
         """ compute retrieved memory index """
@@ -157,21 +160,26 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.bar(np.arange(1), [data], bottom=bottom, label=labels[i])
         bottom += data
     plt.legend()
+    plt.tight_layout()
     savefig(fig_path, "actions1")
 
+    plt.figure(figsize=(2, 4), dpi=180)
     bottom = np.zeros(group2.shape)
     labels = ["correct", "not recalled"]
     for i, data in enumerate(group2):
         plt.bar(np.arange(1), [data], bottom=bottom, label=labels[i])
         bottom += data
     plt.legend()
+    plt.tight_layout()
     savefig(fig_path, "actions2")
 
+    plt.figure(figsize=(2, 4), dpi=180)
     bottom = np.zeros(group3.shape)
-    labels = ["correct", "recalled but not output", "not know", "wrong"]
+    labels = ["correct", "recalled but\n not output", "not know", "wrong"]
     for i, data in enumerate(group3):
         plt.bar(np.arange(1), [data], bottom=bottom, label=labels[i])
         bottom += data
     plt.legend()
+    plt.tight_layout()
     savefig(fig_path, "actions3")
 
