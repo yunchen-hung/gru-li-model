@@ -9,6 +9,7 @@ todo.md
 upload.sh
 upload_run.sh
 tmp.py
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
