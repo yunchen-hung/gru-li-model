@@ -18,15 +18,7 @@ for s in "${seqlen[@]}"
 do
     for n in "${noise[@]}"
     do
-        python run_cluster.py --exp RL.Noise.Gamma0 --setup setup_seq${s}_noise${n}.json --time 10
-    done
-done
-
-for s in "${seqlen[@]}"
-do
-    for n in "${noise[@]}"
-    do
-        python run_cluster.py --exp RL.Noise.Gamma09 --setup setup_seq${s}_noise${n}.json --time 10
+        python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 10
     done
 done
 

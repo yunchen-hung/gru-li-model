@@ -5,3 +5,4 @@
 from .wrappers import MetaLearningEnv, OriginMetaLearningEnv
 from .free_recall import FreeRecall
 from .cond_em_recall import ConditionalEMRecall
+from .cond_qa import ConditionalQuestionAnswer

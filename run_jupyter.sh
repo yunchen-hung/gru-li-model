@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes 1
-#SBATCH --time 5:00:00
+#SBATCH --time 3:00:00
 #SBATCH --mem-per-cpu 8G
 #SBATCH --job-name tunnel
 #SBATCH --output jupyter-log/jupyter-log-%J.txt
@@ -14,7 +14,7 @@ ipnip=$(hostname -i)
 echo -e "
     Copy/Paste this in your local terminal to ssh tunnel with remote
     -----------------------------------------------------------------
-    ssh -N -L $ipnport:$ipnip:$ipnport $USER@scotty.princeton.edu
+    ssh -N -L $ipnport:$ipnip:$ipnport $USER@greene.hpc.nyu.edu
     -----------------------------------------------------------------
 
     Then open a browser on your local machine to the following address

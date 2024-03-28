@@ -91,7 +91,7 @@ from utils import load_dict
 """ vary param for noise injection """
 seq_len = [4,8,12,16]
 
-setup_dir = Path("./experiments/RL/Noise/Gamma09/setups".format(seq_len))
+setup_dir = Path("./experiments/RL/Noise/NBack/setups".format(seq_len))
 setup_file = setup_dir / "setup.json"
 setup = load_dict(setup_file)
 
