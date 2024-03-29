@@ -26,3 +26,9 @@ class BaseEMTask(gym.Env):
         """
         raise NotImplementedError
     
+    def convert_action_to_observation(self, action):
+        """
+        convert action to observation, default is one-hot vector
+        """
+        return np.eye(self.action_space.n)[action]
+    

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
-from tasks import ConditionalEMRecall, MetaLearningEnv
+from tasks import ConditionalEMRecall, MetaLearningEnv, ConditionalQuestionAnswer
 
 from utils import load_dict
 
@@ -47,62 +47,39 @@ from utils import load_dict
 # plt.tight_layout()
 # plt.savefig("acc_forw_asym.png")
 
-
-""" Conditional EM Recall tests """
-# env = ConditionalEMRecall(include_question_during_encode=True, has_question=False)
-# env = MetaLearningEnv(env)
-# obs, info = env.reset()
-# print('memory_sequence:', env.memory_sequence)
-# print('question_type:', env.question_type)
-# print('question_value:', env.question_value)
-# print('correct_answers:', env.memory_sequence[env.correct_answers_index])
-
-# gt = env.get_ground_truth()
-# actions = np.random.choice(gt, 9)
-# correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions) 
-# print('gt:', gt)
-# print('actions:', actions)
-# print('correct_actions:', correct_actions)
-# print('wrong_actions:', wrong_actions)
-# print('not_know_actions:', not_know_actions)
-
-# actions = env.memory_sequence[env.correct_answers_index]
-# actions_int = [0 for _ in range(8)]
-# for action in actions:
-#     actions_int.append(action[0]+action[1]*5)
-#     actions_int.append(action[0]+action[1]*5)
-# actions_int.append(26)
-# actions_int.append(27)
-# actions_int = np.array(actions_int)
-
-# print(obs, info)
-# cnt = 0
-# while True:
-#     # action = env.action_space.sample()
-#     action = actions_int[cnt]
-#     cnt += 1
-#     print("action:", action, env.convert_action_to_stimuli(action))
-#     obs, reward, done, info = env.step(action)
-#     print(obs, reward, done, info)
-#     if done:
-#         break
+""" Conditional Question Answer tests """
+env = ConditionalQuestionAnswer()
+env = MetaLearningEnv(env)
+obs, info = env.reset()
+for i in range(8):
+    obs, reward, terminated, info = env.step(0)
+    print(obs, reward, terminated, info)
+actions = [env.action_space.n-1]*6 + [0]
+print(actions)
+print(env.answer)
+cnt = 0
+while not terminated:
+    action = actions[cnt]
+    cnt += 1
+    obs, reward, terminated, info = env.step(action)
+    print(obs, reward, terminated, info)
 
 
 """ vary param for noise injection """
-seq_len = [4,8,12,16]
+# seq_len = [4,8,12,16]
 
-setup_dir = Path("./experiments/RL/Noise/NBack/setups".format(seq_len))
-setup_file = setup_dir / "setup.json"
-setup = load_dict(setup_file)
+# setup_dir = Path("./experiments/RL/Noise/NBack/setups".format(seq_len))
+# setup_file = setup_dir / "setup.json"
+# setup = load_dict(setup_file)
 
-for seq_len in [4, 8, 12, 16]:
-    for noise in [0, 0.2, 0.4, 0.6, 0.8, 1]:
-        setup["model"]["flush_noise"] = noise
-        setup["model"]["subclasses"][0]["capacity"] = seq_len
-        for setup_train in setup["training"]:
-            setup_train["env"]["memory_num"] = seq_len
-        with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
-            json.dump(setup, f, indent=4)
+# for seq_len in [4, 8, 12, 16]:
+#     for noise in [0, 0.2, 0.4, 0.6, 0.8, 1]:
+#         setup["model"]["flush_noise"] = noise
+#         setup["model"]["subclasses"][0]["capacity"] = seq_len
+#         for setup_train in setup["training"]:
+#             setup_train["env"]["memory_num"] = seq_len
+#         with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
+#             json.dump(setup, f, indent=4)
 
 """ change param for n-back task """
 
