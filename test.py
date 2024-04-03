@@ -48,21 +48,50 @@ from utils import load_dict
 # plt.savefig("acc_forw_asym.png")
 
 """ Conditional Question Answer tests """
-env = ConditionalQuestionAnswer()
+env = ConditionalQuestionAnswer(num_features=3, feature_dim=2, sequence_len=5)
 env = MetaLearningEnv(env)
-obs, info = env.reset()
-for i in range(8):
-    obs, reward, terminated, info = env.step(0)
-    print(obs, reward, terminated, info)
-actions = [env.action_space.n-1]*6 + [0]
-print(actions)
-print(env.answer)
-cnt = 0
-while not terminated:
-    action = actions[cnt]
-    cnt += 1
-    obs, reward, terminated, info = env.step(action)
-    print(obs, reward, terminated, info)
+
+# obs, info = env.reset()
+# for i in range(8):
+#     obs, reward, terminated, info = env.step(0)
+#     print(obs, reward, terminated, info)
+# actions = [env.action_space.n-1]*6 + [0]
+# print(actions)
+# print(env.answer)
+# cnt = 0
+# while not terminated:
+#     action = actions[cnt]
+#     cnt += 1
+#     obs, reward, terminated, info = env.step(action)
+#     print(obs, reward, terminated, info)
+# print()
+
+# obs, info = env.reset()
+# for i in range(8):
+#     obs, reward, terminated, info = env.step(0)
+#     print(obs, reward, terminated, info)
+# actions = [env.action_space.n-1]*6 + [0]
+# print(actions)
+# print(env.answer)
+# cnt = 0
+# while not terminated:
+#     action = actions[cnt]
+#     cnt += 1
+#     obs, reward, terminated, info = env.step(action)
+#     print(obs, reward, terminated, info)
+
+answer = np.zeros(2)
+# prev_answer = np.zeros(2)
+cnts = np.zeros(6)
+for i in range(10000):
+    env.reset()
+    answer[env.answer] += 1
+    # if np.array_equal(env.answer, prev_answer):
+    #     print(env.answer)
+    # prev_answer = env.answer
+    cnts[env.cnt] += 1
+print(answer)
+print(cnts)
 
 
 """ vary param for noise injection """

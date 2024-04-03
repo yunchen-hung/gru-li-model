@@ -64,7 +64,8 @@ class ConditionalQuestionAnswer(BaseEMTask):
                                                         + [self.question_space_dim, 
                                                            feature_dim, 
                                                            self.question_space_dim])
-        self.action_space = spaces.Discrete(feature_dim * sequence_len + 1)
+        # self.action_space = spaces.Discrete((feature_dim-1) * sequence_len + 2)
+        self.action_space = spaces.Discrete(3)
         
         self.all_stimuli = self._generate_all_stimuli()
 
@@ -80,8 +81,21 @@ class ConditionalQuestionAnswer(BaseEMTask):
         self.question_feature, self.sum_feature = feature[0], feature[1]
         self.question_value = np.random.choice(self.feature_dim)
 
-        self.answer = np.sum(self.memory_sequence[
-            self.memory_sequence[:, self.question_feature] == self.question_value, self.sum_feature])
+        cnt = 0
+        for i in range(self.sequence_len):
+            if self.memory_sequence[i, self.question_feature] == self.question_value:
+                if cnt == 0:
+                    self.answer = self.memory_sequence[i, self.sum_feature]
+                else:
+                    self.answer = np.logical_xor(self.answer, self.memory_sequence[i, self.sum_feature])
+                cnt += 1
+        if cnt == 0:
+            self.answer = 0
+        self.answer = int(self.answer)
+        self.cnt = cnt
+
+        # self.answer = np.logical_xor(self.memory_sequence[
+        #     self.memory_sequence[:, self.question_feature] == self.question_value, self.sum_feature])
 
         self.phase = "encoding"     # encoding, recall
         self.timestep = 0
@@ -138,8 +152,10 @@ class ConditionalQuestionAnswer(BaseEMTask):
 
     def render(self, mode='human'):
         print("memory sequence:", self.memory_sequence)
-        print("question type:", self.question_feature)
+        print("question feature:", self.question_feature)
         print("question value:", self.question_value)
+        print("sum feature:", self.sum_feature) 
+        print("answer:", self.answer)
     
     def compute_accuracy(self, actions):
         """

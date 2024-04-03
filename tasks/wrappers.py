@@ -28,11 +28,11 @@ class MetaLearningEnv(Wrapper):
     
     def reset(self, batch_size=1):
         obs,info=self.env.reset()
-        self.prev_action = self.env.action_space.sample()
-        if hasattr(self.env, 'convert_action_to_observation'):
-            self.prev_action = self.env.convert_action_to_observation(self.prev_action)
-        self.prev_reward=0
-        obs_wrapped=np.hstack([obs.reshape(-1),self.prev_action,self.prev_reward]).reshape(1, -1)
+        # self.prev_action = self.env.action_space.sample()
+        # if hasattr(self.env, 'convert_action_to_observation'):
+        #     self.prev_action = self.env.convert_action_to_observation(self.prev_action)
+        # self.prev_reward = 0
+        obs_wrapped = np.hstack([obs.reshape(-1),self.prev_action,self.prev_reward]).reshape(1, -1)
         return obs_wrapped,info 
 
 
