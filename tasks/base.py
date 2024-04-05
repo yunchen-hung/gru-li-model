@@ -9,11 +9,26 @@ class BaseEMTask(gym.Env):
         self.reset_state_before_test = reset_state_before_test
 
     def compute_accuracy(self, actions):
+        """
+        given action sequence, compute the accuracy of current trial
+        """
         raise NotImplementedError
     
     def get_ground_truth(self, phase="recall"):
+        """
+        return the ground truth for the current trial
+        """
         raise NotImplementedError
     
     def get_trial_data(self):
+        """
+        used when recording data
+        """
         raise NotImplementedError
+    
+    def convert_action_to_observation(self, action):
+        """
+        convert action to observation, default is one-hot vector
+        """
+        return np.eye(self.action_space.n)[action]
     

@@ -40,7 +40,7 @@
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
-            "stop_test_accu": 0.99,
+            "stop_test_accu": 1.01,
             "use_memory": true,
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
@@ -79,7 +79,8 @@
             "stop_test_accu": 0.99,
             "criterion": {
                 "class": "A2CLoss",
-                "use_V": true
+                "use_V": true,
+                "eta": 0.01
             },
             "optimizer": {
                 "class": "Adam",

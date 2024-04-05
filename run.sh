@@ -11,13 +11,40 @@
 # python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --exp_file cogsci
 
 
-noise=('0' '02' '04' '06' '08' '1')
+# noise=('0' '02' '04' '06' '08' '1')
+# seqlen=('4' '8' '12' '16')
 
-for n in "${noise[@]}"
-do 
-    for g in {0..9..3}
-    do
-    python run_cluster.py --exp RL.Noise --setup setup_noise${n}_gamma0${g}.json --time 8
-    python run_cluster.py --exp RL.Noise --setup setup_noise${n}_gamma0${g}_nostepbetween.json --time 8
-    done
-done
+# for s in "${seqlen[@]}"
+# do
+#     for n in "${noise[@]}"
+#     do
+#         python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 10
+#     done
+# done
+
+python run_cluster.py --exp CondQA --setup setup_encq.json --time 15 -train
+python run_cluster.py --exp CondQA --setup setup_recq.json --time 15 -train
+
+# python run_cluster.py --exp CondEM --setup setup_encq_pretrain_gamma09.json --time 15 -train
+# python run_cluster.py --exp CondEM --setup setup_encq_pretrain.json --time 15 -train
+# python run_cluster.py --exp CondEM --setup setup_recq_pretrain_gamma09.json --time 15 -train
+# python run_cluster.py --exp CondEM --setup setup_recq_pretrain.json --time 15 -train
+# python run_cluster.py --exp CondEM --setup setup_encq_pretrain_gamma09.json
+# python run_cluster.py --exp CondEM --setup setup_encq_pretrain.json
+# python run_cluster.py --exp CondEM --setup setup_recq_pretrain_gamma09.json
+# python run_cluster.py --exp CondEM --setup setup_recq_pretrain.json
+
+
+# nback_dir="./experiments/RL/NBack/VarySeq/setups/"
+# if [ ! -d $nback_dir ]; then
+#   echo "Directory $nback_dir does not exist"
+#   exit 1
+# fi
+
+# for file in "$nback_dir"/*; do
+#   if [ -f "$file" ]; then
+#     name=${file##*/}
+#     python run_cluster.py --exp RL.NBack.VarySeq --setup $name --time 10
+#   fi
+# done
+
