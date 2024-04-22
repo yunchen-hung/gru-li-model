@@ -33,6 +33,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
     forward_time, backward_time = 0.0, 0.0
     loss_time = 0.0
     
+    num_iter = int(num_iter)
     for i in range(num_iter):
         # record time for the first iteration to estimate total time needed
         if i == 0:
@@ -143,14 +144,14 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             mem_ent_reg_loss = None
 
         if sl_criterion is not None:
-            gt = torch.tensor(env.get_ground_truth(phase="encoding")).to(device)
+            gt, mask = torch.tensor(env.get_ground_truth(phase="encoding")).to(device)
             if outputs2[0] is not None:
                 # print(outputs[:memory_num], gt.T)
                 outputs2 = torch.stack(outputs2)
-                loss += sl_criterion(outputs2[:memory_num], gt.T, memory_num=memory_num)
+                loss += sl_criterion(outputs2[mask.reshape(-1, 1)==1], gt.T, memory_num=memory_num)
             else:
                 outputs = torch.stack(outputs)
-                loss += sl_criterion(outputs[:memory_num], gt.T, memory_num=memory_num)
+                loss += sl_criterion(outputs[mask.reshape(-1, 1)==1], gt.T, memory_num=memory_num)
 
         # loss_time += time.time() - loss_start_time
 
@@ -177,19 +178,19 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             # print("Forward time: {:.2f}s, Loss time: {:.2f}s, Backward time: {:.2f}s".format(forward_time, loss_time, backward_time))
 
             env.render()
-            gt = env.get_ground_truth()
+            gt, mask = env.get_ground_truth()
             # show example ground truth and actions, including random sampled actions and argmax actions
             # print(torch.tensor(actions[memory_num:]).shape)
             # print(torch.tensor(actions[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
             # print(torch.tensor(actions_max[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
-            print("gt, actions, max_actions:", gt[0], torch.stack(actions[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
+            print("gt, actions, max_actions:", gt[0][memory_num:], torch.stack(actions[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.stack(actions_max[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
             # show example in the encoding phase
-            gt_encoding = env.get_ground_truth(phase="encoding")
-            print("encoding gt, actions, max_actions:", gt_encoding[0], torch.stack(actions[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
+            # gt_encoding = env.get_ground_truth(phase="encoding")
+            print("encoding gt, actions, max_actions:", gt[0][:memory_num], torch.stack(actions[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
                 torch.stack(actions_max[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
             if sl_criterion is not None and outputs2[0] is not None:
-                print("gt2, encoding action2:", gt[0], torch.argmax(outputs2[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
+                print("gt2, encoding action2:", gt[0][:memory_num], torch.argmax(outputs2[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
 
             # print("Actor loss, Critic loss, Entropy loss, Mem entropy loss:", loss_actor.item(), loss_critic.item(), loss_ent_reg.item(), mem_ent_reg_loss.item() if memory_entropy_reg else 0.0)
 

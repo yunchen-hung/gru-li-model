@@ -9,7 +9,7 @@ from torch.nn.functional import mse_loss
 
 
 def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion=None, num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
-    device='cpu', model_save_path=None, use_memory=None, min_iter=0, batch_size=1):
+    device='cpu', model_save_path=None, use_memory=None, min_iter=0, batch_size=1, phase="encoding"):
     actions_correct_num, actions_wrong_num, actions_total_num, total_loss = 0, 0, 0, 0.0
     test_accuracies = []
     test_errors = []
@@ -87,7 +87,10 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
             if outputs2[0] is not None:
                 outputs2 = torch.stack(outputs2)
 
-        gt = torch.tensor(env.get_ground_truth(phase="encoding")).to(device)
+        gt, mask = env.get_ground_truth(phase=phase)
+        gt = torch.tensor(gt).to(device)
+        mask = torch.tensor(mask).to(device)
+        gt = gt[mask == 1]
         # print(gt)
 
         # if random_action:
@@ -102,7 +105,9 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
 
         # actions_tensor = torch.stack([torch.stack(action) for action in actions]).reshape(-1)[:memory_num]
         # print(torch.stack(actions).shape, gt.shape)
-        actions_tensor = torch.stack(actions)[:memory_num]
+        actions_tensor = torch.stack(actions_max).reshape(1, -1)
+        # print(actions_tensor, gt, mask)
+        actions_tensor = actions_tensor[mask == 1]
         correct_actions = torch.sum(actions_tensor.T == gt)
         wrong_actions = torch.sum(actions_tensor.T != gt)
         not_know_actions = 0
@@ -111,9 +116,9 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
         actions_wrong_num += wrong_actions
 
         # print(outputs.shape, gt.shape)
-        loss = criterion(outputs[:memory_num], gt.T, memory_num=memory_num)
+        loss = criterion(outputs[mask.reshape(-1, 1) == 1], gt.T, memory_num=memory_num)
         if sl_criterion is not None and outputs2[0] is not None:
-            loss += sl_criterion(outputs2[:memory_num], gt.T, memory_num=memory_num)  
+            loss += sl_criterion(outputs2[mask.reshape(-1, 1) == 1], gt.T, memory_num=memory_num)
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
@@ -127,11 +132,11 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
             env.render()
 
             # print(gt.shape, np.array(actions).shape)
-            print("gt, action, encoding action:", gt[0].detach().cpu().numpy(), np.array(actions)[:memory_num,0], 
-                    torch.argmax(outputs[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
+            print("gt, encoding action:", gt.detach().cpu().numpy(), 
+                    torch.argmax(outputs[mask.reshape(-1, 1) == 1], dim=1).detach().cpu().numpy().reshape(-1))
             if sl_criterion is not None and outputs2[0] is not None:
-                print("gt2, encoding action2:", gt[0].detach().cpu().numpy(), 
-                    torch.argmax(outputs2[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
+                print("gt2, encoding action2:", gt.detach().cpu().numpy(), 
+                    torch.argmax(outputs2[mask.reshape(-1, 1) == 1], dim=1).detach().cpu().numpy().reshape(-1))
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error

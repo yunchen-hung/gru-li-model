@@ -1,3 +1,5 @@
+# squeue -u <username> -h -t pending,running -r -O "state" | uniq -c
+
 # srun --time=10:00:00 --mem=16000 --cpus-per-task=1 python -u main.py --exp CondEM --setup setup_recallquestion.json
 # python run_cluster.py --exp CondEM --setup setup_recallquestion_pretrain.json -train --time 16
 # srun --time=2:00:00 --mem=16000 --cpus-per-task=1 python -u main.py --exp CondEM --setup setup_recallquestion.json
@@ -12,18 +14,27 @@
 
 
 # noise=('0' '02' '04' '06' '08' '1')
-# seqlen=('4' '8' '12' '16')
+noise=('0' '1')
+seqlen=('8')
+
+for s in "${seqlen[@]}"
+do
+    for n in "${noise[@]}"
+    do
+        python run_cluster.py --exp RL.Noise.Gamma09 --setup setup_seq${s}_noise${n}.json
+    done
+done
 
 # for s in "${seqlen[@]}"
 # do
 #     for n in "${noise[@]}"
 #     do
-#         python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 10
+#         python run_cluster.py --exp RL.Noise.Gamma09 --setup setup_seq${s}_noise${n}.json --time 10
 #     done
 # done
 
-python run_cluster.py --exp CondQA --setup setup_encq.json --time 15 -train
-python run_cluster.py --exp CondQA --setup setup_recq.json --time 15 -train
+# python run_cluster.py --exp CondQA --setup setup_encq.json --time 15 -train
+# python run_cluster.py --exp CondQA --setup setup_recq.json --time 15 -train
 
 # python run_cluster.py --exp CondEM --setup setup_encq_pretrain_gamma09.json --time 15 -train
 # python run_cluster.py --exp CondEM --setup setup_encq_pretrain.json --time 15 -train

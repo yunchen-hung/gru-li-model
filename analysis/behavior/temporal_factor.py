@@ -40,4 +40,4 @@ if __name__ == "__main__":
     temporal_factor = TemporalFactor()
     results = temporal_factor.fit(memory_contexts, actions)
     print("results:", results)
-                    
+

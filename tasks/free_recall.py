@@ -318,13 +318,22 @@ class FreeRecall(BaseEMTask):
     #                     rewards.append(self.false_reward)
     #     return np.array(rewards).transpose(1, 0)
     
-    def get_ground_truth(self, phase="recall"):
+    def get_ground_truth(self, phase="all"):
         """
         get ground truth data for all timesteps
 
         output: ground truth with numbers (not one-hot), memory_num
         """
-        return self.memory_sequence
+        gt = np.concatenate((self.memory_sequence, self.memory_sequence), axis=1)
+
+        if phase == 'encoding':
+            mask = np.concatenate((np.ones(self.memory_num), np.zeros(self.memory_num))).astype(int)
+        elif phase == 'recall':
+            mask = np.concatenate((np.zeros(self.memory_num), np.ones(self.memory_num))).astype(int)
+        else:
+            mask = np.ones(self.memory_num*2).astype(int)
+
+        return gt, mask.reshape(1, -1)
     
     def get_trial_data(self):
         """
