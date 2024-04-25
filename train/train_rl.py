@@ -12,7 +12,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
     num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, step_iter=1, batch_size=1, use_memory=None,
     mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, 
     randomly_flush_state=False, flush_state_prob=1.0, use_memory_together_with_flush=False, 
-    memory_entropy_reg=False, memory_reg_weight=0.0):
+    memory_entropy_reg=False, memory_reg_weight=0.0, sl_criterion_weight=1.0):
     """
     Train the model with RL
     """
@@ -144,14 +144,16 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             mem_ent_reg_loss = None
 
         if sl_criterion is not None:
-            gt, mask = torch.tensor(env.get_ground_truth(phase="encoding")).to(device)
+            gt, mask = env.get_ground_truth(phase="encoding")
+            gt = torch.tensor(gt).to(device)
+            mask = torch.tensor(mask).to(device)
             if outputs2[0] is not None:
                 # print(outputs[:memory_num], gt.T)
                 outputs2 = torch.stack(outputs2)
-                loss += sl_criterion(outputs2[mask.reshape(-1, 1)==1], gt.T, memory_num=memory_num)
+                loss += sl_criterion(outputs2[mask.reshape(-1, 1)==1], gt[mask==1].reshape(-1, 1), memory_num=memory_num) * sl_criterion_weight
             else:
                 outputs = torch.stack(outputs)
-                loss += sl_criterion(outputs[mask.reshape(-1, 1)==1], gt.T, memory_num=memory_num)
+                loss += sl_criterion(outputs[mask.reshape(-1, 1)==1], gt[mask==1].reshape(-1, 1), memory_num=memory_num) * sl_criterion_weight
 
         # loss_time += time.time() - loss_start_time
 

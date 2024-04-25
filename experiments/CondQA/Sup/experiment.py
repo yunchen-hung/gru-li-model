@@ -27,7 +27,24 @@ def run(data_all, model_all, env, paths, exp_name):
         model = model_all[run_name]
 
         context_num = len(data["actions"])
+        timestep_each_phase = env.sequence_len
 
         readouts = data['readouts']
+
+
+        if "mem_gate_recall" in readouts[0]:
+            plt.figure(figsize=(4, 3), dpi=180)
+            for i in range(context_num):
+                em_gates = readouts[i]['mem_gate_recall']
+                plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:timestep_each_phase], label="context {}".format(i))
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            plt.xlabel("time of recall phase")
+            plt.ylabel("memory gate")
+            plt.tight_layout()
+            savefig(fig_path, "em_gate_recall")
+
+        
 
         

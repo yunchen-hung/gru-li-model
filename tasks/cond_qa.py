@@ -10,7 +10,8 @@ from .base import BaseEMTask
 class ConditionalQuestionAnswer(BaseEMTask):
     def __init__(self, num_features=4, feature_dim=2, sequence_len=8, retrieve_time_limit=None, 
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, cumulated_gt=False,
-                 include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False):
+                 include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False,
+                 no_early_stop=False):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -46,6 +47,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
         self.include_question_during_encode = include_question_during_encode
         self.one_hot_stimuli = one_hot_stimuli
         self.cumulated_gt = cumulated_gt
+        self.no_early_stop = no_early_stop
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
@@ -154,7 +156,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
             else:
                 reward = self.wrong_reward
 
-            if action != self.action_space.n - 1 or self.timestep >= self.retrieve_time_limit:
+            if (not self.no_early_stop and action != self.action_space.n - 1) or self.timestep >= self.retrieve_time_limit:
                 done = True
             else:
                 done = False
@@ -201,7 +203,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 gt_enc = np.array([self.memory_sequence[i, self.sum_feature] if self.memory_sequence[i, self.question_feature] == self.question_value \
                     else self.action_space.n-1 for i in range(self.sequence_len)])
         else:
-            gt = np.array([self.action_space.n-1]*(self.sequence_len))
+            gt_enc = np.array([self.action_space.n-1]*(self.sequence_len))
 
         gt_rec = np.array([self.action_space.n-1]*(self.sequence_len-1)+[answer])
 

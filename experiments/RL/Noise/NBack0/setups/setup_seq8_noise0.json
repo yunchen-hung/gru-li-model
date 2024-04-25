@@ -11,7 +11,6 @@
         "init_state_type": "noise",
         "flush_noise": 0,
         "em_gate_type": "scalar_sigmoid",
-        "two_output": true,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -51,11 +50,6 @@
                     "class": "EncodingCrossEntropyLoss",
                     "class_num": 51
                 },
-                "sl_criterion": {
-                    "class": "EncodingNBackCrossEntropyLoss",
-                    "class_num": 51,
-                    "nback": 1
-                },
                 "optimizer": {
                     "class": "Adam",
                     "lr": 0.0002,
@@ -89,6 +83,7 @@
                 "stop_test_accu": 0.99,
                 "memory_entropy_reg": true,
                 "memory_reg_weight": 0.1,
+                "sl_criterion_weight": 0.2,
                 "criterion": {
                     "class": "A2CLoss",
                     "use_V": true,

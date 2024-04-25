@@ -1,5 +1,5 @@
 {
-    "run_num": 5,
+    "run_num": 10,
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 256,
@@ -36,7 +36,7 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": true,
+            "include_question_during_encode": false,
             "no_early_stop": true
         },
         "trainer": {
@@ -46,11 +46,10 @@
             "save_iter": 2000,
             "stop_test_accu": 0.98,
             "use_memory": true,
-            "phase": "recall",
+            "phase": "last",
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
-                "class_num": 3,
-                "no_action_weight": 0.1
+                "class_num": 3
             },
             "optimizer": {
                 "class": "Adam",

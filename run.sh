@@ -13,15 +13,15 @@
 # python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --exp_file cogsci
 
 
-# noise=('0' '02' '04' '06' '08' '1')
-noise=('0' '1')
-seqlen=('8')
+noise=('0' '02' '04' '06' '08' '1')
+# noise=('0' '1')
+seqlen=('4' '8' '12' '16')
 
 for s in "${seqlen[@]}"
 do
     for n in "${noise[@]}"
     do
-        python run_cluster.py --exp RL.Noise.Gamma09 --setup setup_seq${s}_noise${n}.json
+        python run_cluster.py --exp RL.Noise.NBack0 --setup setup_seq${s}_noise${n}.json --time 10 -train
     done
 done
 

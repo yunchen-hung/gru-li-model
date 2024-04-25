@@ -90,7 +90,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
         gt, mask = env.get_ground_truth(phase=phase)
         gt = torch.tensor(gt).to(device)
         mask = torch.tensor(mask).to(device)
-        gt = gt[mask == 1]
+        gt = gt[mask == 1].reshape(1, -1)
         # print(gt)
 
         # if random_action:
@@ -107,18 +107,21 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
         # print(torch.stack(actions).shape, gt.shape)
         actions_tensor = torch.stack(actions_max).reshape(1, -1)
         # print(actions_tensor, gt, mask)
-        actions_tensor = actions_tensor[mask == 1]
-        correct_actions = torch.sum(actions_tensor.T == gt)
-        wrong_actions = torch.sum(actions_tensor.T != gt)
+        actions_tensor = actions_tensor[mask == 1].reshape(1, -1)
+        # print(actions_tensor.shape)
+        # print(actions_tensor, gt)
+        correct_actions = torch.sum(actions_tensor == gt)
+        wrong_actions = torch.sum(actions_tensor != gt)
         not_know_actions = 0
         actions_total_num += correct_actions + wrong_actions + not_know_actions
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
 
         # print(outputs.shape, gt.shape)
-        loss = criterion(outputs[mask.reshape(-1, 1) == 1], gt.T, memory_num=memory_num)
+        # gt = gt.reshape(1, -1)
+        loss = criterion(outputs[mask.reshape(-1, 1) == 1], gt.permute(1, 0), memory_num=memory_num)
         if sl_criterion is not None and outputs2[0] is not None:
-            loss += sl_criterion(outputs2[mask.reshape(-1, 1) == 1], gt.T, memory_num=memory_num)
+            loss += sl_criterion(outputs2[mask.reshape(-1, 1) == 1], gt.permute(1, 0), memory_num=memory_num)
 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
