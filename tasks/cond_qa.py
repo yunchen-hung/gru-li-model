@@ -76,7 +76,8 @@ class ConditionalQuestionAnswer(BaseEMTask):
         """
         # generate a random sequence of stimuli from all_stimuli without replacement
         # memory_sequence: sequence_len * num_features, features represented as int
-        self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)]
+        # self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)]
+        self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=True)]
         iter_num = 0
         while True:
             feature = np.random.choice(self.num_features, 2, replace=False)
@@ -146,7 +147,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
                                              include_question=True)
             info = {"phase": "recall"}
 
-            if action == self.action_space.n - 1:
+            if action == self.action_space.n - 1 or (self.no_early_stop and self.timestep < self.retrieve_time_limit):
                 # not action
                 reward = self.no_action_reward
             elif self.answer is None:
@@ -224,8 +225,11 @@ class ConditionalQuestionAnswer(BaseEMTask):
         """
         get trial data, including memory sequence, question type, question value, and correct answers
         """
+        num_matched_stimuli, correct_answers_index = self.get_matched_stimuli()
         return {"memory_sequence": self.memory_sequence, "question_feature": self.question_feature, 
-                "question_value": self.question_value, "correct_answer": self.answer,
+                "question_value": self.question_value, "sum_feature": self.sum_feature,
+                "correct_answer": self.answer,
+                "num_matched_stimuli": num_matched_stimuli, "matched_stimuli_index": correct_answers_index,
                 "memory_sequence_int": np.array([self.convert_stimuli_to_int(m) for m in self.memory_sequence])}
     
     def get_matched_stimuli(self):

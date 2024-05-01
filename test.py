@@ -120,21 +120,21 @@ from utils import load_dict
 
 
 """ vary param for noise injection """
-seq_len = [4,8,12,16]
+# seq_len = [4,8,12,16]
 
-setup_dir = Path("./experiments/RL/Noise/NBack0/setups")
-setup_file = setup_dir / "setup.json"
-setup = load_dict(setup_file)
+# setup_dir = Path("./experiments/RL/Noise/NBack0/setups")
+# setup_file = setup_dir / "setup.json"
+# setup = load_dict(setup_file)
 
-for seq_len in [4, 8, 12, 16]:
-    for noise in [0, 0.2, 0.4, 0.6, 0.8, 1]:
-        setup["model"]["flush_noise"] = noise
-        setup["model"]["subclasses"][0]["capacity"] = seq_len
-        for setup_train in setup["training"]:
-            setup_train["env"]["memory_num"] = seq_len
-        setup["run_num"] = 20
-        with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
-            json.dump(setup, f, indent=4)
+# for seq_len in [4, 8, 12, 16]:
+#     for noise in [0, 0.2, 0.4, 0.6, 0.8, 1]:
+#         setup["model"]["flush_noise"] = noise
+#         setup["model"]["subclasses"][0]["capacity"] = seq_len
+#         for setup_train in setup["training"]:
+#             setup_train["env"]["memory_num"] = seq_len
+#         setup["run_num"] = 20
+#         with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
+#             json.dump(setup, f, indent=4)
 
 """ change param for n-back task """
 

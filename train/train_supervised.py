@@ -39,6 +39,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
         obs = torch.Tensor(obs_).to(device)
         # print(env.memory_sequence)
         done = np.zeros(batch_size, dtype=bool)
+        # print(obs)
 
         memory_num = 0
 
@@ -53,6 +54,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
                 agent.set_retrieval(True)
             # reset state between phases
             if info.get("reset_state", False):
+                # print("reset state before recall")
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
             # do one step of forward pass for the agent
@@ -67,6 +69,8 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
             obs_, reward, done, info = env.step(action)
             # print(obs, action, reward, info_)
             obs = torch.Tensor(obs_).to(device)
+            # print(action)
+            # print(obs, reward, info)
 
             probs.append(log_prob_action)
             rewards.append(reward)
@@ -74,6 +78,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
             actions_max.append(action_max)
             outputs.append(output)
             outputs2.append(output2)
+        # print()
         if isinstance(outputs[0], tuple):
             outputs_ts = [[] for _ in range(len(outputs[0]))]
             for output in outputs:

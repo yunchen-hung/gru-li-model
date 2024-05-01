@@ -3,7 +3,7 @@
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 256,
-        "input_dim": 22,
+        "input_dim": 18,
         "output_dim": 3,
         "use_memory": true,
         "softmax_beta": 1.0,
@@ -28,7 +28,6 @@
     "training": [{
         "env": {
             "class": "ConditionalQuestionAnswer",
-            "wrapper": "MetaLearningEnv",
             "num_features": 4,
             "feature_dim": 2,
             "sequence_len": 8,

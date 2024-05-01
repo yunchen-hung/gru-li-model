@@ -174,6 +174,7 @@ class DeepValueMemoryGRU(BasicModule):
 
         # store memory
         if self.use_memory and self.encoding:
+            # print("store memory")
             self.memory_module.encode(state)
             self.last_encoding = True
             self.current_timestep += 1
