@@ -29,7 +29,7 @@ class ValueMemory(BasicModule):
 
     def reset_memory(self):
         self.flush()
-        self.encoding = False
+        self.encoding = False   
         self.retrieving = False
 
     def flush(self):
@@ -44,6 +44,7 @@ class ValueMemory(BasicModule):
             self.values = self.values + torch.einsum("ik,ij->ikj", [index, value])
             self.to_be_replaced = (self.to_be_replaced + 1) % self.capacity
             self.stored_memory = min(self.stored_memory + 1, self.capacity)
+            # print(self.values[:, :10])
     
     def retrieve(self, query, input_weight=1.0, beta=None):
         if self.stored_memory == 0 or not self.retrieving:
@@ -65,6 +66,7 @@ class ValueMemory(BasicModule):
         self.write(similarity, "similarity")
         retrieved_memory = torch.bmm(torch.unsqueeze(similarity, dim=1), self.values).squeeze(1)
         self.write(retrieved_memory, "retrieved_memory")
+        # print(retrieved_memory[:, :10], similarity)
         return retrieved_memory, raw_similarity
 
     def get_vals(self):

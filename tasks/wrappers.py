@@ -21,7 +21,7 @@ class MetaLearningEnv(Wrapper):
             pass
         if hasattr(self.env, 'convert_action_to_observation'):
             action = self.env.convert_action_to_observation(action)
-        obs_wrapped = np.hstack([obs.reshape(-1), self.prev_action, self.prev_reward]).reshape(1, -1)
+        obs_wrapped = np.hstack([obs.reshape(-1), action, self.prev_reward]).reshape(1, -1)
         self.prev_action = action
         self.prev_reward = reward[0]
         return obs_wrapped,reward,terminated,info
@@ -33,6 +33,7 @@ class MetaLearningEnv(Wrapper):
         #     self.prev_action = self.env.convert_action_to_observation(self.prev_action)
         # self.prev_reward = 0
         obs_wrapped = np.hstack([obs.reshape(-1),self.prev_action,self.prev_reward]).reshape(1, -1)
+        self.prev_reward = 0
         return obs_wrapped,info 
 
 

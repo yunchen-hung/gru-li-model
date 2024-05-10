@@ -95,7 +95,7 @@ class EncodingCrossEntropyLoss(nn.Module):
         self.phase = phase
         self.class_weights = torch.ones(class_num)
         self.class_weights[-1] = no_action_weight
-        self.class_weights[-2] = no_action_weight
+        # self.class_weights[-2] = no_action_weight
     
     def forward(self, output, gt, memory_num):
         if self.phase == 'encoding':

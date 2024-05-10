@@ -9,8 +9,9 @@ from .base import BaseEMTask
 
 class ConditionalQuestionAnswer(BaseEMTask):
     def __init__(self, num_features=4, feature_dim=2, sequence_len=8, retrieve_time_limit=None, 
-                 correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, early_stop_reward=-8.0,
-                 include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False):
+                 correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, cumulated_gt=False,
+                 include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False,
+                 no_early_stop=False):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -45,12 +46,12 @@ class ConditionalQuestionAnswer(BaseEMTask):
         self.retrieve_time_limit = retrieve_time_limit if retrieve_time_limit is not None else sequence_len
         self.include_question_during_encode = include_question_during_encode
         self.one_hot_stimuli = one_hot_stimuli
-        self.vocabulary_num = feature_dim ** num_features
+        self.cumulated_gt = cumulated_gt
+        self.no_early_stop = no_early_stop
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
         self.no_action_reward = no_action_reward
-        self.early_stop_reward = early_stop_reward
 
         self.question_space_dim = num_features
 
@@ -75,13 +76,21 @@ class ConditionalQuestionAnswer(BaseEMTask):
         """
         # generate a random sequence of stimuli from all_stimuli without replacement
         # memory_sequence: sequence_len * num_features, features represented as int
-        self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)]
-        feature = np.random.choice(self.num_features, 2, replace=False)
-        # the feature in the condition, the feature to be summed up
-        self.question_feature, self.sum_feature = feature[0], feature[1]
-        self.question_value = np.random.choice(self.feature_dim)
+        # self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)]
+        self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=True)]
+        iter_num = 0
+        while True:
+            feature = np.random.choice(self.num_features, 2, replace=False)
+            # the feature in the condition, the feature to be summed up
+            self.question_feature, self.sum_feature = feature[0], feature[1]
+            self.question_value = np.random.choice(self.feature_dim)
+            iter_num += 1
+            if np.sum(self.memory_sequence[:, self.question_feature] == self.question_value) > 0 or iter_num>10:
+                break
 
+        self.gt_by_timestep = np.zeros(self.sequence_len)
         cnt = 0
+        self.answer = 0
         for i in range(self.sequence_len):
             if self.memory_sequence[i, self.question_feature] == self.question_value:
                 if cnt == 0:
@@ -89,10 +98,13 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 else:
                     self.answer = np.logical_xor(self.answer, self.memory_sequence[i, self.sum_feature])
                 cnt += 1
+            self.gt_by_timestep[i] = self.answer
         if cnt == 0:
             self.answer = 0
-        self.answer = int(self.answer)
+        else:
+            self.answer = int(self.answer)
         self.cnt = cnt
+        self.gt_by_timestep = self.gt_by_timestep.astype(int)
 
         # self.answer = np.logical_xor(self.memory_sequence[
         #     self.memory_sequence[:, self.question_feature] == self.question_value, self.sum_feature])
@@ -135,15 +147,17 @@ class ConditionalQuestionAnswer(BaseEMTask):
                                              include_question=True)
             info = {"phase": "recall"}
 
-            if action == self.answer:
-                reward = self.correct_reward
-            elif action == self.action_space.n - 1:
+            if action == self.action_space.n - 1 or (self.no_early_stop and self.timestep < self.retrieve_time_limit):
                 # not action
                 reward = self.no_action_reward
+            elif self.answer is None:
+                reward = self.correct_reward / self.feature_dim
+            elif action == self.answer:
+                reward = self.correct_reward
             else:
                 reward = self.wrong_reward
 
-            if action != self.action_space.n - 1 or self.timestep >= self.retrieve_time_limit:
+            if (not self.no_early_stop and action != self.action_space.n - 1) or self.timestep >= self.retrieve_time_limit:
                 done = True
             else:
                 done = False
@@ -168,6 +182,8 @@ class ConditionalQuestionAnswer(BaseEMTask):
         if actions[-1] == self.action_space.n - 1:
             # didn't answer at the end
             no_actions += 1
+        elif self.answer is None:
+            correct_actions += 1
         elif actions[-1] == self.answer:
             correct_actions += 1
         else:
@@ -179,22 +195,43 @@ class ConditionalQuestionAnswer(BaseEMTask):
         """
         get expected actions of a trial
         """
-        if phase == 'encoding':
-            if self.include_question_during_encode:
-                gt = np.array([self.action_space.n-1]*(self.sequence_len-1)+[self.answer])
+        answer = self.answer if self.answer is not None else np.random.choice(self.feature_dim)
+
+        if self.include_question_during_encode:
+            if self.cumulated_gt:
+                gt_enc = self.gt_by_timestep
             else:
-                gt = np.array([self.action_space.n-1]*self.sequence_len)
+                gt_enc = np.array([self.memory_sequence[i, self.sum_feature] if self.memory_sequence[i, self.question_feature] == self.question_value \
+                    else self.action_space.n-1 for i in range(self.sequence_len)])
+        else:
+            gt_enc = np.array([self.action_space.n-1]*(self.sequence_len))
+
+        gt_rec = np.array([self.action_space.n-1]*(self.retrieve_time_limit-1)+[answer])
+
+        gt = np.concatenate((gt_enc, gt_rec))
+
+        if phase == 'encoding':
+            mask = np.concatenate((np.ones(self.sequence_len), np.zeros(self.retrieve_time_limit))).astype(int)
         elif phase == 'recall':
-            gt = np.array([self.action_space.n-1]*(self.sequence_len-1)+[self.answer])
-        gt = gt.reshape(1, -1)
-        return gt
+            mask = np.concatenate((np.zeros(self.sequence_len), np.ones(self.retrieve_time_limit))).astype(int)
+        elif phase == 'last':
+            mask = np.concatenate((np.zeros(self.sequence_len+self.retrieve_time_limit-1), np.ones(1))).astype(int)
+        else:
+            mask = np.ones(self.sequence_len*2).astype(int)
+
+        # print(gt, mask)
+
+        return gt.reshape(1, -1), mask.reshape(1, -1)
 
     def get_trial_data(self):
         """
         get trial data, including memory sequence, question type, question value, and correct answers
         """
+        num_matched_stimuli, correct_answers_index = self.get_matched_stimuli()
         return {"memory_sequence": self.memory_sequence, "question_feature": self.question_feature, 
-                "question_value": self.question_value, "correct_answer": self.answer,
+                "question_value": self.question_value, "sum_feature": self.sum_feature,
+                "correct_answer": self.answer,
+                "num_matched_stimuli": num_matched_stimuli, "matched_stimuli_index": correct_answers_index,
                 "memory_sequence_int": np.array([self.convert_stimuli_to_int(m) for m in self.memory_sequence])}
     
     def get_matched_stimuli(self):

@@ -1,3 +1,5 @@
+# squeue -u <username> -h -t pending,running -r -O "state" | uniq -c
+
 # srun --time=10:00:00 --mem=16000 --cpus-per-task=1 python -u main.py --exp CondEM --setup setup_recallquestion.json
 # python run_cluster.py --exp CondEM --setup setup_recallquestion_pretrain.json -train --time 16
 # srun --time=2:00:00 --mem=16000 --cpus-per-task=1 python -u main.py --exp CondEM --setup setup_recallquestion.json
@@ -12,18 +14,27 @@
 
 
 # noise=('0' '02' '04' '06' '08' '1')
+# # noise=('0' '1')
 # seqlen=('4' '8' '12' '16')
 
 # for s in "${seqlen[@]}"
 # do
 #     for n in "${noise[@]}"
 #     do
-#         python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 10
+#         python run_cluster.py --exp RL.Noise.NBack0 --setup setup_seq${s}_noise${n}.json --time 10 -train
 #     done
 # done
 
-python run_cluster.py --exp CondQA --setup setup_encq.json --time 15 -train
-python run_cluster.py --exp CondQA --setup setup_recq.json --time 15 -train
+# for s in "${seqlen[@]}"
+# do
+#     for n in "${noise[@]}"
+#     do
+#         python run_cluster.py --exp RL.Noise.Gamma09 --setup setup_seq${s}_noise${n}.json --time 10
+#     done
+# done
+
+# python run_cluster.py --exp CondQA --setup setup_encq.json --time 15 -train
+# python run_cluster.py --exp CondQA --setup setup_recq.json --time 15 -train
 
 # python run_cluster.py --exp CondEM --setup setup_encq_pretrain_gamma09.json --time 15 -train
 # python run_cluster.py --exp CondEM --setup setup_encq_pretrain.json --time 15 -train
@@ -48,3 +59,18 @@ python run_cluster.py --exp CondQA --setup setup_recq.json --time 15 -train
 #   fi
 # done
 
+
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_nomem.json -train --time 10
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_recq_last.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_onestep.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_pretrain.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_recq_last_pretrain.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_recq.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encphase_last_nomem.json -train --time 10
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_nomem_onestep.json -train --time 10
+
+python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_largelr.json -train --time 15
+python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_pretrain_nocum.json -train --time 15
+python run_cluster.py --exp CondQA.Sup --setup setup_recq_last_pretrain_nocum.json -train --time 15

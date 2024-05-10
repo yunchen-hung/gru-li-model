@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
 from tasks import ConditionalEMRecall, MetaLearningEnv, ConditionalQuestionAnswer
+from analysis.behavior.temporal_factor import TemporalFactor
 
 from utils import load_dict
 
@@ -47,57 +48,81 @@ from utils import load_dict
 # plt.tight_layout()
 # plt.savefig("acc_forw_asym.png")
 
+""" temporal factor tests """
+# seqlen = 16
+# tf = TemporalFactor()
+# results = []
+# for i in range(10):
+#     memory_context = np.arange(1, seqlen+1).reshape(1, -1)
+#     # actions = np.random.permutation(np.arange(1, seqlen+1)).reshape(1, -1)
+#     actions = np.array([1, 16, 2, 15, 3, 14, 4, 13, 5, 12, 6, 11, 7, 10, 8, 9]).reshape(1, -1)
+#     # actions = np.arange(1, seqlen+1).reshape(1, -1)
+#     # print(actions)
+#     result = np.mean(tf.fit(memory_context, actions))
+#     results.append(result)
+# print(np.mean(results))
+
+
 """ Conditional Question Answer tests """
-env = ConditionalQuestionAnswer(num_features=3, feature_dim=2, sequence_len=5)
-env = MetaLearningEnv(env)
+# seqlen = 3
+# env = ConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=seqlen, 
+#     include_question_during_encode=True)
+# env = MetaLearningEnv(env)
 
 # obs, info = env.reset()
-# for i in range(8):
-#     obs, reward, terminated, info = env.step(0)
+# env.render()
+# print(obs)
+# for i in range(seqlen):
+#     action = 0
+#     obs, reward, terminated, info = env.step(action)
+#     print(action)
 #     print(obs, reward, terminated, info)
-# actions = [env.action_space.n-1]*6 + [0]
-# print(actions)
-# print(env.answer)
+# actions = [env.action_space.n-1]*(seqlen-1) + [0]
 # cnt = 0
 # while not terminated:
 #     action = actions[cnt]
 #     cnt += 1
 #     obs, reward, terminated, info = env.step(action)
+#     print(action)
 #     print(obs, reward, terminated, info)
 # print()
 
 # obs, info = env.reset()
-# for i in range(8):
-#     obs, reward, terminated, info = env.step(0)
+# env.render()
+# print(obs)
+# for i in range(seqlen):
+#     action = 0
+#     obs, reward, terminated, info = env.step(action)
+#     print(action)
 #     print(obs, reward, terminated, info)
-# actions = [env.action_space.n-1]*6 + [0]
-# print(actions)
-# print(env.answer)
+# actions = [env.action_space.n-1]*(seqlen-1) + [0]
 # cnt = 0
 # while not terminated:
 #     action = actions[cnt]
 #     cnt += 1
 #     obs, reward, terminated, info = env.step(action)
+#     print(action)
 #     print(obs, reward, terminated, info)
 
-answer = np.zeros(2)
-# prev_answer = np.zeros(2)
-cnts = np.zeros(6)
-for i in range(10000):
-    env.reset()
-    answer[env.answer] += 1
-    # if np.array_equal(env.answer, prev_answer):
-    #     print(env.answer)
-    # prev_answer = env.answer
-    cnts[env.cnt] += 1
-print(answer)
-print(cnts)
+# answer = np.zeros(2)
+# # prev_answer = np.zeros(2)
+# cnts = np.zeros(seqlen+1)
+# for i in range(10000):
+#     env.reset()
+#     if env.answer is not None:
+#         answer[env.answer] += 1
+#     # if np.array_equal(env.answer, prev_answer):
+#     #     print(env.answer)
+#     # prev_answer = env.answer
+#     cnts[env.cnt] += 1
+# print(answer)
+# print(cnts)
 
 
 """ vary param for noise injection """
 # seq_len = [4,8,12,16]
 
-# setup_dir = Path("./experiments/RL/Noise/NBack/setups".format(seq_len))
+# setup_dir = Path("./experiments/RL/Noise/NBack0/setups")
 # setup_file = setup_dir / "setup.json"
 # setup = load_dict(setup_file)
 
@@ -107,6 +132,7 @@ print(cnts)
 #         setup["model"]["subclasses"][0]["capacity"] = seq_len
 #         for setup_train in setup["training"]:
 #             setup_train["env"]["memory_num"] = seq_len
+#         setup["run_num"] = 20
 #         with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
 #             json.dump(setup, f, indent=4)
 

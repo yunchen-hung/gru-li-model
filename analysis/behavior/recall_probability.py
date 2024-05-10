@@ -51,7 +51,7 @@ class RecallProbability:
         if timesteps is None:
             timesteps = range(self.memory_num)      # plot at each time step
         for t in timesteps:
-            plt.figure(figsize=(5, 4.2), dpi=180)
+            plt.figure(figsize=(4, 3.3), dpi=180)
             if t != 0:
                 plt.scatter(np.arange(1, t+1), self.results[t][:t], c='b', zorder=2)
                 plt.plot(np.arange(1, t+1), self.results[t][:t], c='k', zorder=1)
@@ -72,14 +72,14 @@ class RecallProbability:
 
     def visualize_all_time(self, save_path, title="", format="png"):
         # plot of all time
-        plt.figure(figsize=(5, 4.2), dpi=180)
+        plt.figure(figsize=(4, 3.3), dpi=180)
         plt.scatter(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='b', zorder=2)
         plt.plot(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='k', zorder=1)
         plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='b', zorder=2)
         plt.plot(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='k', zorder=1)
         plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
         plt.xlabel("item position")
-        plt.ylabel("conditional recall probability")
+        plt.ylabel("conditional\nrecall probability")
         # title = title if title else "conditional recall probability"
         # plt.title(title)
 
@@ -92,7 +92,7 @@ class RecallProbability:
 
     def visualize_mat(self, save_path, format="png"):
         # plot of matrix
-        plt.figure(figsize=(5, 4.2), dpi=180)
+        plt.figure(figsize=(4, 3.3), dpi=180)
         plt.imshow(self.results, cmap="Blues")
         plt.colorbar()
         plt.xlabel("item position")
@@ -166,7 +166,7 @@ class RecallProbabilityInTime:
 
     def visualize(self, save_path, timesteps=[0], save_name="output_probability", format="png"):
         for t in timesteps:
-            plt.figure(figsize=(5, 4.2), dpi=180)
+            plt.figure(figsize=(4, 3.3), dpi=180)
             plt.scatter(np.arange(1, self.memory_num+1), self.results[t], c='b', zorder=2)
             plt.plot(np.arange(1, self.memory_num+1), self.results[t], c='k', zorder=1)
             plt.xlabel("item position")
@@ -178,7 +178,7 @@ class RecallProbabilityInTime:
     def visualize_mat(self, save_path, save_name="output_probability_by_time_mat", title="output_probability_by_time", format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(5, 4.2), dpi=180)
+        plt.figure(figsize=(4, 3.3), dpi=180)
         plt.imshow(self.results, cmap="Blues")
         plt.colorbar(label="recall probability")
         plt.xlabel("item position in sequence")
