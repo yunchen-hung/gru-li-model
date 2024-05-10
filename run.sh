@@ -13,17 +13,17 @@
 # python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --exp_file cogsci
 
 
-noise=('0' '02' '04' '06' '08' '1')
-# noise=('0' '1')
-seqlen=('4' '8' '12' '16')
+# noise=('0' '02' '04' '06' '08' '1')
+# # noise=('0' '1')
+# seqlen=('4' '8' '12' '16')
 
-for s in "${seqlen[@]}"
-do
-    for n in "${noise[@]}"
-    do
-        python run_cluster.py --exp RL.Noise.NBack0 --setup setup_seq${s}_noise${n}.json --time 10 -train
-    done
-done
+# for s in "${seqlen[@]}"
+# do
+#     for n in "${noise[@]}"
+#     do
+#         python run_cluster.py --exp RL.Noise.NBack0 --setup setup_seq${s}_noise${n}.json --time 10 -train
+#     done
+# done
 
 # for s in "${seqlen[@]}"
 # do
@@ -59,3 +59,18 @@ done
 #   fi
 # done
 
+
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_nomem.json -train --time 10
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_recq_last.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_onestep.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_pretrain.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_recq_last_pretrain.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_recq.json -train --time 15
+# python run_cluster.py --exp CondQA.Sup --setup setup_encphase_last_nomem.json -train --time 10
+# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_nomem_onestep.json -train --time 10
+
+python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_largelr.json -train --time 15
+python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_pretrain_nocum.json -train --time 15
+python run_cluster.py --exp CondQA.Sup --setup setup_recq_last_pretrain_nocum.json -train --time 15

@@ -34,8 +34,9 @@ class ItemIdentityDecoder:
                     continue
                 
                 gt = gts[j][mask[j]]
+                # print(j, mask.shape, data_i.shape)
                 data = data_i[mask[j]]
-                # print(i, j, mask[j].shape, gt.shape, data.shape, mask[j])
+                # print(i, j, data_i.shape,data.shape, mask[j])
                 kf = KFold(n_splits=self.n_splits, shuffle=True)
                 decode_accuracy = 0.0
                 for train_index, test_index in kf.split(data):
@@ -50,10 +51,11 @@ class ItemIdentityDecoder:
         self.results = np.array(results)
         return results
 
-    def visualize(self, save_path, format="png"):
+    def visualize(self, save_path, figsize=None, format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(1.0 * self.results.shape[0], 4.2), dpi=180)
+        figsize = figsize if figsize is not None else (1.0 * self.results.shape[0], 4.2)
+        plt.figure(figsize=figsize, dpi=180)
         for i, result in enumerate(self.results):
             plt.plot(np.arange(1, self.results.shape[1]+1), result, label="timestep {}".format(i+1))
         plt.legend()
@@ -70,10 +72,13 @@ class ItemIdentityDecoder:
         if save_path is not None:
             savefig(save_path, "svm_accuracy", format=format)
 
-    def visualize_by_memory(self, save_path, save_name="item_identity_decoding", title=None, xlabel="timesteps", colormap_label="timesteps", format="png"):
+    def visualize_by_memory(self, save_path, save_name="item_identity_decoding", title=None, 
+                            xlabel="timesteps", colormap_label="timesteps", figsize=None,
+                            format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        plt.figure(figsize=(0.6 * self.results.shape[1], 3.3), dpi=180)
+        figsize = figsize if figsize is not None else (0.6 * self.results.shape[1], 3.3)
+        plt.figure(figsize=figsize, dpi=180)
         n_steps = self.results.shape[0]
         colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]

@@ -206,18 +206,20 @@ class ConditionalQuestionAnswer(BaseEMTask):
         else:
             gt_enc = np.array([self.action_space.n-1]*(self.sequence_len))
 
-        gt_rec = np.array([self.action_space.n-1]*(self.sequence_len-1)+[answer])
+        gt_rec = np.array([self.action_space.n-1]*(self.retrieve_time_limit-1)+[answer])
 
         gt = np.concatenate((gt_enc, gt_rec))
 
         if phase == 'encoding':
-            mask = np.concatenate((np.ones(self.sequence_len), np.zeros(self.sequence_len))).astype(int)
+            mask = np.concatenate((np.ones(self.sequence_len), np.zeros(self.retrieve_time_limit))).astype(int)
         elif phase == 'recall':
-            mask = np.concatenate((np.zeros(self.sequence_len), np.ones(self.sequence_len))).astype(int)
+            mask = np.concatenate((np.zeros(self.sequence_len), np.ones(self.retrieve_time_limit))).astype(int)
         elif phase == 'last':
-            mask = np.concatenate((np.zeros(self.sequence_len*2-1), np.ones(1))).astype(int)
+            mask = np.concatenate((np.zeros(self.sequence_len+self.retrieve_time_limit-1), np.ones(1))).astype(int)
         else:
             mask = np.ones(self.sequence_len*2).astype(int)
+
+        # print(gt, mask)
 
         return gt.reshape(1, -1), mask.reshape(1, -1)
 

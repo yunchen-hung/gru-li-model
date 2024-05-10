@@ -2,7 +2,7 @@
     "run_num": 3,
     "model": {
         "class": "DeepValueMemoryGRU",
-        "hidden_dim": 128,
+        "hidden_dim": 256,
         "input_dim": 18,
         "output_dim": 3,
         "use_memory": true,
@@ -12,8 +12,8 @@
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 128,
-            "capacity": 4,
+            "value_dim": 256,
+            "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -30,7 +30,7 @@
             "class": "ConditionalQuestionAnswer",
             "num_features": 4,
             "feature_dim": 2,
-            "sequence_len": 4,
+            "sequence_len": 8,
             "reset_state_before_test": true,
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
@@ -39,23 +39,24 @@
             "no_early_stop": true
         },
         "trainer": {
-            "num_iter": 3e6,
+            "num_iter": 200000,
             "test": false,
-            "test_iter": 10000,
-            "save_iter": 20000,
+            "test_iter": 1000,
+            "save_iter": 2000,
             "stop_test_accu": 0.98,
             "use_memory": true,
-            "phase": "last",
+            "phase": "recall",
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
-                "class_num": 3
+                "class_num": 3,
+                "no_action_weight": 0.1
             },
             "optimizer": {
                 "class": "Adam",
                 "lr": 1e-4,
                 "weight_decay": 1e-5,
                 "lr_decay_factor": 0.1,
-                "lr_decay_patience": 5,
+                "lr_decay_patience": 10,
                 "lr_decay_threshold": 1e-4,
                 "min_lr": 1e-7
             }

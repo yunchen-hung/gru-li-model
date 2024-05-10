@@ -35,7 +35,7 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": false,
+            "include_question_during_encode": true,
             "no_early_stop": true
         },
         "trainer": {
@@ -46,6 +46,8 @@
             "stop_test_accu": 0.98,
             "use_memory": true,
             "phase": "last",
+            "memory_entropy_reg": true,
+            "memory_reg_weight": 0.1,
             "criterion": {
                 "class": "EncodingCrossEntropyLoss",
                 "class_num": 3

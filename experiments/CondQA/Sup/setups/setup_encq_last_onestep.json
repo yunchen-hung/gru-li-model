@@ -35,8 +35,9 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": false,
-            "no_early_stop": true
+            "include_question_during_encode": true,
+            "no_early_stop": true,
+            "retrieve_time_limit": 1
         },
         "trainer": {
             "num_iter": 3e6,
