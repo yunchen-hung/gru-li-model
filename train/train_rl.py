@@ -11,7 +11,7 @@ from torch.nn.functional import mse_loss
 def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion=None, test=False, stop_test_accu=1.0, model_save_path=None, device='cpu',
     num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, step_iter=1, batch_size=1, use_memory=None,
     mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, 
-    randomly_flush_state=False, flush_state_prob=1.0, use_memory_together_with_flush=False, 
+    randomly_flush_state=False, flush_state_prob=1.0, use_memory_together_with_flush=False, reset_memory=True,
     memory_entropy_reg=False, memory_reg_weight=0.0, sl_criterion_weight=1.0):
     """
     Train the model with RL
@@ -56,7 +56,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         # 1. reset initial state
         # 2. reset memory module
         state = agent.init_state(batch_size)
-        agent.reset_memory()
+        agent.reset_memory(flush=reset_memory)
 
         # create variables to store data related to outputs and results
         actions, probs, rewards, values, entropys, actions_max, outputs, mem_similarities, mem_sim_entropys = \

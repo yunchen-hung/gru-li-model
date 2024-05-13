@@ -11,7 +11,7 @@ from torch.nn.functional import mse_loss
 def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion=None, 
     num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
     device='cpu', model_save_path=None, use_memory=None, min_iter=0, batch_size=1, phase="encoding",
-    memory_entropy_reg=False, memory_reg_weight=0.0, ):
+    memory_entropy_reg=False, memory_reg_weight=0.0, reset_memory=True):
 
     num_iter, test_iter, save_iter = int(num_iter), int(test_iter), int(save_iter)
     
@@ -32,7 +32,7 @@ def supervised_train_model(agent, env, optimizer, scheduler, setup, criterion, s
 
     for i in range(num_iter):
         state = agent.init_state(batch_size)
-        agent.reset_memory()
+        agent.reset_memory(flush=reset_memory)
         agent.set_encoding(False)
         agent.set_retrieval(False)
 

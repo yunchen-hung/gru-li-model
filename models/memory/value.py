@@ -27,8 +27,11 @@ class ValueMemory(BasicModule):
         self.recall_method = recall_method
         self.batch_size = batch_size
 
-    def reset_memory(self):
-        self.flush()
+    def reset_memory(self, flush=True):
+        if flush:
+            self.flush()
+        else:
+            self.values.detach_()
         self.encoding = False   
         self.retrieving = False
 

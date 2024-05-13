@@ -224,8 +224,8 @@ class ValueMemoryGRU(BasicModule):
         self.retrieving = status
         self.memory_module.retrieving = status
 
-    def reset_memory(self):
+    def reset_memory(self, flush=True):
         """
         reset memory of the memory module of the model
         """
-        self.memory_module.reset_memory()
+        self.memory_module.reset_memory(flush=True)
