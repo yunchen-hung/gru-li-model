@@ -7,6 +7,9 @@ from utils import savefig
 
 
 class ItemIndexDecoder:
+    """
+    decode the item index from data of all timesteps, and compute the accuracy for each timestep
+    """
     def __init__(self, decoder=svm.SVC(decision_function_shape='ovo'), n_splits=5):
         self.n_splits = n_splits
         self.decoder = decoder
