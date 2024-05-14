@@ -228,4 +228,4 @@ class ValueMemoryGRU(BasicModule):
         """
         reset memory of the memory module of the model
         """
-        self.memory_module.reset_memory(flush=True)
+        self.memory_module.reset_memory(flush=flush)

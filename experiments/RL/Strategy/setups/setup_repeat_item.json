@@ -17,7 +17,7 @@
                 "name": "memory_module",
                 "class": "ValueMemory",
                 "value_dim": 128,
-                "capacity": 10,
+                "capacity": 8,
                 "recall_method": "weight_sum",
                 "subclasses": [
                     {
@@ -33,7 +33,7 @@
     "training": [
         {
             "env": {
-                "class": "FreeRecall",
+                "class": "FreeRecallRepeat",
                 "vocabulary_num": 50,
                 "memory_num": 8,
                 "return_action": true,
@@ -47,7 +47,6 @@
                 "save_iter": 2000,
                 "stop_test_accu": 0.99,
                 "use_memory": true,
-                "reset_memory": false,
                 "criterion": {
                     "class": "EncodingCrossEntropyLoss",
                     "class_num": 51
@@ -65,7 +64,7 @@
         },
         {
             "env": {
-                "class": "FreeRecall",
+                "class": "FreeRecallRepeat",
                 "vocabulary_num": 50,
                 "memory_num": 8,
                 "return_action": true,
@@ -82,7 +81,6 @@
                 "test_iter": 1000,
                 "save_iter": 2000,
                 "use_memory": true,
-                "reset_memory": false,
                 "stop_test_accu": 0.99,
                 "memory_entropy_reg": true,
                 "memory_reg_weight": 0.1,

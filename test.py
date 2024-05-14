@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
-from tasks import ConditionalEMRecall, MetaLearningEnv, ConditionalQuestionAnswer
+from tasks import ConditionalEMRecall, MetaLearningEnv, ConditionalQuestionAnswer, FreeRecallRepeat, FreeRecall
 from analysis.behavior.temporal_factor import TemporalFactor
 
 from utils import load_dict
@@ -157,4 +157,23 @@ from utils import load_dict
 #     }
 #     with open(setup_dir / file, "w") as f:
 #         json.dump(setup, f, indent=4)
+
+
+""" test repeat free recall task """
+env = FreeRecallRepeat()
+# print(env.memory_sequence)
+obs, info = env.reset()
+memory_seq = env.memory_sequence
+print(memory_seq)
+done = False
+cnt = 0
+while not done:
+    if cnt < env.memory_num:
+        action = torch.tensor([memory_seq[0, cnt]])
+    else:
+        action = torch.tensor([memory_seq[0, cnt-5]])
+    obs, reward, done, info = env.step(action)
+    print(action)
+    print(obs, reward, done, info)
+    cnt += 1
 
