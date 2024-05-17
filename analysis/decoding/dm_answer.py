@@ -26,6 +26,7 @@ class DMAnserDecoder:
         return: decoding accuracy of each timestep of data, (time)
         """
         results = []
+        gt = np.array(gt)
         if mask is None:
             mask = np.ones_like(gt, dtype=bool)
         for i in range(all_data.shape[0]):
@@ -33,7 +34,7 @@ class DMAnserDecoder:
   
             # print(j, mask.shape, data_i.shape)
             data = data_i[mask]
-            # print(i, j, data_i.shape,data.shape, mask[j])
+            # print(i, data_i.shape,data.shape, mask)
             kf = KFold(n_splits=self.n_splits, shuffle=True)
             decode_accuracy = 0.0
             for train_index, test_index in kf.split(data):
