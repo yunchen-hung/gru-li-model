@@ -10,7 +10,7 @@ from .base import BaseEMTask
 class ConditionalEMRecall(BaseEMTask):
     def __init__(self, num_features=2, feature_dim=5, sequence_len=8, retrieve_time_limit=None, 
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, early_stop_reward=-8.0,
-                 include_question_during_encode=False, reset_state_before_test=True, 
+                 include_question_during_encode=False, reset_state_before_test=True, no_early_stop=False,
                  question_space=("choice", "max", "min"), has_question=True, one_hot_stimuli=False):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
@@ -50,6 +50,7 @@ class ConditionalEMRecall(BaseEMTask):
         self.include_question_during_encode = include_question_during_encode
         self.has_question = has_question
         self.one_hot_stimuli = one_hot_stimuli
+        self.no_early_stop = no_early_stop
         self.vocabulary_num = feature_dim ** num_features
 
         self.correct_reward = correct_reward
@@ -159,17 +160,18 @@ class ConditionalEMRecall(BaseEMTask):
             converted_action = self.convert_action_to_stimuli(action)
             action_correct = self._check_action(converted_action)
 
-            if action_correct or converted_action[0] == "stop" and self.correct_answer_num == self.num_answers:
+            if action_correct or (not self.no_early_stop and converted_action[0] == "stop" and self.correct_answer_num == self.num_answers):
                 reward = self.correct_reward
                 self.correct_answer_num += 1
-            elif converted_action[0] == "no_action":
+            elif converted_action[0] == "no_action" or (self.no_early_stop and converted_action[0] == "stop" 
+                                                        and self.correct_answer_num == self.num_answers):
                 reward = self.no_action_reward
             elif converted_action[0] == "stop":
                 reward = self.early_stop_reward
             else:
                 reward = self.wrong_reward
 
-            if converted_action[0] == "stop" or self.timestep >= self.retrieve_time_limit:
+            if (not self.no_early_stop and converted_action[0] == "stop") or self.timestep >= self.retrieve_time_limit:
                 done = True
             else:
                 done = False
@@ -223,17 +225,27 @@ class ConditionalEMRecall(BaseEMTask):
         """
         get expected actions of a trial
         """
+        if self.include_question_during_encode:
+            gt_enc = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) \
+                                if i in self.correct_answers_index else self.action_space.n - 2 \
+                                    for i in range(self.sequence_len)])
+        else:
+            gt_enc = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in range(self.sequence_len)])
+        gt_rec = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) \
+                            if i in self.correct_answers_index else self.action_space.n - 2 \
+                                for i in range(self.sequence_len)])
+        gt = np.concatenate([gt_enc, gt_rec])
+
         if phase == 'encoding':
-            if self.include_question_during_encode:
-                gt = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) \
-                                 if i in self.correct_answers_index else self.action_space.n - 2 \
-                                      for i in range(self.sequence_len)])
-            else:
-                gt = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in range(self.sequence_len)])
+            mask = np.array([1 if i < self.sequence_len else 0 for i in range(self.sequence_len*2)])
         elif phase == 'recall':
-            gt = np.array([self.convert_stimuli_to_action(self.memory_sequence[i]) for i in self.correct_answers_index])
-        gt = gt.reshape(1, -1)
-        return gt
+            mask = np.array([1 if i >= self.sequence_len else 0 for i in range(self.sequence_len*2)])
+        else:
+            mask = np.ones(self.sequence_len*2)
+
+        # print(gt.shape, mask.shape)
+
+        return gt.reshape(1, -1), mask.reshape(1, -1)
 
     def get_trial_data(self):
         """
