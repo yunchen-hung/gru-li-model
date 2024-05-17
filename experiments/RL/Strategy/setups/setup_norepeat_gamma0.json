@@ -32,7 +32,7 @@
     "training": [
         {
             "env": {
-                "class": "FreeRecallRepeat",
+                "class": "FreeRecall",
                 "vocabulary_num": 50,
                 "memory_num": 8,
                 "return_action": true,
@@ -63,7 +63,7 @@
         },
         {
             "env": {
-                "class": "FreeRecallRepeat",
+                "class": "FreeRecall",
                 "vocabulary_num": 50,
                 "memory_num": 8,
                 "return_action": true,
