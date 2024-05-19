@@ -5,17 +5,20 @@ import torch.nn as nn
 from ..utils import load_act_fn, softmax
 from ..base_module import BasicModule
 from ..memory import ValueMemory
+from ..module.encoders import MLPEncoder
+from ..module.decoders import ActorCriticMLPDecoder
 
 
 class DeepValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
-    init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
-    start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
-    two_output=False, layer_norm=False, device: str = 'cpu'):
+            init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
+            start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
+            two_output=False, layer_norm=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
         self.memory_module = memory_module      # memory module of the model, pre-instantiated
+
         self.use_memory = use_memory            # if false, do not use memory module in the forward pass
         self.two_output = two_output            # if true, output two decisions in the forward pass
 
@@ -42,18 +45,21 @@ class DeepValueMemoryGRU(BasicModule):
 
         fc_hidden_dim = int(hidden_dim/4)
 
-        self.fc_input1 = nn.Linear(input_dim, fc_hidden_dim)
-        self.fc_input2 = nn.Linear(fc_hidden_dim, hidden_dim)
-        self.fc_input3 = nn.Linear(hidden_dim, 3 * hidden_dim)
+        # self.fc_input1 = nn.Linear(input_dim, fc_hidden_dim)
+        # self.fc_input2 = nn.Linear(fc_hidden_dim, hidden_dim)
+        # self.fc_input3 = nn.Linear(hidden_dim, 3 * hidden_dim)
         # self.fc_memory = nn.Linear(hidden_dim, 3 * hidden_dim)
+        self.encoder = MLPEncoder(input_dim, 3 * hidden_dim, hidden_dims=[fc_hidden_dim, hidden_dim])
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
-        self.fc_output = nn.Linear(hidden_dim, fc_hidden_dim)
-        self.fc_decision = nn.Linear(fc_hidden_dim, output_dim)
-        self.fc_critic = nn.Linear(fc_hidden_dim, 1)
+        self.decoder = ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim])
+        # self.fc_output = nn.Linear(hidden_dim, fc_hidden_dim)
+        # self.fc_decision = nn.Linear(fc_hidden_dim, output_dim)
+        # self.fc_critic = nn.Linear(fc_hidden_dim, 1)
         if self.two_output:
-            self.fc_output2 = nn.Linear(hidden_dim, fc_hidden_dim)
-            self.fc_decision2 = nn.Linear(fc_hidden_dim, output_dim)
-            self.fc_critic2 = nn.Linear(fc_hidden_dim, 1)
+            self.decoder2 = ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim])
+            # self.fc_output2 = nn.Linear(hidden_dim, fc_hidden_dim)
+            # self.fc_decision2 = nn.Linear(fc_hidden_dim, output_dim)
+            # self.fc_critic2 = nn.Linear(fc_hidden_dim, 1)
 
         self.ln_i2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
         self.ln_h2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
@@ -181,29 +187,42 @@ class DeepValueMemoryGRU(BasicModule):
             if self.current_timestep == self.start_recall_with_ith_item_init:
                 self.ith_item_state = state.detach().clone()
 
-        output_state = self.fc_output(state)
+        # output_state = self.fc_output(state)
 
-        # compute output decision(s)
+        # # compute output decision(s)
+        # beta = self.softmax_beta if beta is None else beta
+        # decision = softmax(self.fc_decision(output_state), beta)
+        # self.write(decision, 'decision')
+        # value = self.fc_critic(output_state)
+        # if self.two_output:
+        #     output_state2 = self.fc_output2(state)
+        #     decision2 = softmax(self.fc_decision2(output_state2), beta)
+        #     value2 = self.fc_critic2(output_state2)
+        # else:
+        #     decision2 = None
+        #     value2 = None
+
+        decicion, value = self.decoder(state)
         beta = self.softmax_beta if beta is None else beta
-        decision = softmax(self.fc_decision(output_state), beta)
-        self.write(decision, 'decision')
-        value = self.fc_critic(output_state)
+        decision = softmax(decicion, beta)
+        self.write(decicion, 'decision')
+
         if self.two_output:
-            output_state2 = self.fc_output2(state)
-            decision2 = softmax(self.fc_decision2(output_state2), beta)
-            value2 = self.fc_critic2(output_state2)
+            decision2, value2 = self.decoder2(state)
+            decision2 = softmax(decision2, beta)
+            self.write(decision2, 'decision2')
         else:
-            decision2 = None
-            value2 = None
+            decision2, value2 = None, None
 
         self.write(self.use_memory, 'use_memory')
         
         return decision, value, decision2, value2, state, memory_similarity
     
     def gru(self, inp, state, mem_gate=None, retrieved_memory=None):
-        gate_x = self.fc_input1(inp)
-        gate_x = self.fc_input2(gate_x)
-        gate_x = self.fc_input3(gate_x)
+        # gate_x = self.fc_input1(inp)
+        # gate_x = self.fc_input2(gate_x)
+        # gate_x = self.fc_input3(gate_x)
+        gate_x = self.encoder(inp)
         gate_h = self.fc_hidden(state)
         if self.layer_norm:
             i_r, i_i = self.ln_i2h(gate_x[:, :2*self.hidden_dim]).chunk(2, 1)
@@ -236,8 +255,8 @@ class DeepValueMemoryGRU(BasicModule):
         self.retrieving = status
         self.memory_module.retrieving = status
 
-    def reset_memory(self):
+    def reset_memory(self, flush=True):
         """
         reset memory of the memory module of the model
         """
-        self.memory_module.reset_memory()
+        self.memory_module.reset_memory(flush=flush)
