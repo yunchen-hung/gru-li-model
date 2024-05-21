@@ -10,17 +10,16 @@ from ..module.decoders import ActorCriticMLPDecoder
 
 
 class DeepValueMemoryGRU(BasicModule):
-    def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
+    def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dims: list, em_gate_type='constant',
             init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
             start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
-            two_output=False, layer_norm=False, device: str = 'cpu'):
+            layer_norm=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
         self.memory_module = memory_module      # memory module of the model, pre-instantiated
 
         self.use_memory = use_memory            # if false, do not use memory module in the forward pass
-        self.two_output = two_output            # if true, output two decisions in the forward pass
 
         self.step_for_each_timestep = step_for_each_timestep
 
@@ -41,7 +40,9 @@ class DeepValueMemoryGRU(BasicModule):
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
-        self.output_dim = output_dim
+        if isinstance(output_dims, int):
+            output_dims = [output_dims]
+        self.output_dims = output_dims          # there could be mutliple output decisions
 
         fc_hidden_dim = int(hidden_dim/4)
 
@@ -51,15 +52,12 @@ class DeepValueMemoryGRU(BasicModule):
         # self.fc_memory = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.encoder = MLPEncoder(input_dim, 3 * hidden_dim, hidden_dims=[fc_hidden_dim, hidden_dim])
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
-        self.decoder = ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim])
+        self.decoders = nn.ModuleList()
+        for output_dim in output_dims:
+            self.decoders.append(ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim]))
         # self.fc_output = nn.Linear(hidden_dim, fc_hidden_dim)
         # self.fc_decision = nn.Linear(fc_hidden_dim, output_dim)
         # self.fc_critic = nn.Linear(fc_hidden_dim, 1)
-        if self.two_output:
-            self.decoder2 = ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim])
-            # self.fc_output2 = nn.Linear(hidden_dim, fc_hidden_dim)
-            # self.fc_decision2 = nn.Linear(fc_hidden_dim, output_dim)
-            # self.fc_critic2 = nn.Linear(fc_hidden_dim, 1)
 
         self.ln_i2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
         self.ln_h2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
@@ -202,21 +200,19 @@ class DeepValueMemoryGRU(BasicModule):
         #     decision2 = None
         #     value2 = None
 
-        decicion, value = self.decoder(state)
         beta = self.softmax_beta if beta is None else beta
-        decision = softmax(decicion, beta)
-        self.write(decicion, 'decision')
-
-        if self.two_output:
-            decision2, value2 = self.decoder2(state)
-            decision2 = softmax(decision2, beta)
-            self.write(decision2, 'decision2')
-        else:
-            decision2, value2 = None, None
+        decisions, values = [], []
+        for i in range(len(self.decoders)):
+            decision, value = self.decoders[i](state)
+            decision = softmax(decision, beta)
+            decisions.append(decision)
+            values.append(value)
+            self.write(decision, 'decision{}'.format(i+1))
+            self.write(value, 'value{}'.format(i+1))
 
         self.write(self.use_memory, 'use_memory')
         
-        return decision, value, decision2, value2, state, memory_similarity
+        return decisions, values, state, memory_similarity
     
     def gru(self, inp, state, mem_gate=None, retrieved_memory=None):
         # gate_x = self.fc_input1(inp)

@@ -68,14 +68,17 @@ def load_model(setup, device):
 
 
 def load_environment(setup):
-    task_class = setup.pop("class")
-    if "wrapper" in setup:
-        wrapper_class = setup.pop("wrapper")
-        env = import_attr("tasks.{}".format(task_class))(**setup)
-        env = import_attr("tasks.wrappers.{}".format(wrapper_class))(env)
-    else:
-        env = import_attr("tasks.{}".format(task_class))(**setup)
-    return env
+    envs = []
+    for env_setup in setup:
+        task_class = env_setup.pop("class")
+        if "wrapper" in env_setup:
+            wrapper_class = env_setup.pop("wrapper")
+            env = import_attr("tasks.{}".format(task_class))(**env_setup)
+            env = import_attr("tasks.wrappers.{}".format(wrapper_class))(env)
+        else:
+            env = import_attr("tasks.{}".format(task_class))(**env_setup)
+        envs.append(env)
+    return envs
 
 
 def load_optimizer(setup, model):
@@ -87,16 +90,23 @@ def load_optimizer(setup, model):
 
 
 def load_criterion(setup):
-    subclasses_dict = {}
-    if "subclasses" in setup:
-        for subclass in setup["subclasses"]:
-            name = subclass.pop("name")
-            submodel = load_criterion(subclass)
-            subclasses_dict[name] = submodel
-        setup.pop("subclasses")
+    # subclasses_dict = {}
+    # if "subclasses" in setup:
+    #     for subclass in setup["subclasses"]:
+    #         name = subclass.pop("name")
+    #         submodel = load_criterion(subclass)
+    #         subclasses_dict[name] = submodel
+    #     setup.pop("subclasses")
+    # for key, value in subclasses_dict.items():
+    #     setup[key] = value
+    if "criteria" in setup:
+        criteria = []
+        for criterion in setup["criteria"]:
+            criterion = load_criterion(criterion)
+            criteria.append(criterion)
+        setup.pop("criteria")
+        setup["criteria"] = criteria
     criterion_name = setup.pop("class")
-    for key, value in subclasses_dict.items():
-        setup[key] = value
     if hasattr(torch.nn, criterion_name):
         criterion = import_attr("torch.nn.{}".format(criterion_name))(**setup)
     else:

@@ -4,7 +4,7 @@ from models.base_module import analyze
 from .criterions.rl import pick_action
 
 
-def record_model(agent, env, context_num=20, get_memory=False, device='cpu'):
+def record_model(agent, env, used_output=0, context_num=20, get_memory=False, device='cpu'):
     
     context_num = env.context_num if hasattr(env, "context_num") else context_num
 
@@ -36,11 +36,8 @@ def record_model(agent, env, context_num=20, get_memory=False, device='cpu'):
                 if info.get("reset_state", False):
                     state = agent.init_state(1, recall=True, prev_state=state)
                 
-                output, value, _, _, state, _ = agent(obs, state)
-                if isinstance(output, tuple):
-                    action_distribution = output[0]
-                else:
-                    action_distribution = output
+                output, value, state, _ = agent(obs, state)
+                action_distribution = output[used_output]
                 action, log_prob_action, action_max = pick_action(action_distribution)
                 obs_, reward, done, info = env.step(action)
                 obs = torch.Tensor(obs_).to(device)
@@ -51,7 +48,7 @@ def record_model(agent, env, context_num=20, get_memory=False, device='cpu'):
                 # actions_trial.append(action)
                 probs_trial.append(log_prob_action)
                 rewards_trial.append(reward)
-                values_trial.append(value)
+                values_trial.append(value[used_output])
             # print(actions_trial)
             readout = agent.readout()
             trial_data = env.get_trial_data()
