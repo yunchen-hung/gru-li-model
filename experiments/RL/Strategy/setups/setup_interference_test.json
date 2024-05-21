@@ -113,6 +113,7 @@
             }
         }
     ],
+    "load_model_name": "setup_baseline",
     "load_saved_model": false,
     "context_num": 1000
 }

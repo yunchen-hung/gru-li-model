@@ -1,7 +1,7 @@
 {
     "run_num": 5,
     "model": {
-        "class": "ValueMemoryGRU",
+        "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
         "input_dim": 27,
         "output_dims": [18],

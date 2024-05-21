@@ -13,8 +13,10 @@ from analysis.behavior import RecallProbability, RecallProbabilityInTime, Tempor
 
 def run(data_all, model_all, env, paths, exp_name):
     plt.rcParams['font.size'] = 14
+    env = env[0]
 
     for run_name, data in data_all.items():
+        data = data[0]
         run_name_without_num = run_name.split("-")[0]
         # fig_path = paths["fig"]/run_name
         run_num = run_name.split("-")[-1]
@@ -111,18 +113,18 @@ def run(data_all, model_all, env, paths, exp_name):
             writer.writerow(results_all_time)
 
         """ count temporal factor and forward asymmetry """
-        recall_probability = RecallProbability()
-        recall_probability.fit(memory_contexts, actions[:, -timestep_each_phase:])
-        forward_asymmetry = recall_probability.forward_asymmetry
-        temporal_factor = TemporalFactor()
-        temp_fact = temporal_factor.fit(memory_contexts, actions[:, -timestep_each_phase:])
-        temp_fact = np.mean(temp_fact)
-        print("forward asymmetry:[{},{}]".format(data['accuracy'], forward_asymmetry))
-        print("temporal factor:[{},{}]".format(data['accuracy'], temp_fact))
-        # write to csv file
-        with open(fig_path/"contiguity_effect.csv", "w") as f:
-            writer = csv.writer(f)
-            writer.writerow([data['accuracy'], forward_asymmetry, temp_fact])
+        # recall_probability = RecallProbability()
+        # recall_probability.fit(memory_contexts, actions[:, -timestep_each_phase:])
+        # forward_asymmetry = recall_probability.forward_asymmetry
+        # temporal_factor = TemporalFactor()
+        # temp_fact = temporal_factor.fit(memory_contexts, actions[:, -timestep_each_phase:])
+        # temp_fact = np.mean(temp_fact)
+        # print("forward asymmetry:[{},{}]".format(data['accuracy'], forward_asymmetry))
+        # print("temporal factor:[{},{}]".format(data['accuracy'], temp_fact))
+        # # write to csv file
+        # with open(fig_path/"contiguity_effect.csv", "w") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([data['accuracy'], forward_asymmetry, temp_fact])
 
         """ recall probability of first timestep (see primacy and recency) """
         recall_probability_in_time = RecallProbabilityInTime()
@@ -231,31 +233,31 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
         """ policy distribution over all memory items """
-        policy = []
-        for i in range(all_context_num):
-            policy.append(readouts[i]['decision'])
-        policy = np.stack(policy).squeeze()
-        print(policy.shape, actions.shape)
+        # policy = []
+        # for i in range(all_context_num):
+        #     policy.append(readouts[i]['decision'])
+        # policy = np.stack(policy).squeeze()
+        # print(policy.shape, actions.shape)
 
-        policy_sorted = []
-        for i in range(all_context_num):
-            policy_sorted.append(policy[i, -env.memory_num:, actions[i, -env.memory_num:]])
-        policy_sorted = np.stack(policy_sorted).squeeze()
-        print(policy_sorted.shape)
+        # policy_sorted = []
+        # for i in range(all_context_num):
+        #     policy_sorted.append(policy[i, -env.memory_num:, actions[i, -env.memory_num:]])
+        # policy_sorted = np.stack(policy_sorted).squeeze()
+        # print(policy_sorted.shape)
 
-        plt.imshow(policy_sorted[0], cmap="Blues")
-        plt.colorbar()
-        plt.title("policy distribution, one trial")
-        plt.xlabel("time step")
-        plt.ylabel("memory item")
-        plt.tight_layout()
-        savefig(fig_path/"policy", "one_trial.png")
+        # plt.imshow(policy_sorted[0], cmap="Blues")
+        # plt.colorbar()
+        # plt.title("policy distribution, one trial")
+        # plt.xlabel("time step")
+        # plt.ylabel("memory item")
+        # plt.tight_layout()
+        # savefig(fig_path/"policy", "one_trial.png")
 
-        plt.imshow(np.mean(policy_sorted, axis=0), cmap="Blues")
-        plt.colorbar()
-        plt.title("policy distribution, averaged")
-        plt.xlabel("time step")
-        plt.ylabel("memory item")
-        plt.tight_layout()
-        savefig(fig_path/"policy", "all_trial.png")
+        # plt.imshow(np.mean(policy_sorted, axis=0), cmap="Blues")
+        # plt.colorbar()
+        # plt.title("policy distribution, averaged")
+        # plt.xlabel("time step")
+        # plt.ylabel("memory item")
+        # plt.tight_layout()
+        # savefig(fig_path/"policy", "all_trial.png")
 

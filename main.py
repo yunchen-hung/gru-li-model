@@ -138,24 +138,51 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
             # record data of the model
             env = envs[-1]
+            training_setup = training_setups[-1]["trainer"]
+            if training_setup.get("reset_memory", True):
+                print("reset memory during recording")
+            else:
+                print("not reset memory during recording")
+            record_env = setup.get("record_env", [0])
+            used_output = setup.get("used_output", [0])
+            assert len(record_env) == len(used_output)
             if env:
                 if model_for_record is not None:
                     print("use record model setup")
                     model = model_for_record
                     model.load_state_dict(torch.load(model_load_path/"model.pt"))
-                data = record_model(model, env, device=device, context_num=setup.get("context_num", 20))
+                data_all_env = []
+                for i in record_env:
+                    data = record_model(model, env[i], used_output=used_output[i], 
+                                        reset_memory=training_setup.get("reset_memory", True), 
+                                        device=device, context_num=setup.get("context_num", 20))
+                    data_all_env.append(data)
 
-            model_all[run_name_with_num] = model
-            data_all[run_name_with_num] = data
-
-    if exp_file_name == "experiment":
-        paths = {"fig": figuire_path/setup_origin["model"]["class"]}
-    else:
-        paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
+                model_all[run_name_with_num] = model
+                data_all[run_name_with_num] = data_all_env
 
     # run experiment
     run_exp = import_attr("{}.{}.{}.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment, exp_file_name))
+    
     if env:
+        record_env = setup.get("record_env", [0])
+        used_output = setup.get("used_output", [0])
+        # for i in record_env:
+        #     env_name = env[i].__class__.__name__
+        #     if exp_file_name == "experiment":
+        #         paths = {"fig": figuire_path/setup_origin["model"]["class"]}
+        #     else:
+        #         paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
+        #     if len(record_env) > 1:
+        #         paths['fig'] = paths['fig']/env_name
+
+        #     exp_name = setup_name.split(".")[0]
+        #     run_exp(data_all, model_all, env[i], paths, exp_name)
+        if exp_file_name == "experiment":
+            paths = {"fig": figuire_path/setup_origin["model"]["class"]}
+        else:
+            paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
+
         exp_name = setup_name.split(".")[0]
         run_exp(data_all, model_all, env, paths, exp_name)
 

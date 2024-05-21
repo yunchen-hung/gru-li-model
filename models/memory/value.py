@@ -38,7 +38,7 @@ class ValueMemory(BasicModule):
     def flush(self):
         self.values = torch.zeros((self.batch_size, self.capacity, self.value_dim)).to(self.device)
         self.stored_memory = 0
-        self.to_be_replaced = 0
+        # self.to_be_replaced = 0
 
     def encode(self, value):
         if self.encoding:

@@ -4,7 +4,7 @@ from models.base_module import analyze
 from .criterions.rl import pick_action
 
 
-def record_model(agent, env, used_output=0, context_num=20, get_memory=False, device='cpu'):
+def record_model(agent, env, used_output=0, context_num=20, reset_memory=False, device='cpu'):
     
     context_num = env.context_num if hasattr(env, "context_num") else context_num
 
@@ -18,7 +18,7 @@ def record_model(agent, env, used_output=0, context_num=20, get_memory=False, de
     for i in range(context_num):
         # actions, probs, rewards, values, readouts, mem_contexts = [], [], [], [], [], []
         obs_, info = env.reset(1)
-        agent.reset_memory()
+        agent.reset_memory(flush=reset_memory)
         obs = torch.Tensor(obs_).to(device)
         done = False
         state = agent.init_state(1)

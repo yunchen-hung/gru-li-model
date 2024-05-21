@@ -1,10 +1,10 @@
 {
-    "run_num": 5,
+    "run_num": 3,
     "model": {
-        "class": "ValueMemoryGRU",
+        "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
         "input_dim": 27,
-        "output_dims": [18],
+        "output_dims": [18, 3],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
@@ -13,7 +13,7 @@
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 8,
+            "capacity": 4,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -36,7 +36,7 @@
             "no_early_stop": true
         }],
         "trainer": {
-            "num_iter": 5000,
+            "num_iter": 100,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
@@ -54,7 +54,7 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
+                "lr": 5e-4,
                 "weight_decay": 2e-5,
                 "lr_decay_factor": 0.5,
                 "lr_decay_patience": 10,
@@ -74,7 +74,7 @@
             "no_early_stop": true
         }],
         "trainer": {
-            "num_iter": 20000,
+            "num_iter": 100,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
@@ -92,7 +92,7 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
+                "lr": 5e-4,
                 "weight_decay": 2e-5,
                 "lr_decay_factor": 0.5,
                 "lr_decay_patience": 10,
@@ -111,11 +111,11 @@
             "correct_reward": 2.5,
             "no_action_reward": -0.0,
             "wrong_reward": -0.75,
-            "include_question_during_encode": false
+            "include_question_during_encode": true
         }],
         "trainer": {
             "training_function": "train_model",
-            "num_iter": 200000,
+            "num_iter": 100,
             "test": false,
             "test_iter": 1000,
             "save_iter": 2000,
@@ -136,10 +136,52 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
+                "lr": 5e-4,
                 "lr_decay_factor": 0.1,
                 "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }, {
+        "env": [{
+            "class": "ConditionalQuestionAnswer",
+            "wrapper": "MetaLearningEnv",
+            "num_features": 4,
+            "feature_dim": 2,
+            "sequence_len": 4,
+            "reset_state_before_test": true,
+            "correct_reward": 1.0,
+            "no_action_reward": -0.0,
+            "wrong_reward": -1.0,
+            "include_question_during_encode": true,
+            "no_early_stop": true
+        }],
+        "trainer": {
+            "num_iter": 100,
+            "test": false,
+            "test_iter": 1000,
+            "save_iter": 20000,
+            "stop_test_accu": 0.98,
+            "use_memory": true,
+            "phase": "last",
+            "used_output_index": [1],
+            "criterion": {
+                "class": "MultiSupervisedLoss",
+                "criteria": [
+                    {
+                        "class": "EncodingCrossEntropyLoss",
+                        "class_num": 3
+                    }
+                ]
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 1e-4,
+                "weight_decay": 1e-5,
+                "lr_decay_factor": 0.1,
+                "lr_decay_patience": 5,
+                "lr_decay_threshold": 1e-4,
                 "min_lr": 1e-7
             }
         }
