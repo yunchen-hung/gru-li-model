@@ -111,6 +111,7 @@ def supervised_train_model(agent, envs, optimizer, scheduler, setup, criterion, 
         for j in range(len(outputs)):
             outputs[j] = torch.stack(outputs[j])[mask.reshape(-1, 1) == 1]
 
+        # print(outputs.shape)
         loss = criterion(outputs, gt.permute(1, 0))
         if memory_entropy_reg:
             # add (negative) entropy regularization for memory similarity

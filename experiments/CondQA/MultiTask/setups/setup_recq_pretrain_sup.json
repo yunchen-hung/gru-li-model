@@ -128,7 +128,7 @@
             "correct_reward": 1.5,
             "no_action_reward": -0.0,
             "wrong_reward": -0.75,
-            "include_question_during_encode": true,
+            "include_question_during_encode": false,
             "sum_feature_placeholder": true
         }],
         "trainer": {
@@ -177,7 +177,7 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": true,
+            "include_question_during_encode": false,
             "no_early_stop": true
         }],
         "trainer": {

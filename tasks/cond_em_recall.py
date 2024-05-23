@@ -11,7 +11,8 @@ class ConditionalEMRecall(BaseEMTask):
     def __init__(self, num_features=2, feature_dim=5, sequence_len=8, retrieve_time_limit=None, 
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, early_stop_reward=-8.0,
                  include_question_during_encode=False, reset_state_before_test=True, no_early_stop=False,
-                 question_space=("choice", "max", "min"), has_question=True, one_hot_stimuli=False):
+                 question_space=["choice"], has_question=True, one_hot_stimuli=False,
+                 sum_feature_placeholder=False):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -52,6 +53,7 @@ class ConditionalEMRecall(BaseEMTask):
         self.one_hot_stimuli = one_hot_stimuli
         self.no_early_stop = no_early_stop
         self.vocabulary_num = feature_dim ** num_features
+        self.sum_feature_placeholder = sum_feature_placeholder
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
@@ -65,9 +67,14 @@ class ConditionalEMRecall(BaseEMTask):
         self.question_type_dict = self._generate_question_type_dict()
 
         if self.one_hot_stimuli:
-            self.observation_space = spaces.MultiDiscrete([self.feature_dim ** self.num_features, self.question_space_dim, feature_dim])
+            obs_space_list = [self.feature_dim ** self.num_features]
         else:
-            self.observation_space = spaces.MultiDiscrete([feature_dim for _ in range(num_features)]+[self.question_space_dim, feature_dim])
+            obs_space_list = [self.feature_dim for _ in range(num_features)]
+        obs_space_list.extend([self.question_space_dim, feature_dim])
+        if self.sum_feature_placeholder:
+            obs_space_list.append(self.question_space_dim)
+        self.observation_space = spaces.MultiDiscrete(obs_space_list)
+        # print(self.observation_space)
         self.action_space = spaces.Discrete(feature_dim ** num_features + 2)
         
         self.all_stimuli = self._generate_all_stimuli()

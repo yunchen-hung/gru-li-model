@@ -35,6 +35,24 @@ class MetaLearningEnv(Wrapper):
         obs_wrapped = np.hstack([obs.reshape(-1),self.prev_action,self.prev_reward]).reshape(1, -1)
         self.prev_reward = 0
         return obs_wrapped,info 
+    
+
+class PlaceHolderWrapper(Wrapper):
+    metadata = {'render_modes': ['human','rgb_array']}
+    def __init__(self,env, placeholder_dim):
+        super().__init__(env)
+        self.env=env 
+        self.placeholder_dim = placeholder_dim
+    
+    def step(self,action):
+        obs, reward, terminated, info = self.env.step(action)
+        obs_wrapped = np.hstack([obs.reshape(-1), np.zeros(self.placeholder_dim)]).reshape(1, -1)
+        return obs_wrapped,reward,terminated,info
+    
+    def reset(self, batch_size=1):
+        obs,info=self.env.reset()
+        obs_wrapped = np.hstack([obs.reshape(-1), np.zeros(self.placeholder_dim)]).reshape(1, -1)
+        return obs_wrapped,info
 
 
 class OriginMetaLearningEnv(Wrapper):

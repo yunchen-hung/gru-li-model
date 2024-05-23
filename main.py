@@ -143,8 +143,9 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 print("reset memory during recording")
             else:
                 print("not reset memory during recording")
-            record_env = setup.get("record_env", [0])
-            used_output = setup.get("used_output", [0])
+            record_env = training_setup.get("record_env", [0])
+            used_output = training_setup.get("used_output_index", [0])
+            print("used_output:", used_output)
             assert len(record_env) == len(used_output)
             if env:
                 if model_for_record is not None:
@@ -165,8 +166,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
     run_exp = import_attr("{}.{}.{}.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment, exp_file_name))
     
     if env:
-        record_env = setup.get("record_env", [0])
-        used_output = setup.get("used_output", [0])
+        # record_env = setup.get("record_env", [0])
+        # used_output = setup.get("used_output", [0])
         # for i in record_env:
         #     env_name = env[i].__class__.__name__
         #     if exp_file_name == "experiment":

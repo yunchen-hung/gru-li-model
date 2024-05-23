@@ -72,9 +72,11 @@ def load_environment(setup):
     for env_setup in setup:
         task_class = env_setup.pop("class")
         if "wrapper" in env_setup:
-            wrapper_class = env_setup.pop("wrapper")
+            wrapper_setups = env_setup.pop("wrapper")
             env = import_attr("tasks.{}".format(task_class))(**env_setup)
-            env = import_attr("tasks.wrappers.{}".format(wrapper_class))(env)
+            for wrapper_setup in wrapper_setups:
+                wrapper_class = wrapper_setup.pop("class")
+                env = import_attr("tasks.wrappers.{}".format(wrapper_class))(env, **wrapper_setup)
         else:
             env = import_attr("tasks.{}".format(task_class))(**env_setup)
         envs.append(env)

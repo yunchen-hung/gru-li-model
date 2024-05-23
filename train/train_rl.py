@@ -247,7 +247,7 @@ def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterio
             print()
 
             if i != 0:
-                scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
+                scheduler.step(total_loss)  # TODO: change a criterion here?
 
             if test_error - test_accuracy <= min_test_loss:
                 min_test_loss = test_error - test_accuracy
