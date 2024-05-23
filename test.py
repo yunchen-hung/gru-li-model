@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
-from tasks import ConditionalEMRecall, MetaLearningEnv, ConditionalQuestionAnswer
+from tasks import ConditionalEMRecall, MetaLearningEnv, ConditionalQuestionAnswer, FreeRecallRepeat, \
+    FreeRecall, PlaceHolderWrapper
 from analysis.behavior.temporal_factor import TemporalFactor
 
 from utils import load_dict
@@ -63,29 +64,53 @@ from utils import load_dict
 # print(np.mean(results))
 
 
-""" Conditional Question Answer tests """
-# seqlen = 3
-# env = ConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=seqlen, 
-#     include_question_during_encode=True)
-# env = MetaLearningEnv(env)
+""" Conditional EM task tests """
+env = ConditionalEMRecall(num_features=4, feature_dim=2, sequence_len=4, question_space=["choice"],
+                          include_question_during_encode=True, sum_feature_placeholder=True)
+env = MetaLearningEnv(env)
+env = PlaceHolderWrapper(env, 4)
+obs, info = env.reset()
+env.render()
+print(obs)
+for i in range(4):
+    action = 0
+    obs, reward, terminated, info = env.step(action)
+    print(action)
+    print(obs, reward, terminated, info)
+while not terminated:
+    action = 0
+    obs, reward, terminated, info = env.step(action)
+    print(action)
+    print(obs, reward, terminated, info)
+print()
+print(obs.shape)
 
-# obs, info = env.reset()
-# env.render()
-# print(obs)
-# for i in range(seqlen):
-#     action = 0
-#     obs, reward, terminated, info = env.step(action)
-#     print(action)
-#     print(obs, reward, terminated, info)
-# actions = [env.action_space.n-1]*(seqlen-1) + [0]
-# cnt = 0
-# while not terminated:
-#     action = actions[cnt]
-#     cnt += 1
-#     obs, reward, terminated, info = env.step(action)
-#     print(action)
-#     print(obs, reward, terminated, info)
-# print()
+
+""" Conditional Question Answer tests """
+seqlen = 4
+env = ConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=seqlen, 
+    include_question_during_encode=True)
+env = PlaceHolderWrapper(env, 11)
+env = MetaLearningEnv(env)
+
+obs, info = env.reset()
+env.render()
+print(obs)
+for i in range(seqlen):
+    action = 0
+    obs, reward, terminated, info = env.step(action)
+    print(action)
+    print(obs, reward, terminated, info)
+actions = [env.action_space.n-1]*(seqlen-1) + [0]
+cnt = 0
+while not terminated:
+    action = actions[cnt]
+    cnt += 1
+    obs, reward, terminated, info = env.step(action)
+    print(action)
+    print(obs, reward, terminated, info)
+print()
+print(obs.shape)
 
 # obs, info = env.reset()
 # env.render()
@@ -157,4 +182,23 @@ from utils import load_dict
 #     }
 #     with open(setup_dir / file, "w") as f:
 #         json.dump(setup, f, indent=4)
+
+
+""" test repeat free recall task """
+# env = FreeRecallRepeat()
+# # print(env.memory_sequence)
+# obs, info = env.reset()
+# memory_seq = env.memory_sequence
+# print(memory_seq)
+# done = False
+# cnt = 0
+# while not done:
+#     if cnt < env.memory_num:
+#         action = torch.tensor([memory_seq[0, cnt]])
+#     else:
+#         action = torch.tensor([memory_seq[0, cnt-5]])
+#     obs, reward, done, info = env.step(action)
+#     print(action)
+#     print(obs, reward, done, info)
+#     cnt += 1
 

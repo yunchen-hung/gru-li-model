@@ -7,6 +7,7 @@ from utils import import_attr
 from .rl import compute_returns
 
 
+# deprecated
 class FreeRecallSumMSELoss(nn.Module):
     def __init__(self, var_weight=1.0) -> None:
         super().__init__()
@@ -20,7 +21,7 @@ class FreeRecallSumMSELoss(nn.Module):
                 + torch.finfo(torch.float32).eps)) * self.var_weight
         return loss
 
-
+# deprecated
 class FreeRecallSumMSEMultipleOutputLoss(nn.Module):
     def __init__(self, loss="FreeRecallSumMSELoss", var_weight=1.0, output_weight=[0.5, 0.5]) -> None:
         super().__init__()
@@ -35,7 +36,7 @@ class FreeRecallSumMSEMultipleOutputLoss(nn.Module):
             loss += self.loss_class(output[i], gt) * self.output_weight[i]
         return loss
 
-
+# deprecated
 class FreeRecallSumMSETrainEncodeLoss(nn.Module):
     def __init__(self, loss="FreeRecallSumMSELoss", var_weight=1.0, output_weight=[0.5, 0.5], encode_weight=1.0, only_encode=False) -> None:
         super().__init__()
@@ -61,7 +62,7 @@ class FreeRecallSumMSETrainEncodeLoss(nn.Module):
         loss += mse_loss(output[encode_output_index], gt) * self.encode_weight
         return loss
 
-
+# deprecated
 class FreeRecallSumCETrainEncodeLoss(nn.Module):
     def __init__(self, loss="FreeRecallSumMSELoss", var_weight=1.0, output_weight=[0.5, 0.5], encode_weight=1.0, only_encode=False) -> None:
         super().__init__()
@@ -89,47 +90,40 @@ class FreeRecallSumCETrainEncodeLoss(nn.Module):
     
 
 class EncodingCrossEntropyLoss(nn.Module):
-    def __init__(self, class_num, phase='all', no_action_weight=1.0) -> None:
+    def __init__(self, class_num, no_action_weight=1.0) -> None:
         super().__init__()
         self.class_num = class_num
-        self.phase = phase
         self.class_weights = torch.ones(class_num)
         self.class_weights[-1] = no_action_weight
         # self.class_weights[-2] = no_action_weight
     
-    def forward(self, output, gt, memory_num):
-        if self.phase == 'encoding':
-            loss = cross_entropy(output[:memory_num].reshape(-1, output[:memory_num].shape[-1]), gt[:memory_num].reshape(-1), weight=self.class_weights)
-        elif self.phase == 'recall':
-            loss = cross_entropy(output[memory_num:].reshape(-1, output[memory_num:].shape[-1]), gt[memory_num:].reshape(-1), weight=self.class_weights)
-        elif self.phase == 'all':
-            loss = cross_entropy(output.reshape(-1, output.shape[-1]), gt.reshape(-1), weight=self.class_weights)
-        else:
-            raise AttributeError("phase must be encoding, recall or all")
+    def forward(self, output, gt):
+        # if self.phase == 'encoding':
+        #     loss = cross_entropy(output[:memory_num].reshape(-1, output[:memory_num].shape[-1]), gt[:memory_num].reshape(-1), weight=self.class_weights)
+        # elif self.phase == 'recall':
+        #     loss = cross_entropy(output[memory_num:].reshape(-1, output[memory_num:].shape[-1]), gt[memory_num:].reshape(-1), weight=self.class_weights)
+        # print(output.shape, gt.shape)
+        loss = cross_entropy(output.reshape(-1, output.shape[-1]), gt.reshape(-1), weight=self.class_weights)
         return loss
     
 
 class EncodingNBackCrossEntropyLoss(nn.Module):
-    def __init__(self, class_num, phase='all', no_action_weight=1.0, nback=1) -> None:
+    def __init__(self, class_num, no_action_weight=1.0, nback=1) -> None:
         super().__init__()
         self.class_num = class_num
         self.nback = nback
-        self.phase = phase
         self.class_weights = torch.ones(class_num)
         self.class_weights[-1] = no_action_weight
         self.class_weights[-2] = no_action_weight
 
-    def forward(self, output, gt, memory_num):
-        assert self.nback < memory_num
-        if self.phase == 'encoding':
-            loss = cross_entropy(output[self.nback:memory_num].reshape(-1, output[self.nback:memory_num].shape[-1]), 
-                                 gt[:memory_num-self.nback].reshape(-1), weight=self.class_weights)
-        elif self.phase == 'recall':
-            loss = cross_entropy(output[memory_num:].reshape(-1, output[memory_num:].shape[-1]), 
-                                 gt[memory_num-self.nback:-self.nback].reshape(-1), weight=self.class_weights)
-        elif self.phase == 'all':
-            loss = cross_entropy(output[self.nback:].reshape(-1, output[self.nback:].shape[-1]), gt[:-self.nback].reshape(-1), weight=self.class_weights)
-        else:
-            raise AttributeError("phase must be encoding, recall or all")
+    def forward(self, output, gt):
+        # assert self.nback < memory_num
+        # if self.phase == 'encoding':
+        #     loss = cross_entropy(output[self.nback:memory_num].reshape(-1, output[self.nback:memory_num].shape[-1]), 
+        #                          gt[:memory_num-self.nback].reshape(-1), weight=self.class_weights)
+        # elif self.phase == 'recall':
+        #     loss = cross_entropy(output[memory_num:].reshape(-1, output[memory_num:].shape[-1]), 
+        #                          gt[memory_num-self.nback:-self.nback].reshape(-1), weight=self.class_weights)
+        loss = cross_entropy(output[self.nback:].reshape(-1, output[self.nback:].shape[-1]), gt[:-self.nback].reshape(-1), weight=self.class_weights)
         return loss
 

@@ -1,10 +1,10 @@
 {
-    "run_num": [2],
+    "run_num": 3,
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
         "input_dim": 18,
-        "output_dim": 3,
+        "output_dims": [3],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
@@ -26,7 +26,7 @@
         }]
     },
     "training": [{
-        "env": {
+        "env": [{
             "class": "ConditionalQuestionAnswer",
             "num_features": 4,
             "feature_dim": 2,
@@ -37,7 +37,7 @@
             "wrong_reward": -1.0,
             "include_question_during_encode": true,
             "no_early_stop": true
-        },
+        }],
         "trainer": {
             "num_iter": 3e6,
             "test": false,
@@ -47,8 +47,13 @@
             "use_memory": true,
             "phase": "last",
             "criterion": {
-                "class": "EncodingCrossEntropyLoss",
-                "class_num": 3
+                "class": "MultiSupervisedLoss",
+                "criteria": [
+                    {
+                        "class": "EncodingCrossEntropyLoss",
+                        "class_num": 3
+                    }
+                ]
             },
             "optimizer": {
                 "class": "Adam",

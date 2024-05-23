@@ -27,15 +27,18 @@ class ValueMemory(BasicModule):
         self.recall_method = recall_method
         self.batch_size = batch_size
 
-    def reset_memory(self):
-        self.flush()
+    def reset_memory(self, flush=True):
+        if flush:
+            self.flush()
+        else:
+            self.values.detach_()
         self.encoding = False   
         self.retrieving = False
 
     def flush(self):
         self.values = torch.zeros((self.batch_size, self.capacity, self.value_dim)).to(self.device)
         self.stored_memory = 0
-        self.to_be_replaced = 0
+        # self.to_be_replaced = 0
 
     def encode(self, value):
         if self.encoding:

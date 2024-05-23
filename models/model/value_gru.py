@@ -8,16 +8,15 @@ from ..memory import ValueMemory
 
 
 class ValueMemoryGRU(BasicModule):
-    def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
+    def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dims: list, em_gate_type='constant',
     init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
     start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
-    two_output=False, layer_norm=False, device: str = 'cpu'):
+    layer_norm=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
         self.memory_module = memory_module      # memory module of the model, pre-instantiated
         self.use_memory = use_memory            # if false, do not use memory module in the forward pass
-        self.two_output = two_output            # if true, output two decisions in the forward pass
 
         self.step_for_each_timestep = step_for_each_timestep
 
@@ -38,16 +37,19 @@ class ValueMemoryGRU(BasicModule):
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
-        self.output_dim = output_dim
+        if isinstance(output_dims, int):
+            output_dims = [output_dims]
+        self.output_dims = output_dims
 
         self.fc_input = nn.Linear(input_dim, 3 * hidden_dim)
         # self.fc_memory = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
-        self.fc_decision = nn.Linear(hidden_dim, output_dim)
-        self.fc_critic = nn.Linear(hidden_dim, 1)
-        if self.two_output:
-            self.fc_decision2 = nn.Linear(hidden_dim, output_dim)
-            self.fc_critic2 = nn.Linear(hidden_dim, 1)
+        # self.fc_decisions, self.fc_critics = [], []
+        self.fc_decisions = nn.ModuleList()
+        self.fc_critics = nn.ModuleList()
+        for output_dim in output_dims:
+            self.fc_decisions.append(nn.Linear(hidden_dim, output_dim))
+            self.fc_critics.append(nn.Linear(hidden_dim, 1))
 
         self.ln_i2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
         self.ln_h2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
@@ -176,19 +178,18 @@ class ValueMemoryGRU(BasicModule):
 
         # compute output decision(s)
         beta = self.softmax_beta if beta is None else beta
-        decision = softmax(self.fc_decision(state), beta)
-        self.write(decision, 'decision')
-        value = self.fc_critic(state)
-        if self.two_output:
-            decision2 = softmax(self.fc_decision2(state), beta)
-            value2 = self.fc_critic2(state)
-        else:
-            decision2 = None
-            value2 = None
+        decisions, values = [], []
+        for i in range(len(self.fc_decisions)):
+            decision = softmax(self.fc_decisions[i](state), beta)
+            value = self.fc_critics[i](state)
+            decisions.append(decision)
+            values.append(value)
+            self.write(decision, 'decision{}'.format(i))
+            self.write(value, 'value{}'.format(i))
 
         self.write(self.use_memory, 'use_memory')
         
-        return decision, value, decision2, value2, state, memory_similarity
+        return decisions, values, state, memory_similarity
     
     def gru(self, inp, state, mem_gate=None, retrieved_memory=None):
         gate_x = self.fc_input(inp)
@@ -224,8 +225,8 @@ class ValueMemoryGRU(BasicModule):
         self.retrieving = status
         self.memory_module.retrieving = status
 
-    def reset_memory(self):
+    def reset_memory(self, flush=True):
         """
         reset memory of the memory module of the model
         """
-        self.memory_module.reset_memory()
+        self.memory_module.reset_memory(flush=flush)

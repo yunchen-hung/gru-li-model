@@ -165,15 +165,27 @@ class RecallProbabilityInTime:
         return self.results
 
     def visualize(self, save_path, timesteps=[0], save_name="output_probability", format="png"):
+        plt.figure(figsize=(4, 3.3), dpi=180)
         for t in timesteps:
-            plt.figure(figsize=(4, 3.3), dpi=180)
-            plt.scatter(np.arange(1, self.memory_num+1), self.results[t], c='b', zorder=2)
-            plt.plot(np.arange(1, self.memory_num+1), self.results[t], c='k', zorder=1)
+            # plt.scatter(np.arange(1, self.memory_num+1), self.results[t],c='k', zorder=2)
+            plt.plot(np.arange(1, self.memory_num+1), self.results[t],  zorder=1, label="t={}".format(t+1))
             plt.xlabel("item position")
-            plt.ylabel("output probability")
-            plt.title("output probability at timestep {}".format(t+1))
+            plt.ylabel("recall probability")
+            # plt.title("recall probability at each timestep")
+            plt.legend()
             plt.tight_layout()
-            savefig(save_path, save_name+"_timestep{}".format(t), format=format)
+        savefig(save_path, save_name, format=format)
+
+    def visualize_in_time(self, save_path, save_name="output_probability_by_time", format="png"):
+        plt.figure(figsize=(4, 3.3), dpi=180)
+        for t in range(self.memory_num):
+            plt.plot(np.arange(1, self.memory_num+1), self.results[:, t], label="item {}".format(t+1))
+        plt.xlabel("time in recall phase")
+        plt.ylabel("recall probability")
+        # plt.title("recall probability by time")
+        plt.legend()
+        plt.tight_layout()
+        savefig(save_path, save_name, format=format)
 
     def visualize_mat(self, save_path, save_name="output_probability_by_time_mat", title="output_probability_by_time", format="png"):
         if self.results is None:

@@ -36,18 +36,12 @@ class A2CLoss(nn.Module):
         self.phase = phase
         self.value_loss_func = value_loss_func
 
-    def forward(self, probs, values, rewards, entropys, memory_num=8, print_info=False, device='cpu'):
+    def forward(self, probs, values, rewards, entropys, print_info=False, device='cpu'):
         """
         probs: list of torch.tensor, overall size is (timesteps, batch_size)
         values: list of torch.tensor, overall size is (timesteps, batch_size, 1)
         rewards, entropys: list of torch.tensor, overall size is (timesteps, batch_size)
         """
-
-        if self.phase == 'encoding':
-            probs, values, rewards, entropys = probs[:memory_num], values[:memory_num], rewards[:memory_num], entropys[:memory_num]
-        elif self.phase == 'recall':
-            probs, values, rewards, entropys = probs[memory_num:], values[memory_num:], rewards[memory_num:], entropys[memory_num:]
-
         # returns: batch_size x timesteps
         returns = compute_returns(rewards, gamma=self.gamma, normalize=self.returns_normalize)
         policy_grads, value_losses = [], []
@@ -87,6 +81,9 @@ class A2CLoss(nn.Module):
         policy_gradient = torch.sum(policy_grads) / batch_size
         value_loss = torch.sum(value_losses) / batch_size
         pi_ent = torch.sum(entropys) / batch_size
+        # policy_gradient = torch.mean(policy_grads)
+        # value_loss = torch.mean(value_losses)
+        # pi_ent = torch.mean(entropys)
         loss = policy_gradient + value_loss - pi_ent * self.eta
         return loss, policy_gradient, value_loss, pi_ent * self.eta
 

@@ -9,7 +9,7 @@ from ..module.encoders import MLPEncoder
 from ..module.decoders import ActorCriticMLPDecoder
 
 
-class DeepValueMemoryGRU(BasicModule):
+class MultiTaskDeepValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dims: list, em_gate_type='constant',
             init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
             start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
@@ -53,8 +53,13 @@ class DeepValueMemoryGRU(BasicModule):
         self.encoder = MLPEncoder(input_dim, 3 * hidden_dim, hidden_dims=[fc_hidden_dim, hidden_dim])
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.decoders = nn.ModuleList()
-        for output_dim in output_dims:
-            self.decoders.append(ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim]))
+        for i, output_dim in enumerate(output_dims):
+            if i == 0:
+                # for free recall task
+                self.decoders.append(ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[]))
+            else:
+                # for decision making task
+                self.decoders.append(ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim]))
         # self.fc_output = nn.Linear(hidden_dim, fc_hidden_dim)
         # self.fc_decision = nn.Linear(fc_hidden_dim, output_dim)
         # self.fc_critic = nn.Linear(fc_hidden_dim, 1)

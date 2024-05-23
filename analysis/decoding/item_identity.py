@@ -9,6 +9,9 @@ from utils import savefig
 
 
 class ItemIdentityDecoder:
+    """
+    decode item identity at each timestep from the data at each timestep respectively
+    """
     def __init__(self, decoder=svm.SVC(decision_function_shape='ovo'), n_splits=5):
         self.n_splits = n_splits
         self.decoder = decoder

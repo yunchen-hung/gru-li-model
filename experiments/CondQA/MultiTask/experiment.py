@@ -91,27 +91,27 @@ def run(data_all, model_all, env, paths, exp_name):
         # print(np.argmax(retrieved_memories, axis=2)[:10])
 
         """ count the proportion of memories retrieved for items matched and unmatched with the query """
-        # answer_memory = 0.0
-        # nonanswer_memory = 0.0
-        # answer_memory_after_gate = 0.0
-        # nonanswer_memory_after_gate = 0.0
-        # for i in range(context_num):
-        #     matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
-        #     unmatched_stimuli = [j for j in range(env.sequence_len) if j not in matched_stimuli]
-        #     # print(matched_stimuli)
-        #     # print(retrieved_memories[i, :2, :])
-        #     # print(retrieved_memories[i, :2, matched_stimuli])
-        #     # print(retrieved_memories[i, :2, unmatched_stimuli])
-        #     if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
-        #         continue
-        #     answer_memory += np.sum(retrieved_memories[i, :, matched_stimuli]) / len(matched_stimuli)
-        #     nonanswer_memory += np.sum(retrieved_memories[i, :, unmatched_stimuli]) / len(unmatched_stimuli)
-        #     answer_memory_after_gate += np.sum(retrieved_memories[i, :, matched_stimuli] * em_gates[i]) / len(matched_stimuli)
-        #     nonanswer_memory_after_gate += np.sum(retrieved_memories[i, :, unmatched_stimuli] * em_gates[i]) / len(unmatched_stimuli)
-        # print("answer_memory: ", answer_memory)
-        # print("nonanswer_memory: ", nonanswer_memory)
-        # print("answer_memory_after_gate: ", answer_memory_after_gate)
-        # print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
+        answer_memory = 0.0
+        nonanswer_memory = 0.0
+        answer_memory_after_gate = 0.0
+        nonanswer_memory_after_gate = 0.0
+        for i in range(context_num):
+            matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
+            unmatched_stimuli = [j for j in range(env.sequence_len) if j not in matched_stimuli]
+            # print(matched_stimuli)
+            # print(retrieved_memories[i, :2, :])
+            # print(retrieved_memories[i, :2, matched_stimuli])
+            # print(retrieved_memories[i, :2, unmatched_stimuli])
+            if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
+                continue
+            answer_memory += np.sum(retrieved_memories[i, :, matched_stimuli]) / len(matched_stimuli)
+            nonanswer_memory += np.sum(retrieved_memories[i, :, unmatched_stimuli]) / len(unmatched_stimuli)
+            answer_memory_after_gate += np.sum(retrieved_memories[i, :, matched_stimuli] * em_gates[i]) / len(matched_stimuli)
+            nonanswer_memory_after_gate += np.sum(retrieved_memories[i, :, unmatched_stimuli] * em_gates[i]) / len(unmatched_stimuli)
+        print("answer_memory: ", answer_memory)
+        print("nonanswer_memory: ", nonanswer_memory)
+        print("answer_memory_after_gate: ", answer_memory_after_gate)
+        print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
 
         """ gather data from correct trials """
         sum_features = []
@@ -195,48 +195,48 @@ def run(data_all, model_all, env, paths, exp_name):
         decoder.visualize(save_path=fig_path, save_name="answer_decode", xlabel="time in recall phase", figsize=(4, 3.3))
 
         """ decoding """
-        # ridge_decoder = RidgeClassifier()
-        # ridge = ItemIdentityDecoder(decoder=ridge_decoder)
+        ridge_decoder = RidgeClassifier()
+        ridge = ItemIdentityDecoder(decoder=ridge_decoder)
 
-        # ridge_encoding_item = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_item", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_encoding_item.npy", ridge_encoding_item)
+        ridge_encoding_item = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_item", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_encoding_item.npy", ridge_encoding_item)
 
-        # ridge_encoding_sum_feature = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
+        ridge_encoding_sum_feature = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
 
-        # ridge_encoding_sum_feature_matched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_mat", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_encoding_sum_feature_matched.npy", ridge_encoding_sum_feature_matched)
+        ridge_encoding_sum_feature_matched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_mat", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_encoding_sum_feature_matched.npy", ridge_encoding_sum_feature_matched)
 
-        # ridge_encoding_sum_feature_unmatched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=unmatched_mask.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_unmat", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_encoding_sum_feature_unmatched.npy", ridge_encoding_sum_feature_unmatched)
+        ridge_encoding_sum_feature_unmatched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=unmatched_mask.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_unmat", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_encoding_sum_feature_unmatched.npy", ridge_encoding_sum_feature_unmatched)
 
-        # ridge_recall_item = ridge.fit(c_recalling.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item", colormap_label="item position\nin study order",
-        #                         xlabel="time in recall phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_decoding_item.npy", ridge_recall_item)
+        ridge_recall_item = ridge.fit(c_recalling.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item", colormap_label="item position\nin study order",
+                                xlabel="time in recall phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_decoding_item.npy", ridge_recall_item)
 
-        # ridge_recall_sum_feature = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
-        #                         xlabel="time in recall phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
+        ridge_recall_sum_feature = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
+                                xlabel="time in recall phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
 
-        # ridge_recall_sum_feature_matched = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_mat", colormap_label="item position\nin study order",
-        #                         xlabel="time in recall phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_decoding_sum_feature_matched.npy", ridge_recall_sum_feature_matched)
+        ridge_recall_sum_feature_matched = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_mat", colormap_label="item position\nin study order",
+                                xlabel="time in recall phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_decoding_sum_feature_matched.npy", ridge_recall_sum_feature_matched)
 
-        # ridge_recall_sum_feature_unmatched = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=unmatched_mask.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_unmat", colormap_label="item position\nin study order",
-        #                         xlabel="time in recall phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_decoding_sum_feature_unmatched.npy", ridge_recall_sum_feature_unmatched)
+        ridge_recall_sum_feature_unmatched = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=unmatched_mask.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_unmat", colormap_label="item position\nin study order",
+                                xlabel="time in recall phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_decoding_sum_feature_unmatched.npy", ridge_recall_sum_feature_unmatched)
 
 
         # recall_probability = RecallProbability()

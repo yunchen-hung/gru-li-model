@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 import numpy as np
 import torch
 
@@ -8,14 +9,19 @@ from .utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
-def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion=None, test=False, stop_test_accu=1.0, model_save_path=None, device='cpu',
+def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterion=None, test=False, stop_test_accu=1.0, model_save_path=None, device='cpu',
     num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, step_iter=1, batch_size=1, use_memory=None,
     mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, 
-    randomly_flush_state=False, flush_state_prob=1.0, use_memory_together_with_flush=False, 
-    memory_entropy_reg=False, memory_reg_weight=0.0, sl_criterion_weight=1.0):
+    randomly_flush_state=False, flush_state_prob=1.0, use_memory_together_with_flush=False, reset_memory=True,
+    memory_entropy_reg=False, memory_reg_weight=0.0, sl_criterion_weight=1.0,
+    used_output_index=[0], env_sample_prob=[1.0]):
     """
     Train the model with RL
     """
+    # each used_output_index corresponds to an environment
+    # specifying the output that is used for computing the action for stepping the environment
+    assert len(envs) == len(used_output_index) == len(env_sample_prob)
+
     # set up some parameters and variables
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, \
         total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
@@ -39,6 +45,10 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         if i == 0:
             start_time = time.time()
 
+        # randomly sample an environment from the list of environments
+        env_id = np.random.choice(len(envs), p=env_sample_prob)
+        env = envs[env_id]
+
         # if randomly_flush_state is true, randomly decide whether to flush the state between encoding and recall phase
         # if randomly_use_memory is also true, don't use memory when don't flush state
         # this is used for mixed task of working memory and episodic memory
@@ -56,12 +66,13 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         # 1. reset initial state
         # 2. reset memory module
         state = agent.init_state(batch_size)
-        agent.reset_memory()
+        agent.reset_memory(flush=reset_memory)
 
         # create variables to store data related to outputs and results
-        actions, probs, rewards, values, entropys, actions_max, outputs, mem_similarities, mem_sim_entropys = \
-            [], [], [], [], [], [], [], [], []
-        outputs2 = []
+        outputs = defaultdict(list)
+        actions, probs, actions_max = defaultdict(list), defaultdict(list), defaultdict(list)
+        values, entropys = defaultdict(list), defaultdict(list)
+        rewards, mem_similarities, mem_sim_entropys = [], [], []
 
         forward_start_time = time.time()
 
@@ -87,37 +98,31 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
 
             # do one step of forward pass for the agent
             # output: batch_size x action_space, value: batch_size x 1
-            output, value, output2, value2, state, mem_similarity = agent(obs, state)
-            # action_distribution: batch_size x action_space
-            if isinstance(output, tuple):
-                # when generating two decisions, only record the first one as action
-                action_distribution = output[0]
-            else:
-                action_distribution = output
-            # action: batch_size, log_prob_action: batch_size
-            action, log_prob_action, action_max = pick_action(action_distribution)
-            # info_ = info
-            obs_, reward, done, info = env.step(action)
-            # print(obs, action, reward, info_)
-            obs = torch.Tensor(obs_).to(device)
+            output, value, state, mem_similarity = agent(obs, state)
 
-            outputs.append(output)
-            outputs2.append(output2)
-            probs.append(log_prob_action)
-            rewards.append(reward)
-            values.append(value)
-            entropys.append(entropy(action_distribution, device))
-            actions.append(action)
-            actions_max.append(action_max)
+            env_updated = False
+            for j, o in enumerate(output):
+                action_distribution = o
+                action, log_prob_action, action_max = pick_action(action_distribution)
+                if j == used_output_index[env_id]:
+                    obs_, reward, done, info = env.step(action)
+                    obs = torch.Tensor(obs_).to(device)
+                    rewards.append(reward)
+                    env_updated = True
+                outputs[j].append(o)
+                probs[j].append(log_prob_action)
+                actions[j].append(action)
+                actions_max[j].append(action_max)
+                values[j].append(value[j])
+                entropys[j].append(entropy(action_distribution, device))
+            assert env_updated
+
             mem_similarities.append(mem_similarity)
             mem_sim_entropys.append(entropy(mem_similarity, device))
             total_reward += np.sum(reward)
 
-        # print(actions)
-        # print(np.array([action.item() for action in actions]))
-        # correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(np.array([action.item() for action in actions]))
-        # print(torch.stack(actions).shape)
-        correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(torch.stack(actions))
+        correct_actions, wrong_actions, not_know_actions = \
+            env.compute_accuracy(torch.stack(actions[used_output_index[env_id]]))
         actions_total_num += correct_actions + wrong_actions + not_know_actions
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
@@ -132,12 +137,22 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         else:
             print_criterion_info = False
 
-        loss, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards, entropys, memory_num=memory_num, print_info=print_criterion_info, device=device)
+        for j in range(len(outputs)):
+            probs[j] = probs[j][memory_num:]
+            values[j] = values[j][memory_num:]
+            entropys[j] = entropys[j][memory_num:]
+
+        # print(probs)
+        # print(values)
+        # print(rewards[memory_num:])
+        # print(entropys)
+        loss, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+                                                                print_info=print_criterion_info, device=device)
+        # print(loss)
 
         if memory_entropy_reg:
             # add (negative) entropy regularization for memory similarity
             # to encourage the memory similarity to be closer to one-hot
-            # print([len(mem_sim_ent) for mem_sim_ent in mem_sim_entropys])
             mem_ent_reg_loss = memory_reg_weight * torch.mean(torch.stack([torch.stack(mem_sim_ent) for mem_sim_ent in mem_sim_entropys[memory_num:]]))
             loss += mem_ent_reg_loss
         else:
@@ -147,17 +162,17 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             gt, mask = env.get_ground_truth(phase="encoding")
             gt = torch.tensor(gt).to(device)
             mask = torch.tensor(mask).to(device)
-            if outputs2[0] is not None:
-                # print(outputs[:memory_num], gt.T)
-                outputs2 = torch.stack(outputs2)
-                loss += sl_criterion(outputs2[mask.reshape(-1, 1)==1], gt[mask==1].reshape(-1, 1), memory_num=memory_num) * sl_criterion_weight
-            else:
-                outputs = torch.stack(outputs)
-                loss += sl_criterion(outputs[mask.reshape(-1, 1)==1], gt[mask==1].reshape(-1, 1), memory_num=memory_num) * sl_criterion_weight
+            outputs_sl = defaultdict(list)
+            for j in range(len(outputs)):
+                outputs_sl[j] = torch.stack(outputs[j])[mask.reshape(-1, 1) == 1]
+            loss += sl_criterion(outputs_sl, gt[mask==1].reshape(-1, 1)) * sl_criterion_weight
 
         # loss_time += time.time() - loss_start_time
 
         # backward_start_time = time.time()
+
+        # print(loss)
+        # print()
 
         current_step_iter += 1
         if current_step_iter == step_iter:
@@ -171,7 +186,8 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
         total_loss += loss.item()
         total_actor_loss += loss_actor.item()
         total_critic_loss += loss_critic.item()
-        total_entropy += np.mean(torch.stack([torch.stack(entropys_t) for entropys_t in entropys]).cpu().detach().numpy())
+        # print(entropys)
+        total_entropy += np.mean(torch.stack([torch.stack(entropys_t) for entropys_t in entropys[used_output_index[env_id]]]).cpu().detach().numpy())
             
         if i % test_iter == 0:
             if i == test_iter:
@@ -185,14 +201,17 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             # print(torch.tensor(actions[memory_num:]).shape)
             # print(torch.tensor(actions[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
             # print(torch.tensor(actions_max[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
-            print("gt, actions, max_actions:", gt[0][memory_num:], torch.stack(actions[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
-                torch.stack(actions_max[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
+            for j in range(len(outputs)):
+                print("gt{}, action{}, max_action{}:".format(j+1, j+1, j+1), gt[0][memory_num:], 
+                    torch.stack(actions[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0],
+                    torch.stack(actions_max[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
+            # print("gt, actions, max_actions:", gt[0][memory_num:], torch.stack(actions[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0], 
+            #     torch.stack(actions_max[memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
+            
             # show example in the encoding phase
             # gt_encoding = env.get_ground_truth(phase="encoding")
-            print("encoding gt, actions, max_actions:", gt[0][:memory_num], torch.stack(actions[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
-                torch.stack(actions_max[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
-            if sl_criterion is not None and outputs2[0] is not None:
-                print("gt2, encoding action2:", gt[0][:memory_num], torch.argmax(outputs2[:memory_num, 0], dim=1).detach().cpu().numpy().reshape(-1))
+            # print("encoding gt, actions, max_actions:", gt[0][:memory_num], torch.stack(actions[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0], 
+            #     torch.stack(actions_max[:memory_num]).cpu().detach().numpy().transpose(1, 0)[0])
 
             # print("Actor loss, Critic loss, Entropy loss, Mem entropy loss:", loss_actor.item(), loss_critic.item(), loss_ent_reg.item(), mem_ent_reg_loss.item() if memory_entropy_reg else 0.0)
 
@@ -228,7 +247,7 @@ def train_model(agent, env, optimizer, scheduler, setup, criterion, sl_criterion
             print()
 
             if i != 0:
-                scheduler.step(test_error - test_accuracy)  # TODO: change a criterion here?
+                scheduler.step(total_loss)  # TODO: change a criterion here?
 
             if test_error - test_accuracy <= min_test_loss:
                 min_test_loss = test_error - test_accuracy
