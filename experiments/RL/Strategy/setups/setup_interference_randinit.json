@@ -9,7 +9,7 @@
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
-        "init_state_type": "noise",
+        "init_state_type": "noise_all",
         "flush_noise": 1,
         "em_gate_type": "scalar_sigmoid",
         "subclasses": [
@@ -18,7 +18,7 @@
                 "class": "ValueMemory",
                 "value_dim": 128,
                 "capacity": 10,
-                "recall_method": "argmax",
+                "recall_method": "weight_sum",
                 "subclasses": [
                     {
                         "name": "similarity_measure",
@@ -113,7 +113,6 @@
             }
         }
     ],
-    "load_model_name": "setup_baseline",
     "load_saved_model": false,
     "context_num": 1000
 }

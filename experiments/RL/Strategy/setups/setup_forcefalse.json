@@ -1,10 +1,10 @@
 {
-    "run_num": 50,
+    "run_num": 10,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
         "input_dim": 103,
-        "output_dim": 51,
+        "output_dims": [51],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
@@ -17,7 +17,8 @@
                 "class": "ValueMemory",
                 "value_dim": 128,
                 "capacity": 8,
-                "recall_method": "weight_sum",
+                "recall_method": "argmax",
+                "force_false_prob": 0.1,
                 "subclasses": [
                     {
                         "name": "similarity_measure",
@@ -31,24 +32,29 @@
     },
     "training": [
         {
-            "env": {
+            "env": [{
                 "class": "FreeRecall",
                 "vocabulary_num": 50,
                 "memory_num": 8,
                 "return_action": true,
                 "return_reward": true,
                 "reset_state_before_test": true
-            },
+            }],
             "trainer": {
                 "num_iter": 5000,
                 "test": false,
                 "test_iter": 1000,
-                "save_iter": 2000,
+                "save_iter": 5000,
                 "stop_test_accu": 0.99,
                 "use_memory": true,
                 "criterion": {
-                    "class": "EncodingCrossEntropyLoss",
-                    "class_num": 51
+                    "class": "MultiSupervisedLoss",
+                    "criteria": [
+                        {
+                            "class": "EncodingCrossEntropyLoss",
+                            "class_num": 51
+                        }
+                    ]
                 },
                 "optimizer": {
                     "class": "Adam",
@@ -62,7 +68,7 @@
             }
         },
         {
-            "env": {
+            "env": [{
                 "class": "FreeRecall",
                 "vocabulary_num": 50,
                 "memory_num": 8,
@@ -72,22 +78,27 @@
                 "false_reward": -1.0,
                 "repeat_penalty": -1.0,
                 "not_know_reward": -1.0
-            },
+            }],
             "trainer": {
                 "training_function": "train_model",
                 "num_iter": 200000,
                 "test": false,
                 "test_iter": 1000,
-                "save_iter": 2000,
+                "save_iter": 5000,
                 "use_memory": true,
                 "stop_test_accu": 0.99,
                 "memory_entropy_reg": true,
                 "memory_reg_weight": 0.1,
                 "criterion": {
-                    "class": "A2CLoss",
-                    "use_V": true,
-                    "eta": 0.01,
-                    "gamma": 0.9
+                    "class": "MultiRLLoss",
+                    "criteria": [
+                        {
+                            "class": "A2CLoss",
+                            "use_V": true,
+                            "eta": 0.01,
+                            "gamma": 0.9
+                        }
+                    ]
                 },
                 "optimizer": {
                     "class": "Adam",
