@@ -1,13 +1,13 @@
 import numpy as np
+import random
 import gymnasium as gym
-import matplotlib.pyplot as plt
+# import torch
+# from environment import *
+# seed = 0
+# torch.manual_seed(seed)
+# np.random.seed(seed)
+# random.seed(seed)
 
-from models.memory.similarity.lca import LCA
-from models.utils import softmax
-from tasks import ConditionalEMRecall , MetaLearningEnv, ConditionalQuestionAnswer, FreeRecallRepeat, \
-    FreeRecall, PlaceHolderWrapper
-
-from utils import load_dict
 
 class HarlowEnv(gym.Env):
     """
@@ -35,6 +35,9 @@ class HarlowEnv(gym.Env):
         """
         Reset the environment.
         """
+
+        np.random.seed(seed)
+        random.seed(seed)
 
         # reset the environment
         self.num_completed = 0
@@ -115,39 +118,24 @@ class HarlowEnv(gym.Env):
         return labels_one_hot
 
 
-def main():
-    def make_env(seed):
-        # env = FreeRecall()
-        env = HarlowEnv()
-        env.seed(seed)
-        return env
-
-    seeds = np.random.randint(0, 1000, 3)
-
+if __name__ == '__main__':
+    batch_size = 3
     env = gym.vector.AsyncVectorEnv([
         lambda: HarlowEnv()
-        # make_env(seeds[i])
-        for i in range(3)
+        for _ in range(batch_size)
     ])
-
-    for i in range(3):
-        obs, info = env.reset()
-        print(obs)
-        terminated = np.array([False] * 3)
-        cnt = 0
-        while not terminated.all():
-            action = env.action_space.sample()
-            cnt += 1
-            obs, reward, terminated, _, info = env.step(action)
-            print(action)
-            print(obs, reward, terminated, info)
-            # if cnt > 20:
-            #     break
-        print(obs.shape)
-        print()
-        
-
-
-if __name__ == '__main__':
-    main()
-    
+    seeds = np.random.randint(0, 1000, batch_size)
+    obs, info = env.reset(seed=seeds)
+    print('initial obs:', obs.reshape(-1))
+    dones = np.zeros(batch_size, dtype = bool)
+    while not all(dones):
+        action = env.action_space.sample()
+        obs, reward, done, truncated, info = env.step(action)
+        print(
+            'obs:', obs.reshape(-1), '|',
+            'action:', action, '|',
+            'correct answer:', info['correct_answer'], '|',
+            'reward:', reward, '|',
+            'done:', done, '|',
+        )
+        dones = np.logical_or(dones, done)
