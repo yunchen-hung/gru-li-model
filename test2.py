@@ -16,7 +16,7 @@ class HarlowEnv(gym.Env):
 
     metadata = {'render_modes': ['human', 'rgb_array']}
 
-    def __init__(self, flip_prob = 0.2):
+    def __init__(self, flip_prob = 0.2, seed = None):
         """
         Construct an environment.
         """
@@ -31,7 +31,7 @@ class HarlowEnv(gym.Env):
         self.observation_space = gym.spaces.Box(low = -np.inf, high = np.inf, shape = (1,))
 
 
-    def reset(self, seed = None, option = {}):
+    def reset(self, seed=None, option = {}):
         """
         Reset the environment.
         """
@@ -122,20 +122,22 @@ if __name__ == '__main__':
     batch_size = 3
     env = gym.vector.AsyncVectorEnv([
         lambda: HarlowEnv()
-        for _ in range(batch_size)
+        # make_env(seeds[i])
+        for i in range(batch_size)
     ])
-    seeds = np.random.randint(0, 1000, batch_size)
-    obs, info = env.reset(seed=seeds)
-    print('initial obs:', obs.reshape(-1))
-    dones = np.zeros(batch_size, dtype = bool)
-    while not all(dones):
-        action = env.action_space.sample()
-        obs, reward, done, truncated, info = env.step(action)
-        print(
-            'obs:', obs.reshape(-1), '|',
-            'action:', action, '|',
-            'correct answer:', info['correct_answer'], '|',
-            'reward:', reward, '|',
-            'done:', done, '|',
-        )
-        dones = np.logical_or(dones, done)
+    for i in range(3):
+        seeds = np.random.randint(0, 1000, batch_size)
+        obs, info = env.reset(seed=seeds)
+        print('initial obs:', obs.reshape(-1))
+        dones = np.zeros(batch_size, dtype = bool)
+        while not all(dones):
+            action = env.action_space.sample()
+            obs, reward, done, truncated, info = env.step(action)
+            print(
+                'obs:', obs.reshape(-1), '|',
+                'action:', action, '|',
+                'correct answer:', info['correct_answer'], '|',
+                'reward:', reward, '|',
+                'done:', done, '|',
+            )
+            dones = np.logical_or(dones, done)

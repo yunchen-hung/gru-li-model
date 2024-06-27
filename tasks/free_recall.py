@@ -38,6 +38,9 @@ class FreeRecall(BaseEMTask):
         # assert self.backward_smooth >= 0 and self.backward_smooth <= 1
         # self.smooth_matrix = self.generate_smooth_matrix()  # generate smooth matrix
 
+        # if seed is not None:
+        #     np.random.seed(None)
+
         self.memory_sequence = self.generate_sequence()     # generate memory sequence
         self.stimuli = self.generate_stimuli()              # generate stimuli according to memory sequence
         self.current_timestep = 0                           # reset current timestep
