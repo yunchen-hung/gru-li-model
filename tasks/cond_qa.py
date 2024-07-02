@@ -11,7 +11,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
     def __init__(self, num_features=4, feature_dim=2, sequence_len=8, retrieve_time_limit=None, 
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, cumulated_gt=False,
                  include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False,
-                 no_early_stop=False):
+                 no_early_stop=True, seed=None):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -39,7 +39,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
         Action space:
             feature_dim ^ seq_len (include all possible answers for sum) + 1 no_action dim, a one-hot vector overall
         """
-        super().__init__(reset_state_before_test=reset_state_before_test)
+        super().__init__(reset_state_before_test=reset_state_before_test, seed=seed)
         self.num_features = num_features
         self.feature_dim = feature_dim
         self.sequence_len = sequence_len
@@ -56,15 +56,20 @@ class ConditionalQuestionAnswer(BaseEMTask):
         self.question_space_dim = num_features
 
         if self.one_hot_stimuli:
-            self.observation_space = spaces.MultiDiscrete([self.feature_dim ** self.num_features, 
-                                                           self.question_space_dim, 
-                                                           feature_dim, 
-                                                           self.question_space_dim])
+            # self.observation_space = spaces.MultiDiscrete([self.feature_dim ** self.num_features, 
+            #                                                self.question_space_dim, 
+            #                                                feature_dim, 
+            #                                                self.question_space_dim])
+            self.obs_shape = np.sum([self.feature_dim ** self.num_features, 
+                                self.question_space_dim, feature_dim, self.question_space_dim])
         else:
-            self.observation_space = spaces.MultiDiscrete([feature_dim for _ in range(num_features)]
-                                                        + [self.question_space_dim, 
-                                                           feature_dim, 
-                                                           self.question_space_dim])
+            # self.observation_space = spaces.MultiDiscrete([feature_dim for _ in range(num_features)]
+            #                                             + [self.question_space_dim, 
+            #                                                feature_dim, 
+            #                                                self.question_space_dim])
+            self.obs_shape = np.sum([feature_dim for _ in range(num_features)]
+                            + [self.question_space_dim, feature_dim, self.question_space_dim])
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.obs_shape,), dtype=np.float32)
         # self.action_space = spaces.Discrete((feature_dim-1) * sequence_len + 2)
         self.action_space = spaces.Discrete(3)
         
@@ -111,6 +116,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
 
         self.phase = "encoding"     # encoding, recall
         self.timestep = 0
+        self.answered = False
 
         # convert the first observation to concatenated one-hot vectors
         obs = self._generate_observation(self.memory_sequence[0], self.question_feature, self.question_value, 
@@ -141,28 +147,32 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_feature, self.question_value,
                                                 self.sum_feature, include_question=self.include_question_during_encode)
                 info = {"phase": "encoding"}
-            return obs, [0.0], np.array([False]), info
+            return obs, 0.0, False, False, info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
                                              include_question=True)
             info = {"phase": "recall"}
 
-            if action == self.action_space.n - 1 or (self.no_early_stop and self.timestep < self.retrieve_time_limit):
+            if self.no_early_stop and self.answered:
+                reward = 0.0
+            elif action == self.action_space.n - 1:
                 # not action
                 reward = self.no_action_reward
             elif self.answer is None:
                 reward = self.correct_reward / self.feature_dim
             elif action == self.answer:
+                self.answered = True
                 reward = self.correct_reward
             else:
+                self.answered = True
                 reward = self.wrong_reward
 
-            if (not self.no_early_stop and action != self.action_space.n - 1) or self.timestep >= self.retrieve_time_limit:
+            if (not self.no_early_stop and self.answered) or self.timestep >= self.retrieve_time_limit:
                 done = True
             else:
                 done = False
             
-            return obs, [reward], np.array([done]), info
+            return obs, reward, done, False, info
 
     def render(self, mode='human'):
         print("memory sequence:", self.memory_sequence)
@@ -267,7 +277,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
         sum_feature: the index of the feature to be summed up
         include_question: whether to include the question in the observation
         """
-        observation = np.zeros(np.sum(self.observation_space.nvec))
+        observation = np.zeros(self.obs_shape)
         if self.one_hot_stimuli:
             if stimuli is not None:
                 stimuli_int = self.convert_stimuli_to_action(stimuli)
@@ -282,4 +292,4 @@ class ConditionalQuestionAnswer(BaseEMTask):
             observation[question_offset+question_feature] = 1
             observation[question_offset+self.question_space_dim+question_value] = 1
             observation[question_offset+self.question_space_dim+self.feature_dim+sum_feature] = 1
-        return observation.reshape(1, -1)
+        return observation

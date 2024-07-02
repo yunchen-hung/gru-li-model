@@ -1,7 +1,7 @@
 import torch
-import matplotlib.pyplot as plt
 import itertools
 import copy
+import numpy as np
 import gymnasium as gym
 
 from .dict_utils import load_dict, get_dict_item, set_dict_item
@@ -71,38 +71,46 @@ def load_model(setup, device):
 def load_environment(setup):
     envs = []
     for env_setup in setup:
-        if "vector_env" in env_setup:
+        if "vector_env" in env_setup.keys():
             mode = env_setup["vector_env"]["mode"]
             batch_size = env_setup["vector_env"]["batch_size"]
             env_setup.pop("vector_env")
+            seeds = np.random.randint(0, 100000, batch_size)
+            # env_list = []
+            # for i in seeds:
+            #     env_setup["seed"] = i
+            #     env_list.append(lambda: load_single_environment(**env_setup))
             if mode == "sync":
                 env = gym.vector.SyncVectorEnv([
-                    lambda: load_single_environment(env_setup)
-                    for _ in range(batch_size)
+                    lambda: load_single_environment(copy.deepcopy(env_setup), seed=seeds[i])
+                    for i in range(batch_size)
                 ])
+                print("Sync vector env, batch size {}".format(batch_size))
             elif mode == "async":
                 env = gym.vector.AsyncVectorEnv([
-                    lambda: load_single_environment(env_setup)
-                    for _ in range(batch_size)
+                    lambda: load_single_environment(copy.deepcopy(env_setup), seed=seeds[i])
+                    for i in range(batch_size)
                 ])
+                print("Async vector env, batch size {}".format(batch_size))
             else:
                 raise AttributeError("vector env mode must be 'async' or 'sync'")
         else:
-            env = load_single_environment(env_setup)
+            # env = load_single_environment(env_setup)
+            env = gym.vector.SyncVectorEnv([lambda: load_single_environment(env_setup)])
         envs.append(env)
     return envs
 
 
-def load_single_environment(setup):
+def load_single_environment(setup, seed=None):
     task_class = setup.pop("class")
     if "wrapper" in setup:
         wrapper_setups = setup.pop("wrapper")
-        env = import_attr("tasks.{}".format(task_class))(**setup)
+        env = import_attr("tasks.{}".format(task_class))(seed=seed, **setup)
         for wrapper_setup in wrapper_setups:
             wrapper_class = wrapper_setup.pop("class")
             env = import_attr("tasks.wrappers.{}".format(wrapper_class))(env, **wrapper_setup)
     else:
-        env = import_attr("tasks.{}".format(task_class))(**setup)
+        env = import_attr("tasks.{}".format(task_class))(seed=seed, **setup)
     return env
         
 

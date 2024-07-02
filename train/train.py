@@ -24,15 +24,14 @@ def train(agent, envs, optimizer, scheduler, criterion,
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, \
         total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
     test_accuracies, test_errors = [], []
-    batch_size = batch_size
+
+    batch_size = envs[0].num_envs
     if use_memory:
         agent.use_memory = use_memory
     min_test_loss = torch.inf
 
     print("start training")
     print("batch size:", batch_size)
-
-    current_step_iter = 0
 
     current_lr = optimizer.state_dict()['param_groups'][0]['lr']
     
@@ -46,6 +45,7 @@ def train(agent, envs, optimizer, scheduler, criterion,
         # randomly sample an environment from the list of environments
         env_id = np.random.choice(len(envs), p=env_sample_prob)
         env = envs[env_id]
+        batch_size = env.num_envs
 
         # before each trial, for the agent:
         # 1. reset initial state
@@ -60,24 +60,23 @@ def train(agent, envs, optimizer, scheduler, criterion,
         rewards, mem_similarities, mem_sim_entropys = [], [], []
 
         # reset environment
-        obs_, info = env.reset(batch_size)
+        obs_, info = env.reset()
         obs = torch.Tensor(obs_).to(device)
         # print(env.memory_sequence)
         done = np.zeros(batch_size, dtype=bool)
         memory_num = 0
         while not done.all():
             # set up the phase of the agent
-            if info["phase"] == "encoding":
+            if info["phase"][0] == "encoding":
                 memory_num += 1
                 agent.set_encoding(True)
                 agent.set_retrieval(False)
-            elif info["phase"] == "recall":
+            elif info["phase"][0] == "recall":
                 agent.set_encoding(False)
                 agent.set_retrieval(True)
             # reset state between phases
-            if info.get("reset_state", False):
+            if "reset_state" in info and info["reset_state"][0]:
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
-                # prev_state = state
 
             # do one step of forward pass for the agent
             # output: batch_size x action_space, value: batch_size x 1
@@ -88,7 +87,7 @@ def train(agent, envs, optimizer, scheduler, criterion,
                 action_distribution = o
                 action, log_prob_action, action_max = pick_action(action_distribution)
                 if j == used_output_index[env_id]:
-                    obs_, reward, done, info = env.step(action)
+                    obs_, reward, done, _, info = env.step(list(action))
                     obs = torch.Tensor(obs_).to(device)
                     rewards.append(reward)
                     env_updated = True
@@ -104,15 +103,12 @@ def train(agent, envs, optimizer, scheduler, criterion,
             mem_sim_entropys.append(entropy(mem_similarity, device))
             total_reward += np.sum(reward)
 
-        correct_actions, wrong_actions, not_know_actions = \
-            env.compute_accuracy(torch.stack(actions[used_output_index[env_id]]))
-        actions_total_num += correct_actions + wrong_actions + not_know_actions
-        actions_correct_num += correct_actions
-        actions_wrong_num += wrong_actions
-
-        # forward_time += time.time() - forward_start_time
-
-        # loss_start_time = time.time()
+        # correct_actions, wrong_actions, not_know_actions = \
+        #     env.compute_accuracy(torch.stack(actions[used_output_index[env_id]]))
+        # actions_total_num += correct_actions + wrong_actions + not_know_actions
+        # actions_correct_num += correct_actions
+        # actions_wrong_num += wrong_actions
+        actions_total_num += batch_size * memory_num
 
         if i % test_iter == 0:
             print_criterion_info = True
@@ -125,6 +121,7 @@ def train(agent, envs, optimizer, scheduler, criterion,
             values[j] = values[j][memory_num:]
             entropys[j] = entropys[j][memory_num:]
 
+        out_ind = used_output_index[env_id]
         loss_all, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
                                                                 print_info=print_criterion_info, device=device)
         loss += loss_all
@@ -145,27 +142,22 @@ def train(agent, envs, optimizer, scheduler, criterion,
             if i == test_iter:
                 print("Estimated time needed: {:2f}h".format((time.time()-start_time)/test_iter*num_iter/3600))
             
-            env.render()
-            gt, mask = env.get_ground_truth()
+            # env.render()
+            # gt, mask = env.get_ground_truth()
             # show example ground truth and actions, including random sampled actions and argmax actions
-            for j in range(len(outputs)):
-                print("gt{}, action{}, max_action{}:".format(j+1, j+1, j+1), gt[0][memory_num:], 
-                    torch.stack(actions[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0],
-                    torch.stack(actions_max[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
+            # for j in range(len(outputs)):
+            #     print("gt{}, action{}, max_action{}:".format(j+1, j+1, j+1), gt[0][memory_num:], 
+            #         torch.stack(actions[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0],
+            #         torch.stack(actions_max[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
             
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error
-            mean_reward = total_reward / actions_total_num
-            mean_loss = total_loss / test_iter
-            mean_actor_loss = total_actor_loss / test_iter
-            mean_critic_loss = total_critic_loss / test_iter
-            mean_entropy = total_entropy / test_iter
-
-            if agent.mem_beta is not None:
-                print('mem_beta:', agent.mem_beta)
-            
-            # print('variance of hidden state:', torch.var(prev_state).item())
+            mean_reward = total_reward / (test_iter * batch_size)
+            mean_loss = total_loss / (test_iter * batch_size)
+            mean_actor_loss = total_actor_loss / (test_iter * batch_size)
+            mean_critic_loss = total_critic_loss / (test_iter * batch_size)
+            mean_entropy = total_entropy / (test_iter * batch_size)
 
             print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
                 'critic loss: {:.4f}, entropy: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss,
@@ -173,24 +165,26 @@ def train(agent, envs, optimizer, scheduler, criterion,
             print()
 
             if i != 0:
-                scheduler.step(total_loss)  # TODO: change a criterion here?
+                scheduler.step(-mean_reward)  # TODO: change a criterion here?
                 lr = optimizer.state_dict()['param_groups'][0]['lr']
                 if lr != current_lr:
                     print("lr changed from {} to {}".format(current_lr, lr))
                     current_lr = lr
 
-            if error - accuracy <= min_test_loss:
-                min_test_loss = error - accuracy
-                save_model(agent, model_save_path, filename="model.pt")
+            # if error - accuracy <= min_test_loss:
+            #     min_test_loss = error - accuracy
+            #     save_model(agent, model_save_path, filename="model.pt")
+            save_model(agent, model_save_path, filename="model.pt")
             
-            if accuracy >= stop_test_accu and i > min_iter:
-                print("training end")
-                break
+            # if accuracy >= stop_test_accu and i > min_iter:
+            #     print("training end")
+            #     break
 
-            test_accuracies.append(accuracy)
-            test_errors.append(error)
+            # test_accuracies.append(accuracy)
+            # test_errors.append(error)
 
-            total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
+            total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, \
+                total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
         
         if i % save_iter == 0:
             save_model(agent, model_save_path, filename="{}.pt".format(i))

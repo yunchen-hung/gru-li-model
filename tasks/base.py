@@ -4,9 +4,11 @@ import gymnasium as gym
 
 
 class BaseEMTask(gym.Env):
-    def __init__(self, reset_state_before_test=True):
+    def __init__(self, reset_state_before_test=True, seed=None):
         super().__init__()
         self.reset_state_before_test = reset_state_before_test
+        if seed is not None:
+            np.random.seed(None)
 
     def compute_accuracy(self, actions):
         """

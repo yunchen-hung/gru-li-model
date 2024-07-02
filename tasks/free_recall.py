@@ -9,8 +9,9 @@ class FreeRecall(BaseEMTask):
     def __init__(self, vocabulary_num=20, memory_num=5, memory_var=0, retrieve_time_limit=None, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
     not_know_reward=-0.1, reset_state_before_test=False, start_recall_cue=False, encode_reward_weight=0.0, return_action=False, return_reward=False, 
     #forward_smooth=0, backward_smooth=0, 
+    seed=None,
     dt=10, tau=10):
-        super().__init__(reset_state_before_test=reset_state_before_test)
+        super().__init__(reset_state_before_test=reset_state_before_test, seed=seed)
         self.vocabulary_num = vocabulary_num        # dimension of items
         self.memory_num = memory_num                # sequence length
         self.memory_var = memory_var                # variance of memory sequence length
@@ -37,9 +38,6 @@ class FreeRecall(BaseEMTask):
         # assert self.forward_smooth >= 0 and self.forward_smooth <= 1
         # assert self.backward_smooth >= 0 and self.backward_smooth <= 1
         # self.smooth_matrix = self.generate_smooth_matrix()  # generate smooth matrix
-
-        # if seed is not None:
-        #     np.random.seed(None)
 
         self.memory_sequence = self.generate_sequence()     # generate memory sequence
         self.stimuli = self.generate_stimuli()              # generate stimuli according to memory sequence
@@ -78,12 +76,12 @@ class FreeRecall(BaseEMTask):
         if self.start_recall_cue:
             observations = np.concatenate((observations, np.zeros(1)), axis=0)
         if self.return_action:
-            observations = np.concatenate((observations, np.zeros(1)), axis=0)
+            observations = np.concatenate((observations, np.zeros((self.vocabulary_num+1))), axis=0)
         if self.return_reward:
             observations = np.concatenate((observations, np.zeros(1)), axis=0)
         # observations = observations.reshape(1, -1)
 
-        print(self.memory_sequence)
+        # print(self.memory_sequence)
         return observations, info
 
     def step(self, action):
@@ -137,7 +135,7 @@ class FreeRecall(BaseEMTask):
             else:
                 observations = np.concatenate((observations, np.zeros((self.vocabulary_num+1))), axis=0)
         if self.return_reward:
-            observations = np.concatenate((observations, np.array([reward])), axis=1)
+            observations = np.concatenate((observations, np.array([reward])), axis=0)
         # observations = observations.reshape(1, -1)
         return observations, reward, done, False, info
 
