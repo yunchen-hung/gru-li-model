@@ -29,7 +29,7 @@
         "env": [{
             "vector_env": {
                 "mode": "async",
-                "batch_size": 32
+                "batch_size": 64
             },
             "class": "ConditionalQuestionAnswer",
             "wrapper": [{
@@ -39,10 +39,10 @@
             "feature_dim": 2,
             "sequence_len": 4,
             "reset_state_before_test": true,
-            "correct_reward": 10.0,
+            "correct_reward": 2.0,
             "no_action_reward": -0.0,
-            "wrong_reward": -10.0,
-            "include_question_during_encode": true
+            "wrong_reward": -2.0,
+            "include_question_during_encode": false
         }],
         "trainer": {
             "training_function": "train",

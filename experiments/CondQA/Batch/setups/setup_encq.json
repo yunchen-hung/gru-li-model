@@ -29,7 +29,7 @@
         "env": [{
             "vector_env": {
                 "mode": "async",
-                "batch_size": 32
+                "batch_size": 64
             },
             "class": "ConditionalQuestionAnswer",
             "wrapper": [{
