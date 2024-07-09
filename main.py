@@ -127,7 +127,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                         zip(envs, optimizers, schedulers, criterions, sl_criterions, training_setups):
                     if env and optimizer and scheduler and criterion:
                         print("\ntraining session {}".format(training_session))
-                        training_func = training_setup["trainer"].pop("training_function", "supervised_train_model")
+                        training_func = training_setup["trainer"].pop("training_function", "train")
                         # accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, sl_criterion,
                         #     device=device, model_save_path=model_save_path, **training_setup["trainer"])
                         accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, criterion, sl_criterion,
