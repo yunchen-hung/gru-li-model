@@ -8,7 +8,7 @@ from models.utils import entropy
 from .utils import count_accuracy, save_model
 
 
-def train(agent, envs, optimizer, scheduler, criterion, 
+def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
     model_save_path=None, device='cpu', use_memory=None,
     num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, stop_test_accu=1.0, 
     reset_memory=True, used_output_index=[0], env_sample_prob=[1.0],
@@ -58,6 +58,7 @@ def train(agent, envs, optimizer, scheduler, criterion,
         actions, probs, actions_max = defaultdict(list), defaultdict(list), defaultdict(list)
         values, entropys = defaultdict(list), defaultdict(list)
         rewards, mem_similarities, mem_sim_entropys = [], [], []
+        gts, gt_masks = [], []
 
         # reset environment
         obs_, info = env.reset()
@@ -91,6 +92,12 @@ def train(agent, envs, optimizer, scheduler, criterion,
                     obs = torch.Tensor(obs_).to(device)
                     rewards.append(reward)
                     env_updated = True
+                    if done.any():
+                        gts.append([final_info["gt"] for final_info in info["final_info"]])
+                        gt_masks.append([final_info["gt_mask"] for final_info in info["final_info"]])
+                    else:
+                        gts.append(info["gt"])
+                        gt_masks.append(info["gt_mask"])
                 outputs[j].append(o)
                 probs[j].append(log_prob_action)
                 actions[j].append(action)
@@ -120,11 +127,19 @@ def train(agent, envs, optimizer, scheduler, criterion,
             probs[j] = probs[j][memory_num:]
             values[j] = values[j][memory_num:]
             entropys[j] = entropys[j][memory_num:]
+            outputs[j] = torch.stack(outputs[j]).to(device)
 
-        out_ind = used_output_index[env_id]
-        loss_all, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+        if criterion is not None:
+            loss_all, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
                                                                 print_info=print_criterion_info, device=device)
-        loss += loss_all
+            loss += loss_all
+
+        if sl_criterion is not None:
+            gts = torch.tensor(np.array(gts)).to(device)
+            gt_masks = torch.tensor(np.array(gt_masks)).to(device)
+            # print(gts, gt_masks, outputs[0].shape)
+            loss_sl = sl_criterion([outputs[o][gt_masks] for o in outputs], gts[gt_masks])
+            loss += loss_sl
 
         optimizer.zero_grad()
         loss.backward()

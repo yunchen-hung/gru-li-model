@@ -141,12 +141,12 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 self.timestep = 0
                 obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
                                                  include_question=True)
-                info = {"phase": "recall", "reset_state": self.reset_state_before_test}
+                info = {"phase": "recall", "reset_state": self.reset_state_before_test, "gt": 0, "gt_mask": False}
             else:
                 # encoding phase
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_feature, self.question_value,
                                                 self.sum_feature, include_question=self.include_question_during_encode)
-                info = {"phase": "encoding"}
+                info = {"phase": "encoding", "gt": 0, "gt_mask": False}
             return obs, 0.0, False, False, info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
@@ -171,6 +171,13 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 done = True
             else:
                 done = False
+
+            if done:
+                info["gt"] = self.answer
+                info["gt_mask"] = True
+            else:
+                info["gt"] = 0
+                info["gt_mask"] = False
             
             return obs, reward, done, False, info
 

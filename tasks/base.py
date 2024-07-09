@@ -8,7 +8,7 @@ class BaseEMTask(gym.Env):
         super().__init__()
         self.reset_state_before_test = reset_state_before_test
         if seed is not None:
-            np.random.seed(None)
+            np.random.seed(seed)
 
     def compute_accuracy(self, actions):
         """
