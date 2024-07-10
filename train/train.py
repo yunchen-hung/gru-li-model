@@ -22,7 +22,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
 
     # set up some parameters and variables
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, \
-        total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
+        total_critic_loss, total_sl_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0
     test_accuracies, test_errors = [], []
 
     batch_size = envs[0].num_envs
@@ -130,16 +130,25 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             outputs[j] = torch.stack(outputs[j]).to(device)
 
         if criterion is not None:
-            loss_all, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+            loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
                                                                 print_info=print_criterion_info, device=device)
-            loss += loss_all
+            loss += loss_rl
 
+            total_loss += loss_rl.item()
+            total_actor_loss += loss_actor.item()
+            total_critic_loss += loss_critic.item()
+            total_entropy += np.mean(torch.stack([torch.stack(entropys_t) for entropys_t \
+                                                  in entropys[used_output_index[env_id]]]).cpu().detach().numpy())
+
+        gts = torch.tensor(np.array(gts)).to(device)
+        gt_masks = torch.tensor(np.array(gt_masks)).to(device)
+        # print(gts, gt_masks)
         if sl_criterion is not None:
-            gts = torch.tensor(np.array(gts)).to(device)
-            gt_masks = torch.tensor(np.array(gt_masks)).to(device)
             # print(gts, gt_masks, outputs[0].shape)
             loss_sl = sl_criterion([outputs[o][gt_masks] for o in outputs], gts[gt_masks])
             loss += loss_sl
+
+            total_sl_loss += loss_sl.item()
 
         optimizer.zero_grad()
         loss.backward()
@@ -148,10 +157,6 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
         optimizer.step()
         loss = 0.0
 
-        total_loss += loss_all.item()
-        total_actor_loss += loss_actor.item()
-        total_critic_loss += loss_critic.item()
-        total_entropy += np.mean(torch.stack([torch.stack(entropys_t) for entropys_t in entropys[used_output_index[env_id]]]).cpu().detach().numpy())
             
         if i % test_iter == 0:
             if i == test_iter:
@@ -177,6 +182,13 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
                 'critic loss: {:.4f}, entropy: {:.4f}'.format(i, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss,
                                                               mean_entropy))
+            actions_trial = torch.stack(actions[used_output_index[env_id]]).cpu().detach().numpy()
+            gts_trial = gts.cpu().detach().numpy()
+            # print(actions_trial.shape, gts_trial.shape)
+            if sl_criterion is not None:
+                print("encoding phase, action:", actions_trial[0:memory_num, 0], "gt:", gts_trial[0:memory_num, 0])
+            if criterion is not None:
+                print("recall phase, action:", actions_trial[memory_num:, 0], "gt:", gts_trial[0][memory_num:, 0])
             print()
 
             if i != 0:

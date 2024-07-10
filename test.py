@@ -21,7 +21,8 @@ def main():
     setup = {"vocabulary_num": 15}
 
     env = gym.vector.SyncVectorEnv([
-        lambda: MetaLearningEnv(ConditionalQuestionAnswer(seed=seeds[i], num_features=3, feature_dim=2, sequence_len=4))
+        # lambda: MetaLearningEnv(ConditionalQuestionAnswer(seed=seeds[i], num_features=3, feature_dim=2, sequence_len=4))
+        lambda: FreeRecall(seed=seeds[i], **setup)
         # make_env(seeds[i])
         for i in range(3)
     ])
@@ -31,18 +32,18 @@ def main():
     for i in range(3):
         obs, info = env.reset()
         print(obs)
-        terminated = np.array([False] * 3)
-        cnt = 0
-        while not terminated.all():
-            action = env.action_space.sample()
-            cnt += 1
-            obs, reward, terminated, _, info = env.step(action)
-            print(action)
-            print(obs, reward, terminated, info)
-            # if cnt > 20:
-            #     break
-        print(obs.shape)
-        print()
+        # terminated = np.array([False] * 3)
+        # cnt = 0
+        # while not terminated.all():
+        #     action = env.action_space.sample()
+        #     cnt += 1
+        #     obs, reward, terminated, _, info = env.step(action)
+        #     print(action)
+        #     print(obs, reward, terminated, info)
+        #     # if cnt > 20:
+        #     #     break
+        # print(obs.shape)
+        # print()
         
 
 

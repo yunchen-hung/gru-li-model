@@ -99,7 +99,7 @@ class FreeRecall(BaseEMTask):
         if self.testing:
             reward = self.compute_reward(action)
             observations = np.zeros((self.vocabulary_num+1))
-            info = {"phase": "recall"}
+            info = {"phase": "recall", "gt": 0, "gt_mask": False}
             self.increase_timestep()
             done = self.check_done()
         else:
@@ -120,13 +120,13 @@ class FreeRecall(BaseEMTask):
                 self.testing = True
                 observations = np.zeros((self.vocabulary_num+1))
                 self.increase_timestep(set_zero=True)
-                info = {"phase": "recall"}
+                info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True}
                 if self.reset_state_before_test:    # send signal for the agent to reset its state
                     info["reset_state"] = True
                 start_recall = 1
             else:
                 observations = self.stimuli[self.current_timestep, :]
-                info = {"phase": "encoding"}
+                info = {"phase": "encoding", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True}
         if self.start_recall_cue:
             observations = np.concatenate((observations, np.ones(1) * start_recall), axis=0)
         if self.return_action:

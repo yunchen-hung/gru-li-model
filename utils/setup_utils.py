@@ -36,7 +36,10 @@ def parse_setup(general_setup, device):
                 env = None
             if "trainer" in training_setup:
                 optimizer, scheduler = load_optimizer(training_setup["trainer"].pop("optimizer"), model)
-                criterion = load_criterion(training_setup["trainer"].pop("criterion"))
+                if "criterion" in training_setup["trainer"]:
+                    criterion = load_criterion(training_setup["trainer"].pop("criterion"))
+                else:
+                    criterion = None
                 if "sl_criterion" in training_setup["trainer"]:
                     sl_criterion = load_criterion(training_setup["trainer"].pop("sl_criterion"))
                 else:

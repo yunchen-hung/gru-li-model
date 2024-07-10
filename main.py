@@ -91,6 +91,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         # parse setup
         # construct the model, environment, optimizer, etc.
         model_instances = parse_setup(general_setup, device)
+        # print(model_instances)
 
         for run_name, model_instance in model_instances.items():
             run_name_with_num = run_name + "-{}".format(i)
@@ -125,7 +126,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 training_session = 1
                 for env, optimizer, scheduler, criterion, sl_criterion, training_setup in \
                         zip(envs, optimizers, schedulers, criterions, sl_criterions, training_setups):
-                    if env and optimizer and scheduler and criterion:
+                    if env and optimizer and scheduler and (criterion or sl_criterion):
                         print("\ntraining session {}".format(training_session))
                         training_func = training_setup["trainer"].pop("training_function", "train")
                         # accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, sl_criterion,

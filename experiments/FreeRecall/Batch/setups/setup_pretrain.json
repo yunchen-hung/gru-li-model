@@ -29,7 +29,7 @@
         "env": [{
             "vector_env": {
                 "mode": "async",
-                "batch_size": 16
+                "batch_size": 8
             },
             "class": "FreeRecall",
             "vocabulary_num": 50,
@@ -43,9 +43,9 @@
             "not_know_reward": -0.75
         }],
         "trainer": {
-            "num_iter": 5000,
+            "num_iter": 200,
             "test_iter": 100,
-            "save_iter": 5000,
+            "save_iter": 200,
             "use_memory": true,
             "stop_test_accu": 0.99,
             "sl_criterion": {
