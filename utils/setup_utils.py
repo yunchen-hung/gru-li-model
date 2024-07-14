@@ -31,9 +31,9 @@ def parse_setup(general_setup, device):
         envs, optimizers, schedulers, criterions, sl_criterions = [], [], [], [], []
         for training_setup in training_setups:
             if "env" in training_setup:
-                env = load_environment(training_setup.pop("env"))
+                env, single_env = load_environment(training_setup.pop("env"))
             else:
-                env = None
+                env, single_env = None, None
             if "trainer" in training_setup:
                 optimizer, scheduler = load_optimizer(training_setup["trainer"].pop("optimizer"), model)
                 if "criterion" in training_setup["trainer"]:
@@ -51,7 +51,7 @@ def parse_setup(general_setup, device):
             schedulers.append(scheduler)
             criterions.append(criterion)
             sl_criterions.append(sl_criterion)
-        model_instances[run_name] = model, model_for_record, envs, optimizers, schedulers, criterions, sl_criterions, training_setups, setup
+        model_instances[run_name] = model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, training_setups, setup
     
     return model_instances
 
@@ -73,6 +73,7 @@ def load_model(setup, device):
 
 def load_environment(setup):
     envs = []
+    single_envs = []
     for env_setup in setup:
         if "vector_env" in env_setup.keys():
             mode = env_setup["vector_env"]["mode"]
@@ -101,7 +102,9 @@ def load_environment(setup):
             # env = load_single_environment(env_setup)
             env = gym.vector.SyncVectorEnv([lambda: load_single_environment(env_setup)])
         envs.append(env)
-    return envs
+        single_env = load_single_environment(env_setup)
+        single_envs.append(single_env)
+    return envs, single_envs
 
 
 def load_single_environment(setup, seed=None):

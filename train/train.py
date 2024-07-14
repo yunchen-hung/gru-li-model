@@ -188,7 +188,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             if sl_criterion is not None:
                 print("encoding phase, action:", actions_trial[0:memory_num, 0], "gt:", gts_trial[0:memory_num, 0])
             if criterion is not None:
-                print("recall phase, action:", actions_trial[memory_num:, 0], "gt:", gts_trial[0][memory_num:, 0])
+                print("recall phase, action:", actions_trial[memory_num:, 0], "gt:", gts_trial[memory_num:, 0])
             print()
 
             if i != 0:
