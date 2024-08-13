@@ -179,67 +179,111 @@ exp_names.append("setup_gru_negmementreg_gamma")
 
 
 
-# exp_names = []
-# temporal_discount_factors = []
-# exp_names.append("setup_gru_negmementreg")
-# temporal_discount_factors.append(0.0)
-# for i in range(1, 10):
-#     exp_names.append("setup_gru_negmementreg_gamma0{}".format(i))
-#     temporal_discount_factors.append(float(i)/10)
-# exp_names.append("setup_gru_negmementreg_gamma")
-# temporal_discount_factors.append(1.0)
+exp_names = []
+temporal_discount_factors = []
+exp_names.append("setup_gru_negmementreg")
+temporal_discount_factors.append(0.0)
+for i in range(1, 10):
+    exp_names.append("setup_gru_negmementreg_gamma0{}".format(i))
+    temporal_discount_factors.append(float(i)/10)
+exp_names.append("setup_gru_negmementreg_gamma")
+temporal_discount_factors.append(1.0)
 
-# accuracy_dict = {}
-# forward_asymmetry_dict = {}
-# temporal_factor_dict = {}
+accuracy_dict = {}
+forward_asymmetry_dict = {}
+temporal_factor_dict = {}
+index_decoding_acc_dict = {}
 
-# for exp in exp_names:
-#     accuracy_dict[exp] = []
-#     forward_asymmetry_dict[exp] = []
-#     temporal_factor_dict[exp] = []
-#     for i in range(20):
-#         run_name = exp + "-{}".format(i)
-#         with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
-#             reader = csv.reader(f)
-#             for row in reader:
-#                 if float(row[0])>=0.65:
-#                     accuracy_dict[exp].append(float(row[0]))
-#                     forward_asymmetry_dict[exp].append(float(row[1]))
-#                     temporal_factor_dict[exp].append(float(row[2]))
+for exp in exp_names:
+    accuracy_dict[exp] = []
+    forward_asymmetry_dict[exp] = []
+    temporal_factor_dict[exp] = []
+    index_decoding_acc_dict[exp] = []
+    for i in range(20):
+        run_name = exp + "-{}".format(i)
+        with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if float(row[0])>=0.65:
+                    accuracy_dict[exp].append(float(row[0]))
+                    forward_asymmetry_dict[exp].append(float(row[1]))
+                    temporal_factor_dict[exp].append(float(row[2]))
+                    data = np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/pc_selectivity_encoding.npz".format(run_name), allow_pickle=True)
+                    index_decoding_acc_dict[exp].append(data['selectivity'][1][-1])
 
 
-# # temporal discount factor - forward asymmetry & temporal factor
-# mean_forward_asymmetry = []
-# std_forward_asymmetry = []
-# mean_temporal_factor = []
-# std_temporal_factor = []
-# for exp in exp_names:
-#     mean_forward_asymmetry.append(np.mean(forward_asymmetry_dict[exp]))
-#     std_forward_asymmetry.append(np.std(forward_asymmetry_dict[exp]))
-#     mean_temporal_factor.append(np.mean(temporal_factor_dict[exp]))
-#     std_temporal_factor.append(np.std(temporal_factor_dict[exp]))
+# temporal discount factor - forward asymmetry & temporal factor
+mean_forward_asymmetry = []
+std_forward_asymmetry = []
+mean_temporal_factor = []
+std_temporal_factor = []
+mean_index_decoding_acc = []
+std_index_decoding_acc = []
+for exp in exp_names:
+    mean_forward_asymmetry.append(np.mean(forward_asymmetry_dict[exp]))
+    std_forward_asymmetry.append(np.std(forward_asymmetry_dict[exp]))
+    mean_temporal_factor.append(np.mean(temporal_factor_dict[exp]))
+    std_temporal_factor.append(np.std(temporal_factor_dict[exp]))
+    mean_index_decoding_acc.append(np.mean(index_decoding_acc_dict[exp]))
+    std_index_decoding_acc.append(np.std(index_decoding_acc_dict[exp]))
+    
+
+
+fig = plt.figure(figsize=(4.5, 3.3), dpi=180)
+ax = fig.add_subplot(111)
+ax.errorbar(temporal_discount_factors, mean_forward_asymmetry, yerr=std_forward_asymmetry, fmt='o',
+            alpha=0.4, capsize=3, label="FA")
+ax.set_xlabel("temporal discount factor ($\gamma$)")
+ax.set_ylabel("forward asymmetry\n(FA)")
+
+ax2 = ax.twinx()
+ax2.errorbar(temporal_discount_factors, mean_temporal_factor, yerr=std_temporal_factor, fmt='o',  
+             alpha=0.4, capsize=3, color='tab:orange', label="TF")
+ax2.set_ylabel("temporal factor (TF)")
+
+ax.spines['top'].set_visible(False)
+ax2.spines['top'].set_visible(False)
+
+fig.legend(loc=2, fontsize=11, bbox_to_anchor=(0, 1), bbox_transform=ax.transAxes, framealpha=0.5)
+
+plt.tight_layout()
+savefig("./figures", "tdf_contiguity", format="svg")
 
 
 # fig = plt.figure(figsize=(4.3, 3.3), dpi=180)
-# ax = fig.add_subplot(111)
-# ax.errorbar(temporal_discount_factors, mean_forward_asymmetry, yerr=std_forward_asymmetry, fmt='o',
-#             alpha=0.4, capsize=3, label="FA")
-# ax.set_xlabel("temporal discount factor ($\gamma$)")
-# ax.set_ylabel("forward asymmetry (FA)")
-
-# ax2 = ax.twinx()
-# ax2.errorbar(temporal_discount_factors, mean_temporal_factor, yerr=std_temporal_factor, fmt='o',  
-#              alpha=0.4, capsize=3, color='tab:orange', label="TF")
-# ax2.set_ylabel("temporal factor (TF)")
-
+# plt.errorbar(temporal_discount_factors, mean_forward_asymmetry, yerr=std_forward_asymmetry, fmt='o',
+#             alpha=0.8, capsize=3)
+# plt.xlabel("temporal discount factor ($\gamma$)")
+# plt.ylabel("forward asymmetry (FA)")
+# ax = plt.gca()
 # ax.spines['top'].set_visible(False)
-# ax2.spines['top'].set_visible(False)
-
-# fig.legend(loc=2, fontsize=11, bbox_to_anchor=(0, 1), bbox_transform=ax.transAxes, framealpha=0.5)
-
+# ax.spines['right'].set_visible(False)
 # plt.tight_layout()
-# savefig("./figures", "tdf_contiguity", format="svg")
+# savefig("./figures", "tdf_forw_asym", format="svg")
 
+
+# fig = plt.figure(figsize=(4.3, 3.3), dpi=180)
+# plt.errorbar(temporal_discount_factors, mean_temporal_factor, yerr=std_temporal_factor, fmt='o',  
+#              alpha=0.8, capsize=3, color='tab:orange')
+# plt.xlabel("temporal discount factor ($\gamma$)")
+# plt.ylabel("temporal factor (TF)")
+# ax = plt.gca()
+# ax.spines['top'].set_visible(False)
+# ax.spines['right'].set_visible(False)
+# plt.tight_layout()
+# savefig("./figures", "tdf_temporal_factor", format="svg")
+
+
+fig = plt.figure(figsize=(4.2, 3.3), dpi=180)
+plt.errorbar(temporal_discount_factors, mean_index_decoding_acc, yerr=std_index_decoding_acc, fmt='o',
+            alpha=0.6, capsize=3, color='tab:green')
+plt.xlabel("temporal discount factor ($\gamma$)")
+plt.ylabel("decoding accuracy\nof item index")
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "tdf_index_code", format="svg")
 
 
 
@@ -249,6 +293,7 @@ exp = "setup_gru_negmementreg_gamma06"
 accuracy_list = []
 forward_asymmetry_list = []
 temporal_factor_list = []
+index_decoding_acc_list = []
 
 for i in range(100):
     run_name = exp + "-{}".format(i)
@@ -259,8 +304,9 @@ for i in range(100):
                 accuracy_list.append(float(row[0]))
                 forward_asymmetry_list.append(float(row[1]))
                 temporal_factor_list.append(float(row[2]))
-            # if float(row[0]) > 0.85 and float(row[0]) < 0.9 and float(row[2]) > 0.45 and float(row[2]) < 0.55:
-            #     print(i)
+                data = np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/pc_selectivity_encoding.npz".format(run_name), allow_pickle=True)
+                index_decoding_acc_list.append(data['selectivity'][1][-1])
+
 
 
 # regressor = IsotonicRegression()
@@ -268,84 +314,143 @@ for i in range(100):
 # regressor.fit(np.array(forward_asymmetry_list), np.array(accuracy_list))
 # # score = regressor.score(np.array(forward_asymmetry_list), np.array(accuracy_list))
 
-# # regressor = LinearRegression()
-# # regressor.fit(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-# # slope = regressor.coef_[0][0]
-# # intercept = regressor.intercept_[0]
-# # score = regressor.score(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-# # if slope*np.min(forward_asymmetry_list)+intercept > np.min(accuracy_list):
-# #     fit_line_point1 = [np.min(forward_asymmetry_list)*0.95, slope*np.min(forward_asymmetry_list)*0.95+intercept]
-# # else:
-# #     fit_line_point1 = [(np.min(accuracy_list)*0.95-intercept)/slope, np.min(accuracy_list)*0.95]
-# # if slope*np.max(forward_asymmetry_list)+intercept < np.max(accuracy_list):
-# #     fit_line_point2 = [np.max(forward_asymmetry_list)*1.05, slope*np.max(forward_asymmetry_list)*1.05+intercept]
-# # else:
-# #     fit_line_point2 = [(np.max(accuracy_list)*1.05-intercept)/slope, np.max(accuracy_list)*1.05]
+# regressor = LinearRegression()
+# regressor.fit(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# slope = regressor.coef_[0][0]
+# intercept = regressor.intercept_[0]
+# score = regressor.score(np.array(forward_asymmetry_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# if slope*np.min(forward_asymmetry_list)+intercept > np.min(accuracy_list):
+#     fit_line_point1 = [np.min(forward_asymmetry_list)*0.95, slope*np.min(forward_asymmetry_list)*0.95+intercept]
+# else:
+#     fit_line_point1 = [(np.min(accuracy_list)*0.95-intercept)/slope, np.min(accuracy_list)*0.95]
+# if slope*np.max(forward_asymmetry_list)+intercept < np.max(accuracy_list):
+#     fit_line_point2 = [np.max(forward_asymmetry_list)*1.05, slope*np.max(forward_asymmetry_list)*1.05+intercept]
+# else:
+#     fit_line_point2 = [(np.max(accuracy_list)*1.05-intercept)/slope, np.max(accuracy_list)*1.05]
 
-# plt.figure(figsize=(4, 3.3), dpi=180)
-# plt.scatter(forward_asymmetry_list, accuracy_list, alpha=0.5)
+plt.figure(figsize=(4, 3.3), dpi=180)
+# forward_asymmetry_list = np.array(forward_asymmetry_list)
+# forward_asymmetry_list -= 0.5
+plt.scatter(forward_asymmetry_list, accuracy_list, alpha=0.5)
 
-# plt.scatter([forward_asymmetry_list[9]], [accuracy_list[9]], color='k', alpha=0.5)   # model C
-# plt.text(forward_asymmetry_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
-# plt.scatter([forward_asymmetry_list[62]], [accuracy_list[62]], color='k', alpha=0.5)   # model B
-# plt.text(forward_asymmetry_list[62]-0.02, accuracy_list[62]+0.02, "2", fontsize=11)
-# plt.scatter([forward_asymmetry_list[14]], [accuracy_list[14]], color='k', alpha=0.5)   # model B
-# plt.text(forward_asymmetry_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=11)
-# plt.scatter([forward_asymmetry_list[18]], [accuracy_list[18]], color='k', alpha=0.5)   # model A
-# plt.text(forward_asymmetry_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
+# plt.scatter([accuracy_list[9]], [forward_asymmetry_list[9]], color='k', alpha=0.5)   # model C
+# plt.text(accuracy_list[9]-0.03, forward_asymmetry_list[9]-0.03, "1", fontsize=11)
+# plt.scatter([accuracy_list[62]], [forward_asymmetry_list[62]], color='k', alpha=0.5)   # model B
+# plt.text(accuracy_list[62]+0.02, forward_asymmetry_list[62]-0.02, "2", fontsize=11)
+# plt.scatter([accuracy_list[14]], [forward_asymmetry_list[14]], color='k', alpha=0.5)   # model B
+# plt.text(accuracy_list[14]+0.02, forward_asymmetry_list[14]-0.02, "3", fontsize=11)
+# plt.scatter([accuracy_list[18]], [forward_asymmetry_list[18]], color='k', alpha=0.5)   # model A
+# plt.text(accuracy_list[18]+0.02, forward_asymmetry_list[18]+0.02, "4", fontsize=11)
 
-# # plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
-# # plt.text((np.max(forward_asymmetry_list)+np.min(forward_asymmetry_list))/2, 0.98, "$r^2$={:.2f}".format(score), fontsize=12)
-# plt.ylabel("task accuracy")
-# plt.xlabel("forward asymmetry (FA)")
+plt.scatter([forward_asymmetry_list[9]], [accuracy_list[9]], color='k', alpha=0.5)   # model C
+plt.text(forward_asymmetry_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
+plt.scatter([forward_asymmetry_list[62]], [accuracy_list[62]], color='k', alpha=0.5)   # model B
+plt.text(forward_asymmetry_list[62]+0.02, accuracy_list[62]-0.02, "2", fontsize=11)
+plt.scatter([forward_asymmetry_list[14]], [accuracy_list[14]], color='k', alpha=0.5)   # model B
+plt.text(forward_asymmetry_list[14]+0.02, accuracy_list[14]-0.02, "3", fontsize=11)
+plt.scatter([forward_asymmetry_list[18]], [accuracy_list[18]], color='k', alpha=0.5)   # model A
+plt.text(forward_asymmetry_list[18]+0.02, accuracy_list[18]+0.02, "4", fontsize=11)
 
-# ax = plt.gca()
-# ax.spines['top'].set_visible(False)
-# ax.spines['right'].set_visible(False)
-# plt.tight_layout()
-# savefig("./figures", "acc_forw_asym", format="svg")
+# plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
+# plt.text((np.max(forward_asymmetry_list)+np.min(forward_asymmetry_list))/2, 0.98, "$r^2$={:.2f}".format(score), fontsize=12)
+plt.xlabel("forward asymmetry")
+plt.ylabel("task performance")
+# plt.line = plt.plot([0.65, 1], [0, 0], color='k', linestyle='--')
+# plt.text(0.87, -0.03, "random order", fontsize=11)
+
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "acc_forw_asym", format="svg")
 
 
 # regressor = IsotonicRegression()
 # regressor.fit(np.array(temporal_factor_list), np.array(accuracy_list))
 # # score = regressor.score(np.array(temporal_factor_list), np.array(accuracy_list))
 
-# # regressor = LinearRegression()
-# # regressor.fit(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-# # slope = regressor.coef_[0][0]
-# # intercept = regressor.intercept_[0]
-# # score = regressor.score(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
-# # if slope*np.min(temporal_factor_list)+intercept > np.min(accuracy_list):
-# #     fit_line_point1 = [np.min(temporal_factor_list), slope*np.min(temporal_factor_list)+intercept]
-# # else:
-# #     fit_line_point1 = [(np.min(accuracy_list)-intercept)/slope, np.min(accuracy_list)]
-# # if slope*np.max(temporal_factor_list)+intercept < np.max(accuracy_list):
-# #     fit_line_point2 = [np.max(temporal_factor_list), slope*np.max(temporal_factor_list)+intercept]
-# # else:
-# #     fit_line_point2 = [(np.max(accuracy_list)-intercept)/slope, np.max(accuracy_list)]
+# regressor = LinearRegression()
+# regressor.fit(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# slope = regressor.coef_[0][0]
+# intercept = regressor.intercept_[0]
+# score = regressor.score(np.array(temporal_factor_list).reshape(-1, 1), np.array(accuracy_list).reshape(-1, 1))
+# if slope*np.min(temporal_factor_list)+intercept > np.min(accuracy_list):
+#     fit_line_point1 = [np.min(temporal_factor_list), slope*np.min(temporal_factor_list)+intercept]
+# else:
+#     fit_line_point1 = [(np.min(accuracy_list)-intercept)/slope, np.min(accuracy_list)]
+# if slope*np.max(temporal_factor_list)+intercept < np.max(accuracy_list):
+#     fit_line_point2 = [np.max(temporal_factor_list), slope*np.max(temporal_factor_list)+intercept]
+# else:
+#     fit_line_point2 = [(np.max(accuracy_list)-intercept)/slope, np.max(accuracy_list)]
 
-# plt.figure(figsize=(4, 3.3), dpi=180)
-# plt.scatter(temporal_factor_list, accuracy_list, alpha=0.5, color='tab:orange')
+plt.figure(figsize=(4, 3.3), dpi=180)
+plt.scatter(temporal_factor_list, accuracy_list, alpha=0.5, color='tab:orange')
 
-# plt.scatter([temporal_factor_list[9]], [accuracy_list[9]], color='k', alpha=0.5)
-# plt.text(temporal_factor_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
-# plt.scatter([temporal_factor_list[62]], [accuracy_list[62]], color='k', alpha=0.5)
-# plt.text(temporal_factor_list[62]-0.02, accuracy_list[62]+0.02, "2", fontsize=11)
-# plt.scatter([temporal_factor_list[14]], [accuracy_list[14]], color='k', alpha=0.5)
-# plt.text(temporal_factor_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=11)
-# plt.scatter([temporal_factor_list[18]], [accuracy_list[18]], color='k', alpha=0.5)
-# plt.text(temporal_factor_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
+plt.scatter([temporal_factor_list[9]], [accuracy_list[9]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
+plt.scatter([temporal_factor_list[62]], [accuracy_list[62]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[62]-0.02, accuracy_list[62]+0.02, "2", fontsize=11)
+plt.scatter([temporal_factor_list[14]], [accuracy_list[14]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=11)
+plt.scatter([temporal_factor_list[18]], [accuracy_list[18]], color='k', alpha=0.5)
+plt.text(temporal_factor_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
 
-# # plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
-# # plt.text((np.max(temporal_factor_list)+np.min(temporal_factor_list))/2, 0.98, "$r^2$={:.2f}".format(score), fontsize=11)
-# plt.ylabel("task accuracy")
-# plt.xlabel("temporal factor (TF)")
+# plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
+# plt.text((np.max(temporal_factor_list)+np.min(temporal_factor_list))/2, 0.98, "$r^2$={:.2f}".format(score), fontsize=11)
+plt.ylabel("task performance")
+plt.xlabel("temporal factor")
 
-# ax = plt.gca()
-# ax.spines['top'].set_visible(False)
-# ax.spines['right'].set_visible(False)
-# plt.tight_layout()
-# savefig("./figures", "acc_temporal_factor", format="svg")
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "acc_temporal_factor", format="svg")
+
+
+plt.figure(figsize=(4, 3.5), dpi=180)
+plt.scatter(index_decoding_acc_list, accuracy_list, alpha=0.5, color='tab:green')
+
+plt.scatter([index_decoding_acc_list[9]], [accuracy_list[9]], color='k', alpha=0.5)
+plt.text(index_decoding_acc_list[9]-0.03, accuracy_list[9]-0.03, "1", fontsize=11)
+plt.scatter([index_decoding_acc_list[62]], [accuracy_list[62]], color='k', alpha=0.5)
+plt.text(index_decoding_acc_list[62]-0.02, accuracy_list[62]+0.02, "2", fontsize=11)
+plt.scatter([index_decoding_acc_list[14]], [accuracy_list[14]], color='k', alpha=0.5)
+plt.text(index_decoding_acc_list[14]-0.02, accuracy_list[14]+0.02, "3", fontsize=11)
+plt.scatter([index_decoding_acc_list[18]], [accuracy_list[18]], color='k', alpha=0.5)
+plt.text(index_decoding_acc_list[18]-0.02, accuracy_list[18]+0.02, "4", fontsize=11)
+
+plt.ylabel("task performance")
+plt.xlabel("decoding accuracy\nof item index")
+
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "acc_index_code", format="svg")
+
+
+plt.figure(figsize=(4, 3.3), dpi=180)
+colors = ["#F8961E", "#F9C74F", "#90BE6D", "#43AA8B"]
+
+plt.scatter([temporal_factor_list[9]], [forward_asymmetry_list[9]], color=colors[0], alpha=0.75)   # model C
+plt.text(temporal_factor_list[9]-0.03, forward_asymmetry_list[9]-0.03, "1", fontsize=11)
+plt.scatter([temporal_factor_list[62]], [forward_asymmetry_list[62]], color=colors[1], alpha=0.75)   # model B
+plt.text(temporal_factor_list[62]+0.02, forward_asymmetry_list[62]-0.02, "2", fontsize=11)
+plt.scatter([temporal_factor_list[14]], [forward_asymmetry_list[14]], color=colors[2], alpha=0.75)   # model B
+plt.text(temporal_factor_list[14]+0.02, forward_asymmetry_list[14]-0.02, "3", fontsize=11)
+plt.scatter([temporal_factor_list[18]], [forward_asymmetry_list[18]], color=colors[3], alpha=0.75)   # model A
+plt.text(temporal_factor_list[18]+0.02, forward_asymmetry_list[18]+0.02, "4", fontsize=11)
+
+# plt.plot([fit_line_point1[0], fit_line_point2[0]], [fit_line_point1[1], fit_line_point2[1]], color='k', linestyle='--')
+# plt.text((np.max(forward_asymmetry_list)+np.min(forward_asymmetry_list))/2, 0.98, "$r^2$={:.2f}".format(score), fontsize=12)
+plt.ylabel("forward asymmetry (FA)")
+plt.xlabel("temporal factor (TF)")
+
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "sample4_tf_fa", format="svg")
 
 
 # recall probability multiple models
@@ -362,69 +467,90 @@ for exp in exp_names:
             break
 nsteps = int((len(recall_probs[0])-1)/2) # 7
 
-# plt.figure(figsize=(4, 3.3), dpi=180)
-# for i in range(len(exp_names)):
-#     plt.scatter(np.arange(-nsteps, 0), recall_probs[i][:nsteps], c='w', marker="o", edgecolors=ColorConverter().to_rgba('k', alpha=1-i*0.25), zorder=2)
-#     plt.plot(np.arange(-nsteps, 0), recall_probs[i][:nsteps], c='k', alpha=1-i*0.25, label="seed {}".format(i+1), zorder=1)
-#     plt.scatter(np.arange(1, nsteps+1), recall_probs[i][nsteps+1:], c='w', marker="o", edgecolors=ColorConverter().to_rgba('k', alpha=1-i*0.25), zorder=2)
-#     plt.plot(np.arange(1, nsteps+1), recall_probs[i][nsteps+1:], c='k', alpha=1-i*0.25, zorder=1)
-#     # plt.scatter(np.array([0]), recall_probs[i][nsteps], c='r', marker="o", alpha=1-i*0.2)
-# plt.xlabel("lag")
-# plt.ylabel("conditional recall probability")
-#     # title = title if title else "conditional recall probability"
-#     # plt.title(title)
+colors = ["#F8961E", "#F9C74F", "#90BE6D", "#43AA8B"]
 
-# plt.legend(fontsize=11)
+plt.figure(figsize=(4.2, 3.3), dpi=180)
+for i in range(len(exp_names)):
+    plt.scatter(np.arange(-nsteps, 0), recall_probs[i][:nsteps], c='w', marker="o", edgecolors=ColorConverter().to_rgba(colors[i], alpha=0.75), zorder=2)
+    plt.plot(np.arange(-nsteps, 0), recall_probs[i][:nsteps], c=colors[i], alpha=0.75, zorder=1, label="seed {}".format(i+1))
+    plt.scatter(np.arange(1, nsteps+1), recall_probs[i][nsteps+1:], c='w', marker="o", edgecolors=ColorConverter().to_rgba(colors[i], alpha=0.75), zorder=2)
+    plt.plot(np.arange(1, nsteps+1), recall_probs[i][nsteps+1:], c=colors[i], alpha=0.75, zorder=1)
 
-# ax = plt.gca()
-# ax.spines['top'].set_visible(False)
-# ax.spines['right'].set_visible(False)
-# plt.tight_layout()
-# savefig("./figures", "crp_different", format="svg")
-
-
-
-
-recall_probs = []
-exp = "setup_gru_negmementreg_gamma06"
-i_valid = []
-for i in range(100):
-    run_name = exp + "-{}".format(i)
-    with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if float(row[0])>=0.65:
-                i_valid.append(i)
-                break
-for i, i_v in enumerate(i_valid):
-    run_name = exp + "-{}".format(i_v)
-    if temporal_factor_list[i] < 0.45 or temporal_factor_list[i] > 0.6:
-        continue
-    with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/recall_probability.csv".format(run_name), "r") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            for k in range(len(row)):
-                row[k] = float(row[k])
-            recall_probs.append(np.array(row))
-            break
-recall_prob_avg = np.mean(np.array(recall_probs), axis=0)
-recall_prob_std = np.std(np.array(recall_probs), axis=0)
-
-plt.figure(figsize=(4, 3.3), dpi=180)
-
-plt.scatter(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='w', marker="o", edgecolors='k', zorder=2)
-plt.plot(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='k', zorder=1)
-plt.errorbar(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], yerr=recall_prob_std[:nsteps], c='k', alpha=0.5, zorder=1)
-plt.scatter(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='w', marker="o", edgecolors='k', zorder=2)
-plt.plot(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='k', zorder=1)
-plt.errorbar(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], yerr=recall_prob_std[nsteps+1:], c='k', alpha=0.5, zorder=1)
-
+    # plt.scatter(np.arange(-nsteps, 0), recall_probs[i][:nsteps], c='w', marker="o", edgecolors=ColorConverter().to_rgba('k', alpha=1-i*0.25), zorder=2)
+    # plt.plot(np.arange(-nsteps, 0), recall_probs[i][:nsteps], c='k', alpha=1-i*0.25, label="seed {}".format(i+1), zorder=1)
+    # plt.scatter(np.arange(1, nsteps+1), recall_probs[i][nsteps+1:], c='w', marker="o", edgecolors=ColorConverter().to_rgba('k', alpha=1-i*0.25), zorder=2)
+    # plt.plot(np.arange(1, nsteps+1), recall_probs[i][nsteps+1:], c='k', alpha=1-i*0.25, zorder=1)
+    # plt.scatter(np.array([0]), recall_probs[i][nsteps], c='r', marker="o", alpha=1-i*0.2)
 plt.xlabel("lag")
-plt.ylabel("conditional recall probability")
+plt.ylabel("conditional\nrecall probability")
+    # title = title if title else "conditional recall probability"
+    # plt.title(title)
+
+plt.legend(fontsize=11)
 
 ax = plt.gca()
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 plt.tight_layout()
-savefig("./figures", "crp", format="svg")
+savefig("./figures", "crp_different_colored", format="svg")
+
+
+plt.figure(figsize=(4, 3.3), dpi=180)
+plt.scatter(np.arange(-nsteps, 0), recall_probs[2][:nsteps], c='b', zorder=2)
+plt.plot(np.arange(-nsteps, 0), recall_probs[2][:nsteps], c='k', zorder=1)
+plt.scatter(np.arange(1, nsteps+1), recall_probs[2][nsteps+1:], c='b', zorder=2)
+plt.plot(np.arange(1, nsteps+1), recall_probs[2][nsteps+1:], c='k', zorder=1)
+plt.scatter(np.array([0]), recall_probs[2][nsteps], c='r')
+plt.xlabel("lag")
+plt.ylabel("conditional\nrecall probability")
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "crp_seed2", format="svg")
+
+
+
+# recall_probs = []
+# exp = "setup_gru_negmementreg_gamma06"
+# i_valid = []
+# for i in range(100):
+#     run_name = exp + "-{}".format(i)
+#     with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
+#         reader = csv.reader(f)
+#         for row in reader:
+#             if float(row[0])>=0.65:
+#                 i_valid.append(i)
+#                 break
+# for i, i_v in enumerate(i_valid):
+#     run_name = exp + "-{}".format(i_v)
+#     if temporal_factor_list[i] < 0.45 or temporal_factor_list[i] > 0.6:
+#         continue
+#     with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/recall_probability.csv".format(run_name), "r") as f:
+#         reader = csv.reader(f)
+#         for row in reader:
+#             for k in range(len(row)):
+#                 row[k] = float(row[k])
+#             recall_probs.append(np.array(row))
+#             break
+# recall_prob_avg = np.mean(np.array(recall_probs), axis=0)
+# recall_prob_std = np.std(np.array(recall_probs), axis=0)
+
+# plt.figure(figsize=(4, 3.3), dpi=180)
+
+# plt.scatter(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='w', marker="o", edgecolors='k', zorder=2)
+# plt.plot(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='k', zorder=1)
+# plt.errorbar(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], yerr=recall_prob_std[:nsteps], c='k', alpha=0.5, zorder=1)
+# plt.scatter(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='w', marker="o", edgecolors='k', zorder=2)
+# plt.plot(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='k', zorder=1)
+# plt.errorbar(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], yerr=recall_prob_std[nsteps+1:], c='k', alpha=0.5, zorder=1)
+
+# plt.xlabel("lag")
+# plt.ylabel("conditional recall probability")
+
+# ax = plt.gca()
+# ax.spines['top'].set_visible(False)
+# ax.spines['right'].set_visible(False)
+# plt.tight_layout()
+# savefig("./figures", "crp", format="svg")
 

@@ -80,7 +80,7 @@ class PCA:
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
         colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
 
-        plt.figure(figsize=(3.8, 3.3), dpi=180)
+        plt.figure(figsize=(4, 3.3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
         proj_act = self.proj_act

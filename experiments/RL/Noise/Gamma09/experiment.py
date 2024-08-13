@@ -12,7 +12,7 @@ from analysis.behavior import RecallProbability, RecallProbabilityInTime, Tempor
 
 
 def run(data_all, model_all, env, paths, exp_name):
-    plt.rcParams['font.size'] = 18
+    plt.rcParams['font.size'] = 16
 
     for run_name, data in data_all.items():
         run_name_without_num = run_name.split("-")[0]
@@ -197,37 +197,37 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
         """ PC selectivity """
-        # convert actions and item index to one-hot
-        actions_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
-        for i in range(all_context_num):
-            actions_one_hot[i] = np.eye(env.vocabulary_num)[actions[i, env.memory_num:]-1]
+        # # convert actions and item index to one-hot
+        # actions_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
+        # for i in range(all_context_num):
+        #     actions_one_hot[i] = np.eye(env.vocabulary_num)[actions[i, env.memory_num:]-1]
 
-        # memory content
-        memories_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
-        for i in range(all_context_num):
-            memories_one_hot[i] = np.eye(env.vocabulary_num)[memory_contexts[i]-1]
+        # # memory content
+        # memories_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
+        # for i in range(all_context_num):
+        #     memories_one_hot[i] = np.eye(env.vocabulary_num)[memory_contexts[i]-1]
 
-        # memory index
-        # print(retrieved_memories.shape)
-        retrieved_memories_one_hot = np.zeros((all_context_num, env.memory_num, env.memory_num))
-        for i in range(all_context_num):
-            retrieved_memories_one_hot[i] = np.eye(env.memory_num)[retrieved_memories[i]]
+        # # memory index
+        # # print(retrieved_memories.shape)
+        # retrieved_memories_one_hot = np.zeros((all_context_num, env.memory_num, env.memory_num))
+        # for i in range(all_context_num):
+        #     retrieved_memories_one_hot[i] = np.eye(env.memory_num)[retrieved_memories[i]]
         
-        # labels = {"actions": actions[:, env.memory_num:], "memory index": retrieved_memories}
+        # # labels = {"actions": actions[:, env.memory_num:], "memory index": retrieved_memories}
 
-        pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # labels = {"memory content": memories_one_hot, "memory index": retrieved_memories_one_hot}
-        labels = {"item identity": memory_contexts-1, "item index": retrieved_memories}
-        selectivity, explained_var = pc_selectivity.fit(c_memorizing, labels)
-        pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="encoding", format="svg")
-        np.savez(fig_path/"pc_selectivity_encoding.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
+        # pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
+        # # labels = {"memory content": memories_one_hot, "memory index": retrieved_memories_one_hot}
+        # labels = {"item identity": memory_contexts-1, "item index": retrieved_memories}
+        # selectivity, explained_var = pc_selectivity.fit(c_memorizing, labels)
+        # pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="encoding", format="svg")
+        # np.savez(fig_path/"pc_selectivity_encoding.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
 
-        pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # labels = {"recalled memory": actions_one_hot, "memory index": retrieved_memories_one_hot}
-        labels = {"item identity": actions[:, env.memory_num:]-1, "item index": retrieved_memories}
-        selectivity, explained_var = pc_selectivity.fit(c_recalling, labels)
-        pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="recalling", format="svg")
-        np.savez(fig_path/"pc_selectivity_recalling.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
+        # pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
+        # # labels = {"recalled memory": actions_one_hot, "memory index": retrieved_memories_one_hot}
+        # labels = {"item identity": actions[:, env.memory_num:]-1, "item index": retrieved_memories}
+        # selectivity, explained_var = pc_selectivity.fit(c_recalling, labels)
+        # pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="recalling", format="svg")
+        # np.savez(fig_path/"pc_selectivity_recalling.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
 
 
         """ policy distribution over all memory items """

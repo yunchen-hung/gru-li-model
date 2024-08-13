@@ -3,6 +3,7 @@ from sklearn import svm
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from sklearn.metrics import r2_score
 import seaborn as sns
 
 from utils import savefig
@@ -26,14 +27,17 @@ class ItemIdentityDecoder:
         return: decoding accuracy of each group of labels
         """
         results = []
+        r2_all = []
         if mask is None:
             mask = np.ones_like(gts, dtype=bool)
         for i in range(all_data.shape[0]):
             data_i = all_data[i]
             data_accuracy = []
+            data_r2 = []
             for j in range(gts.shape[0]):
                 if not mask[j][i].any():
                     data_accuracy.append(0.0)
+                    data_r2.append(-1.0)
                     continue
                 
                 gt = gts[j][mask[j]]
@@ -42,22 +46,39 @@ class ItemIdentityDecoder:
                 # print(i, j, data_i.shape,data.shape, mask[j])
                 kf = KFold(n_splits=self.n_splits, shuffle=True)
                 decode_accuracy = 0.0
+                r2 = 0.0
                 for train_index, test_index in kf.split(data):
                     data_train, data_test = data[train_index], data[test_index]
                     gt_train, gt_test = gt[train_index], gt[test_index]
                     self.decoder.fit(data_train, gt_train)
                     pred = self.decoder.predict(data_test)
                     decode_accuracy += np.sum(pred == gt_test) / gt_test.shape[0]
+                    r2 += r2_score(gt_test, pred)
                 decode_accuracy /= self.n_splits
+                r2 /= self.n_splits
                 data_accuracy.append(decode_accuracy)
+                data_r2.append(r2)
             results.append(data_accuracy)
+            r2_all.append(data_r2)
         self.results = np.array(results)
-        return results
+        decode_accuracy_mean = np.mean(np.diagonal(self.results))
+        decode_accuracy_last = np.mean(np.diagonal(self.results, offset=-1))
+        # r2_all = np.array(r2_all)
+        # print(r2_all.shape)
+        r2 = np.mean(np.diagonal(r2_all))
+        r2_last = np.mean(np.diagonal(r2_all, offset=-1))
+        stat_results = {
+            "acc": decode_accuracy_mean,
+            "acc_last": decode_accuracy_last,
+            "r2": r2,
+            "r2_last": r2_last
+        }
+        return results, stat_results
 
     def visualize(self, save_path, figsize=None, format="png"):
         if self.results is None:
             raise Exception("Please run fit() first")
-        figsize = figsize if figsize is not None else (1.0 * self.results.shape[0], 4.2)
+        figsize = figsize if figsize is not None else (0.65 * self.results.shape[0], 3.3)
         plt.figure(figsize=figsize, dpi=180)
         for i, result in enumerate(self.results):
             plt.plot(np.arange(1, self.results.shape[1]+1), result, label="timestep {}".format(i+1))

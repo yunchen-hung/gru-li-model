@@ -100,7 +100,7 @@ def load_environment(setup):
                 raise AttributeError("vector env mode must be 'async' or 'sync'")
         else:
             # env = load_single_environment(env_setup)
-            env = gym.vector.SyncVectorEnv([lambda: load_single_environment(env_setup)])
+            env = gym.vector.SyncVectorEnv([lambda: load_single_environment(copy.deepcopy(env_setup))])
         envs.append(env)
         single_env = load_single_environment(env_setup)
         single_envs.append(single_env)

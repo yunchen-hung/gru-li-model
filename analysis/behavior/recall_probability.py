@@ -78,7 +78,7 @@ class RecallProbability:
         plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='b', zorder=2)
         plt.plot(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='k', zorder=1)
         plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
-        plt.xlabel("item position")
+        plt.xlabel("lag")
         plt.ylabel("conditional\nrecall probability")
         # title = title if title else "conditional recall probability"
         # plt.title(title)
