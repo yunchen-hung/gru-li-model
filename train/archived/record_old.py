@@ -1,7 +1,7 @@
 import torch
 
 from models.base_module import analyze
-from .criterions.rl import pick_action
+from train.criterions.rl import pick_action
 
 
 def record_model(agent, env, used_output=0, context_num=20, reset_memory=False, device='cpu'):

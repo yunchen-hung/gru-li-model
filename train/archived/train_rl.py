@@ -3,9 +3,9 @@ from collections import defaultdict
 import numpy as np
 import torch
 
-from .criterions.rl import pick_action
+from train.criterions.rl import pick_action
 from models.utils import entropy
-from .utils import count_accuracy, save_model
+from train.utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
