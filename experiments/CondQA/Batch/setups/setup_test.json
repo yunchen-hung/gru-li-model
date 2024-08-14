@@ -28,7 +28,7 @@
     "training": [{
         "env": [{
             "vector_env": {
-                "mode": "sync",
+                "mode": "async",
                 "batch_size": 8
             },
             "class": "ConditionalQuestionAnswer",
@@ -42,12 +42,12 @@
             "correct_reward": 2.0,
             "no_action_reward": -0.0,
             "wrong_reward": -2.0,
-            "include_question_during_encode": true
+            "include_question_during_encode": false
         }],
         "trainer": {
             "training_function": "train",
             "num_iter": 5e5,
-            "test_iter": 1000,
+            "test_iter": 200,
             "save_iter": 10000,
             "stop_test_accu": 0.99,
             "use_memory": true,
@@ -60,15 +60,6 @@
                         "use_V": true,
                         "eta": 0.01,
                         "gamma": 0.99
-                    }
-                ]
-            },
-            "sl_criterion": {
-                "class": "MultiSupervisedLoss",
-                "criteria": [
-                    {
-                        "class": "EncodingCrossEntropyLoss",
-                        "class_num": 3
                     }
                 ]
             },

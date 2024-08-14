@@ -147,28 +147,41 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_feature, self.question_value,
                                                 self.sum_feature, include_question=self.include_question_during_encode)
                 info = {"phase": "encoding", "gt": 0, "gt_mask": False}
+            info.update({"correct": 0, "wrong": 0, "not_know": 0})
             return obs, 0.0, False, False, info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
                                              include_question=True)
             info = {"phase": "recall"}
 
+            info.update({"correct": 0, "wrong": 0, "not_know": 0, "gt": 0, "gt_mask": False})
+
             if self.no_early_stop and self.answered:
                 reward = 0.0
             elif action == self.action_space.n - 1:
-                # not action
+                # no action
                 reward = self.no_action_reward
-            elif self.answer is None:
-                reward = self.correct_reward / self.feature_dim
+            # elif self.answer is None:
+            #     reward = self.correct_reward / self.feature_dim
             elif action == self.answer:
                 self.answered = True
                 reward = self.correct_reward
+                # info["gt"] = self.answer
+                # info["gt_mask"] = True
+                info["correct"] = 1
             else:
                 self.answered = True
                 reward = self.wrong_reward
+                # info["gt"] = self.answer
+                # info["gt_mask"] = True
+                info["wrong"] = 1
 
             if (not self.no_early_stop and self.answered) or self.timestep >= self.retrieve_time_limit:
                 done = True
+                if not self.answered:
+                    info["not_know"] = 1
+                    # info["gt"] = self.answer
+                    # info["gt_mask"] = True
             else:
                 done = False
 

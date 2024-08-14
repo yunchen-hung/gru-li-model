@@ -99,7 +99,15 @@ class FreeRecall(BaseEMTask):
         if self.testing:
             reward = self.compute_reward(action)
             observations = np.zeros((self.vocabulary_num+1))
-            info = {"phase": "recall", "gt": 0, "gt_mask": False}
+            correct, wrong, not_know = 0, 0, 0
+            if reward == self.true_reward:
+                correct = 1
+            elif action == 0:
+                not_know = 1
+            else:
+                wrong = 1
+            info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep], "gt_mask": False, 
+                    "correct": correct, "wrong": wrong, "not_know": not_know}
             self.increase_timestep()
             done = self.check_done()
         else:
@@ -120,13 +128,15 @@ class FreeRecall(BaseEMTask):
                 self.testing = True
                 observations = np.zeros((self.vocabulary_num+1))
                 self.increase_timestep(set_zero=True)
-                info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True}
+                info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True,
+                        "correct": 0, "wrong": 0, "not_know": 0}
                 if self.reset_state_before_test:    # send signal for the agent to reset its state
                     info["reset_state"] = True
                 start_recall = 1
             else:
                 observations = self.stimuli[self.current_timestep, :]
-                info = {"phase": "encoding", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True}
+                info = {"phase": "encoding", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True,
+                        "correct": 0, "wrong": 0, "not_know": 0}
         if self.start_recall_cue:
             observations = np.concatenate((observations, np.ones(1) * start_recall), axis=0)
         if self.return_action:
@@ -361,6 +371,33 @@ class FreeRecall(BaseEMTask):
         get trial data
         """
         return self.memory_sequence
+
+
+# def compute_accuracy(actions, gts, gt_masks):
+#     """
+#     compute accuracy for all timesteps
+
+#     input: actions, gts, gt_masks, all with shape (timesteps, batch_size)
+#     outputs: number of three types of results: correct, wrong, not_know, i.e. 3 int
+#     """
+#     correct_actions = 0
+#     wrong_actions = 0
+#     not_know_actions = 0
+
+#     # switch to batch first
+#     actions, gts, gt_masks = np.array(actions).T, np.array(gts).T, np.array(gt_masks).T
+
+#     for action_batch, gt_batch, mask_batch in zip(actions, gts, gt_masks):
+#         for action, mask in zip(action_batch, mask_batch):
+#             if mask:
+#                 if action == gt:
+#                     correct_actions += 1
+#                 elif action == 0:
+#                     not_know_actions += 1
+#                 else:
+#                     wrong_actions += 1
+
+#     return correct_actions, wrong_actions, not_know_actions
 
 
 # test
