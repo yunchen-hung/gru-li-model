@@ -3,17 +3,17 @@ from collections import defaultdict
 import numpy as np
 import torch
 
-from .criterions.rl import pick_action
+from train.criterions.rl import pick_action
 from models.utils import entropy
-from .utils import count_accuracy, save_model
+from train.utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
-def supervised_train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterion=None, 
+def supervised_train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterion, 
     num_iter=10000, test=False, test_iter=200, save_iter=1000, stop_test_accu=1.0, 
-    device='cpu', model_save_path=None, use_memory=None, min_iter=0, batch_size=1, phase="encoding",
-    memory_entropy_reg=False, memory_reg_weight=0.0, reset_memory=True, 
-    used_output_index=[0], env_sample_prob=[1.0]):
+    device='cpu', model_save_path=None, use_memory=None, min_iter=0, batch_size=1, 
+    phase="encoding", memory_entropy_reg=False, memory_reg_weight=0.0, reset_memory=True, 
+    used_output_index=[0], env_sample_prob=[1.0], grad_clip=True, grad_max_norm=1.0):
 
     # each used_output_index corresponds to an environment
     # specifying the output that is used for computing the action for stepping the environment
@@ -35,6 +35,8 @@ def supervised_train_model(agent, envs, optimizer, scheduler, setup, criterion, 
     print("start supervised training")
     print("batch size:", batch_size)
     min_test_loss = torch.inf
+
+    current_lr = optimizer.state_dict()['param_groups'][0]['lr']
 
     for i in range(num_iter):
         state = agent.init_state(batch_size)
@@ -124,6 +126,8 @@ def supervised_train_model(agent, envs, optimizer, scheduler, setup, criterion, 
         optimizer.zero_grad()
         # loss.backward(retain_graph=True)
         loss.backward()
+        if grad_clip:
+            torch.nn.utils.clip_grad_norm_(agent.parameters(), grad_max_norm, error_if_nonfinite=True)
         optimizer.step()
 
         total_loss += loss.item()
@@ -161,6 +165,11 @@ def supervised_train_model(agent, envs, optimizer, scheduler, setup, criterion, 
 
             if i != 0:
                 scheduler.step(total_loss)  # TODO: change a criterion here?
+                lr = optimizer.state_dict()['param_groups'][0]['lr']
+                # print("lr:", lr)
+                if lr != current_lr:
+                    print("lr changed from {} to {}".format(current_lr, lr))
+                    current_lr = lr
 
             if test_error - test_accuracy <= min_test_loss:
                 min_test_loss = test_error - test_accuracy

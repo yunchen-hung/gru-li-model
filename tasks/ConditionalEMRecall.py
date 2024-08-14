@@ -12,7 +12,7 @@ class ConditionalEMRecall(BaseEMTask):
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, early_stop_reward=-8.0,
                  include_question_during_encode=False, reset_state_before_test=True, no_early_stop=False,
                  question_space=["choice"], has_question=True, one_hot_stimuli=False,
-                 sum_feature_placeholder=False):
+                 sum_feature_placeholder=False, seed=None):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -43,7 +43,7 @@ class ConditionalEMRecall(BaseEMTask):
         Action space:
             feature_dim ^ num_features + 1 no_action dim + 1 stop dim, a one-hot vector overall
         """
-        super().__init__(reset_state_before_test=reset_state_before_test)
+        super().__init__(reset_state_before_test=reset_state_before_test, seed=seed)
         self.num_features = num_features
         self.feature_dim = feature_dim
         self.sequence_len = sequence_len
@@ -73,7 +73,9 @@ class ConditionalEMRecall(BaseEMTask):
         obs_space_list.extend([self.question_space_dim, feature_dim])
         if self.sum_feature_placeholder:
             obs_space_list.append(self.question_space_dim)
-        self.observation_space = spaces.MultiDiscrete(obs_space_list)
+        # self.observation_space = spaces.MultiDiscrete(obs_space_list)
+        obs_shape = np.sum(obs_space_list)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(obs_shape,), dtype=np.float32)
         # print(self.observation_space)
         self.action_space = spaces.Discrete(feature_dim ** num_features + 2)
         
@@ -149,7 +151,7 @@ class ConditionalEMRecall(BaseEMTask):
                 self.timestep = 0
                 obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
                 info = {"phase": "recall", "reset_state": self.reset_state_before_test}
-                return obs, [0.0], np.array([False]), info
+                return obs, 0.0, False, False, info
             else:
                 # encoding phase
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_type, self.question_value, 
@@ -159,7 +161,7 @@ class ConditionalEMRecall(BaseEMTask):
                 else:
                     gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep])
                 info = {"phase": "encoding", "gt": gt}
-                return obs, [0.0], np.array([False]), info
+                return obs, 0.0, False, False, info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
             info = {"phase": "recall"}
@@ -183,7 +185,7 @@ class ConditionalEMRecall(BaseEMTask):
             else:
                 done = False
             
-            return obs, [reward], np.array([done]), info
+            return obs, reward, done, False, info
 
     def render(self, mode='human'):
         print("memory sequence:", self.memory_sequence)
@@ -375,7 +377,7 @@ class ConditionalEMRecall(BaseEMTask):
         if include_question:
             observation[question_offset+question_type] = 1
             observation[question_offset+self.question_space_dim+question_value] = 1
-        return observation.reshape(1, -1)
+        return observation
     
     def _check_action(self, action):
         """

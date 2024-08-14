@@ -1,7 +1,8 @@
 import torch
-import matplotlib.pyplot as plt
 import itertools
 import copy
+import numpy as np
+import gymnasium as gym
 
 from .dict_utils import load_dict, get_dict_item, set_dict_item
 from .utils import import_attr
@@ -30,12 +31,15 @@ def parse_setup(general_setup, device):
         envs, optimizers, schedulers, criterions, sl_criterions = [], [], [], [], []
         for training_setup in training_setups:
             if "env" in training_setup:
-                env = load_environment(training_setup.pop("env"))
+                env, single_env = load_environment(training_setup.pop("env"))
             else:
-                env = None
+                env, single_env = None, None
             if "trainer" in training_setup:
                 optimizer, scheduler = load_optimizer(training_setup["trainer"].pop("optimizer"), model)
-                criterion = load_criterion(training_setup["trainer"].pop("criterion"))
+                if "criterion" in training_setup["trainer"]:
+                    criterion = load_criterion(training_setup["trainer"].pop("criterion"))
+                else:
+                    criterion = None
                 if "sl_criterion" in training_setup["trainer"]:
                     sl_criterion = load_criterion(training_setup["trainer"].pop("sl_criterion"))
                 else:
@@ -47,7 +51,7 @@ def parse_setup(general_setup, device):
             schedulers.append(scheduler)
             criterions.append(criterion)
             sl_criterions.append(sl_criterion)
-        model_instances[run_name] = model, model_for_record, envs, optimizers, schedulers, criterions, sl_criterions, training_setups, setup
+        model_instances[run_name] = model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, training_setups, setup
     
     return model_instances
 
@@ -69,19 +73,52 @@ def load_model(setup, device):
 
 def load_environment(setup):
     envs = []
+    single_envs = []
     for env_setup in setup:
-        task_class = env_setup.pop("class")
-        if "wrapper" in env_setup:
-            wrapper_setups = env_setup.pop("wrapper")
-            env = import_attr("tasks.{}".format(task_class))(**env_setup)
-            for wrapper_setup in wrapper_setups:
-                wrapper_class = wrapper_setup.pop("class")
-                env = import_attr("tasks.wrappers.{}".format(wrapper_class))(env, **wrapper_setup)
+        if "vector_env" in env_setup.keys():
+            mode = env_setup["vector_env"]["mode"]
+            batch_size = env_setup["vector_env"]["batch_size"]
+            env_setup.pop("vector_env")
+            seeds = np.random.randint(0, 100000, batch_size)
+            # env_list = []
+            # for i in seeds:
+            #     env_setup["seed"] = i
+            #     env_list.append(lambda: load_single_environment(**env_setup))
+            if mode == "sync":
+                env = gym.vector.SyncVectorEnv([
+                    lambda: load_single_environment(copy.deepcopy(env_setup), seed=seeds[i])
+                    for i in range(batch_size)
+                ])
+                print("Sync vector env, batch size {}".format(batch_size))
+            elif mode == "async":
+                env = gym.vector.AsyncVectorEnv([
+                    lambda: load_single_environment(copy.deepcopy(env_setup), seed=seeds[i])
+                    for i in range(batch_size)
+                ])
+                print("Async vector env, batch size {}".format(batch_size))
+            else:
+                raise AttributeError("vector env mode must be 'async' or 'sync'")
         else:
-            env = import_attr("tasks.{}".format(task_class))(**env_setup)
+            # env = load_single_environment(env_setup)
+            env = gym.vector.SyncVectorEnv([lambda: load_single_environment(copy.deepcopy(env_setup))])
         envs.append(env)
-    return envs
+        single_env = load_single_environment(env_setup)
+        single_envs.append(single_env)
+    return envs, single_envs
 
+
+def load_single_environment(setup, seed=None):
+    task_class = setup.pop("class")
+    if "wrapper" in setup:
+        wrapper_setups = setup.pop("wrapper")
+        env = import_attr("tasks.{}".format(task_class))(seed=seed, **setup)
+        for wrapper_setup in wrapper_setups:
+            wrapper_class = wrapper_setup.pop("class")
+            env = import_attr("tasks.wrappers.{}".format(wrapper_class))(env, **wrapper_setup)
+    else:
+        env = import_attr("tasks.{}".format(task_class))(seed=seed, **setup)
+    return env
+        
 
 def load_optimizer(setup, model):
     optimizer_class = setup.pop("class")

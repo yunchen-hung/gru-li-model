@@ -50,6 +50,8 @@ class ValueMemoryGRU(BasicModule):
         for output_dim in output_dims:
             self.fc_decisions.append(nn.Linear(hidden_dim, output_dim))
             self.fc_critics.append(nn.Linear(hidden_dim, 1))
+        # self.fc_decision = nn.Linear(hidden_dim, output_dims[0])
+        # self.fc_critic = nn.Linear(hidden_dim, 1)
 
         self.ln_i2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
         self.ln_h2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
@@ -180,6 +182,7 @@ class ValueMemoryGRU(BasicModule):
         beta = self.softmax_beta if beta is None else beta
         decisions, values = [], []
         for i in range(len(self.fc_decisions)):
+        # for i in range(1):
             decision = softmax(self.fc_decisions[i](state), beta)
             value = self.fc_critics[i](state)
             decisions.append(decision)

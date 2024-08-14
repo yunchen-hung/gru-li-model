@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn import svm
 from sklearn.model_selection import KFold
+from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 
 from utils import savefig
@@ -28,6 +29,8 @@ class ItemIndexDecoder:
             mask = np.ones_like(gts, dtype=bool)
         kf = KFold(n_splits=self.n_splits, shuffle=True)
         decode_accuracy = []
+        decode_accuracy_all = []
+        r2_all = []
         for train_index, test_index in kf.split(all_data):
             data_train, data_test = all_data[train_index], all_data[test_index]
             gt_train, gt_test = gts[train_index], gts[test_index]
@@ -37,6 +40,13 @@ class ItemIndexDecoder:
 
             self.decoder.fit(data_train, gt_train)
             
+            data_test_masked = data_test[mask[test_index]]
+            pred = self.decoder.predict(data_test_masked)
+            accuracy_all = np.sum(pred == gt_test[mask[test_index]]) / data_test_masked.shape[0]
+            decode_accuracy_all.append(accuracy_all)
+            r2 = r2_score(gt_test[mask[test_index]], pred)
+            r2_all.append(r2)
+
             accuracy = []
             for i in range(gt_test.shape[1]):
                 data_test_timestep = data_test[:, i, :][mask[test_index, i]]
@@ -44,9 +54,11 @@ class ItemIndexDecoder:
                 accuracy.append(np.sum(pred == gt_test[:, i][mask[test_index, i]]) / data_test_timestep.shape[0])
             decode_accuracy.append(accuracy)
         decode_accuracy = np.sum(np.array(decode_accuracy), axis=0) / self.n_splits
+        decode_accuracy_all = np.mean(decode_accuracy_all)
+        r2 = np.mean(r2_all)
 
         self.results = decode_accuracy
-        return decode_accuracy
+        return decode_accuracy, decode_accuracy_all, r2
         
     def visualize(self, save_path, save_name="item_index_decoding", xlabel="timesteps", format="png"):
         if self.results is None:

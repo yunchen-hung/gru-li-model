@@ -50,7 +50,7 @@ class A2CLoss(nn.Module):
         # entropys: timesteps x batch_size
         probs = torch.stack(probs).to(device).transpose(1, 0)
         values = torch.stack(values).squeeze(2).to(device).transpose(1, 0)
-        rewards = returns.to(device)
+        returns = returns.to(device)
         # entropys = torch.stack(entropys).to(device)
         entropys = torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
         
@@ -63,18 +63,18 @@ class A2CLoss(nn.Module):
                                 #torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
 
         if print_info:
-            print("loss info:", probs[0], values[0], rewards[0])
+            print("loss info:", probs[0], values[0], returns[0])
         if self.use_V:
             # A2C loss
-            A = rewards - values.data
+            A = returns - values.data
             if self.value_loss_func == 'mse':
-                value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device).float()), torch.squeeze(rewards.to(device).float()))
+                value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device).float()), torch.squeeze(returns.to(device).float()))
             elif self.value_loss_func == 'l1':
-                value_losses = smooth_l1_loss(torch.squeeze(values.to(device).float()), torch.squeeze(rewards.to(device).float()))
+                value_losses = smooth_l1_loss(torch.squeeze(values.to(device).float()), torch.squeeze(returns.to(device).float()))
             # smooth_l1_loss(torch.squeeze(v_t.to(self.device)), torch.squeeze(R_t.to(self.device)))
         else:
             # policy gradient loss
-            A = rewards
+            A = returns
             value_losses = torch.tensor(0.0).to(device)
         # accumulate policy gradient
         policy_grads = -probs * A

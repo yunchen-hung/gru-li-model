@@ -9,7 +9,7 @@ import torch
 
 import consts
 from utils import load_setup, parse_setup, import_attr
-from train import plot_accuracy_and_error, record_model
+from train import plot_accuracy_and_error, record
 
 
 def parse_args():
@@ -91,13 +91,14 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         # parse setup
         # construct the model, environment, optimizer, etc.
         model_instances = parse_setup(general_setup, device)
+        # print(model_instances)
 
         for run_name, model_instance in model_instances.items():
             run_name_with_num = run_name + "-{}".format(i)
             print("run_name: {}".format(run_name_with_num))
 
             # unpack model_instance
-            model, model_for_record, envs, optimizers, schedulers, criterions, sl_criterions, training_setups, setup = model_instance
+            model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, training_setups, setup = model_instance
 
             # set up save model path
             model_save_path = exp_path/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
@@ -125,10 +126,12 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 training_session = 1
                 for env, optimizer, scheduler, criterion, sl_criterion, training_setup in \
                         zip(envs, optimizers, schedulers, criterions, sl_criterions, training_setups):
-                    if env and optimizer and scheduler and criterion:
+                    if env and optimizer and scheduler and (criterion or sl_criterion):
                         print("\ntraining session {}".format(training_session))
-                        training_func = training_setup["trainer"].pop("training_function", "supervised_train_model")
-                        accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, sl_criterion,
+                        training_func = training_setup["trainer"].pop("training_function", "train")
+                        # accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, sl_criterion,
+                        #     device=device, model_save_path=model_save_path, **training_setup["trainer"])
+                        accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, criterion, sl_criterion,
                             device=device, model_save_path=model_save_path, **training_setup["trainer"])
                         # save accuracy and error to file
                         np.save(model_save_path/"accuracy_{}.npy".format(training_session), np.array(accuracies))
@@ -137,14 +140,15 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                         training_session += 1
 
             # record data of the model
-            env = envs[-1]
+            # env = envs[-1]
+            env = single_env
             training_setup = training_setups[-1]["trainer"]
             if training_setup.get("reset_memory", True):
                 print("reset memory during recording")
             else:
                 print("not reset memory during recording")
-            record_env = training_setup.get("record_env", [0])
-            used_output = training_setup.get("used_output_index", [0])
+            record_env = setup.get("record_env", [0])
+            used_output = setup.get("used_output_index", [0])
             print("used_output:", used_output)
             assert len(record_env) == len(used_output)
             if env:
@@ -154,7 +158,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                     model.load_state_dict(torch.load(model_load_path/"model.pt"))
                 data_all_env = []
                 for i in record_env:
-                    data = record_model(model, env[i], used_output=used_output[i], 
+                    data = record(model, env[i], used_output=used_output[i], 
                                         reset_memory=training_setup.get("reset_memory", True), 
                                         device=device, context_num=setup.get("context_num", 20))
                     data_all_env.append(data)

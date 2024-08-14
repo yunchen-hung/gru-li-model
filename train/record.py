@@ -1,27 +1,21 @@
+import numpy as np
 import torch
 
 from models.base_module import analyze
 from .criterions.rl import pick_action
 
 
-def record_model(agent, env, used_output=0, context_num=20, reset_memory=False, device='cpu'):
-    
-    context_num = env.context_num if hasattr(env, "context_num") else context_num
-
-    if hasattr(env, "regenerate_contexts"):
-        env.regenerate_contexts()
-    agent.set_retrieval(True)
-
+def record(agent, env, used_output=0, context_num=20, reset_memory=False, device='cpu'):
     data = {'actions': [], 'probs': [], 'rewards': [], 'values': [], 'readouts': [],
     'trial_data': [], 'accuracy': 0.0}
     actions_total_num, actions_correct_num, actions_wrong_num = 0, 0, 0
+    batch_size = 1 # env.num_envs
     for i in range(context_num):
-        # actions, probs, rewards, values, readouts, mem_contexts = [], [], [], [], [], []
-        obs_, info = env.reset(1)
+        obs_, info = env.reset()
         agent.reset_memory(flush=reset_memory)
-        obs = torch.Tensor(obs_).to(device)
+        obs = torch.Tensor(obs_).reshape(1, -1).to(device)
         done = False
-        state = agent.init_state(1)
+        state = agent.init_state(batch_size)
         with analyze(agent):
             actions_trial, probs_trial, rewards_trial, values_trial = [], [], [], []
             while not done:
@@ -33,36 +27,37 @@ def record_model(agent, env, used_output=0, context_num=20, reset_memory=False, 
                     agent.set_encoding(False)
                     agent.set_retrieval(True)
                 # reset state between phases
-                if info.get("reset_state", False):
-                    state = agent.init_state(1, recall=True, prev_state=state)
+                if "reset_state" in info and info["reset_state"]:
+                    state = agent.init_state(batch_size, recall=True, prev_state=state)
                 
                 output, value, state, _ = agent(obs, state)
                 action_distribution = output[used_output]
                 action, log_prob_action, action_max = pick_action(action_distribution)
-                obs_, reward, done, info = env.step(action)
-                obs = torch.Tensor(obs_).to(device)
+                obs_, reward, done, _, info = env.step(action)
+                obs = torch.Tensor(obs_).reshape(1, -1).to(device)
 
-                # action = [a.item() for a in action]
-                # print(action)
                 actions_trial.append(action.detach().cpu())
-                # actions_trial.append(action)
                 probs_trial.append(log_prob_action)
                 rewards_trial.append(reward)
                 values_trial.append(value[used_output])
-            # print(actions_trial)
             readout = agent.readout()
-            trial_data = env.get_trial_data()
-            # actions.append(actions_trial)
-            # probs.append(probs_trial)
-            # rewards.append(rewards_trial)
-            # values.append(values_trial)
-            # readouts.append(agent.readout())
-            # mem_contexts.append(env.memory_sequence)
-            # print(actions_trial)
-            correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions_trial)
-            actions_total_num += correct_actions + wrong_actions + not_know_actions
-            actions_correct_num += correct_actions
-            actions_wrong_num += wrong_actions
+            trial_data = env.unwrapped.get_trial_data()
+            # trial_data = []
+            # for single_env in env:
+            #     t = single_env.get_trial_data()
+            #     trial_data.append(t)
+
+            actions_trial = torch.stack(actions_trial)
+            probs_trial = torch.stack(probs_trial)
+            # print(rewards_trial)
+            rewards_trial = torch.Tensor(rewards_trial)
+            values_trial = torch.stack(values_trial).squeeze(-1)
+
+            # print(actions_trial.shape, probs_trial.shape, rewards_trial.shape, values_trial.shape)
+            # correct_actions, wrong_actions, not_know_actions = env.compute_accuracy(actions_trial)
+            # actions_total_num += correct_actions + wrong_actions + not_know_actions
+            # actions_correct_num += correct_actions
+            # actions_wrong_num += wrong_actions
 
         data['actions'].append(actions_trial)
         data['probs'].append(probs_trial)
@@ -70,10 +65,13 @@ def record_model(agent, env, used_output=0, context_num=20, reset_memory=False, 
         data['values'].append(values_trial)
         data['readouts'].append(readout)
         data['trial_data'].append(trial_data)
-    print("test accuracy: {}".format(actions_correct_num/actions_total_num))
-    data['accuracy'] = actions_correct_num/actions_total_num
-    data['correct_actions'] = actions_correct_num
-    data['wrong_actions'] = actions_wrong_num
-    data['total_actions'] = actions_total_num
+
+    # print("test accuracy: {}".format(actions_correct_num/actions_total_num))
+    # data['accuracy'] = actions_correct_num/actions_total_num
+    # data['correct_actions'] = actions_correct_num
+    # data['wrong_actions'] = actions_wrong_num
+    # data['total_actions'] = actions_total_num
+
+    print("finished recording")
     
     return data

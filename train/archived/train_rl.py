@@ -3,18 +3,20 @@ from collections import defaultdict
 import numpy as np
 import torch
 
-from .criterions.rl import pick_action
+from train.criterions.rl import pick_action
 from models.utils import entropy
-from .utils import count_accuracy, save_model
+from train.utils import count_accuracy, save_model
 from torch.nn.functional import mse_loss
 
 
-def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterion=None, test=False, stop_test_accu=1.0, model_save_path=None, device='cpu',
-    num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, step_iter=1, batch_size=1, use_memory=None,
+def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterion=None, test=False, 
+    model_save_path=None, device='cpu', use_memory=None,
+    num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, step_iter=1, batch_size=1, stop_test_accu=1.0, 
     mem_beta_decay_rate=1.0, mem_beta_decay_acc=1.0, mem_beta_min=0.01, 
     randomly_flush_state=False, flush_state_prob=1.0, use_memory_together_with_flush=False, reset_memory=True,
     memory_entropy_reg=False, memory_reg_weight=0.0, sl_criterion_weight=1.0,
-    used_output_index=[0], env_sample_prob=[1.0]):
+    used_output_index=[0], env_sample_prob=[1.0],
+    grad_clip=True, grad_max_norm=1.0):
     """
     Train the model with RL
     """
@@ -38,8 +40,11 @@ def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterio
 
     forward_time, backward_time = 0.0, 0.0
     loss_time = 0.0
+
+    current_lr = optimizer.state_dict()['param_groups'][0]['lr']
     
     num_iter = int(num_iter)
+    loss = 0.0
     for i in range(num_iter):
         # record time for the first iteration to estimate total time needed
         if i == 0:
@@ -146,8 +151,9 @@ def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterio
         # print(values)
         # print(rewards[memory_num:])
         # print(entropys)
-        loss, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+        loss_all, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
                                                                 print_info=print_criterion_info, device=device)
+        loss += loss_all
         # print(loss)
 
         if memory_entropy_reg:
@@ -176,14 +182,18 @@ def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterio
 
         current_step_iter += 1
         if current_step_iter == step_iter:
+            loss /= step_iter
             optimizer.zero_grad()
             loss.backward()
+            if grad_clip:
+                torch.nn.utils.clip_grad_norm_(agent.parameters(), grad_max_norm, error_if_nonfinite=True)
             optimizer.step()
             current_step_iter = 0
+            loss = 0.0
 
         # backward_time += time.time() - backward_start_time
 
-        total_loss += loss.item()
+        total_loss += loss_all.item()
         total_actor_loss += loss_actor.item()
         total_critic_loss += loss_critic.item()
         # print(entropys)
@@ -248,6 +258,10 @@ def train_model(agent, envs, optimizer, scheduler, setup, criterion, sl_criterio
 
             if i != 0:
                 scheduler.step(total_loss)  # TODO: change a criterion here?
+                lr = optimizer.state_dict()['param_groups'][0]['lr']
+                if lr != current_lr:
+                    print("lr changed from {} to {}".format(current_lr, lr))
+                    current_lr = lr
 
             if test_error - test_accuracy <= min_test_loss:
                 min_test_loss = test_error - test_accuracy

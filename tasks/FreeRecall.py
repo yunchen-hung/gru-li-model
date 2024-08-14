@@ -9,8 +9,9 @@ class FreeRecall(BaseEMTask):
     def __init__(self, vocabulary_num=20, memory_num=5, memory_var=0, retrieve_time_limit=None, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
     not_know_reward=-0.1, reset_state_before_test=False, start_recall_cue=False, encode_reward_weight=0.0, return_action=False, return_reward=False, 
     #forward_smooth=0, backward_smooth=0, 
+    seed=None,
     dt=10, tau=10):
-        super().__init__(reset_state_before_test=reset_state_before_test)
+        super().__init__(reset_state_before_test=reset_state_before_test, seed=seed)
         self.vocabulary_num = vocabulary_num        # dimension of items
         self.memory_num = memory_num                # sequence length
         self.memory_var = memory_var                # variance of memory sequence length
@@ -46,57 +47,77 @@ class FreeRecall(BaseEMTask):
         self.not_retrieved = np.ones((self.vocabulary_num+1), dtype=bool)   # flag for each item, 0 for retrieved, 1 for not retrieved
         self.reported_memory = 0
 
-    def reset(self, batch_size=1, regenerate_contexts=True):
+        obs_shape = self.vocabulary_num+1
+        if self.start_recall_cue:
+            obs_shape += 1
+        if self.return_action:
+            obs_shape += self.vocabulary_num+1
+        if self.return_reward:
+            obs_shape += 1
+        self.observation_space = gym.spaces.Box(low=0, high=1, shape=(obs_shape,), dtype=np.float32)
+        self.action_space = gym.spaces.Discrete(self.vocabulary_num+1)
+
+    def reset(self):
         """
         reset the trial, return the first observation
         """
-        if regenerate_contexts:
-            self.current_memory_num = np.random.randint(self.memory_num - self.memory_var, self.memory_num + self.memory_var + 1)
-            self.memory_sequence = self.generate_sequence(batch_size=batch_size)
-            self.stimuli = self.generate_stimuli(batch_size=batch_size)
-            self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
+        self.current_memory_num = np.random.randint(self.memory_num - self.memory_var, self.memory_num + self.memory_var + 1)
+        self.memory_sequence = self.generate_sequence()
+        self.stimuli = self.generate_stimuli()
+        self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
 
         self.current_timestep = 0
         self.current_step_within_item = 0
         self.testing = False
-        self.not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=bool)
-        self.reported_memory = np.zeros(batch_size)
+        self.not_retrieved = np.ones((self.vocabulary_num+1), dtype=bool)
+        self.reported_memory = 0
         info = {"phase": "encoding"}
-        observations = self.stimuli[:, self.current_timestep, :]
+        observations = self.stimuli[self.current_timestep, :]
         if self.start_recall_cue:
-            observations = np.concatenate((observations, np.zeros((batch_size, 1))), axis=1)
+            observations = np.concatenate((observations, np.zeros(1)), axis=0)
         if self.return_action:
-            observations = np.concatenate((observations, np.zeros((batch_size, self.vocabulary_num+1))), axis=1)
+            observations = np.concatenate((observations, np.zeros((self.vocabulary_num+1))), axis=0)
         if self.return_reward:
-            observations = np.concatenate((observations, np.zeros((batch_size, 1))), axis=1)
+            observations = np.concatenate((observations, np.zeros(1)), axis=0)
         # observations = observations.reshape(1, -1)
+
+        # print(self.memory_sequence)
         return observations, info
 
-    def step(self, actions):
+    def step(self, action):
         """
         for reinforcement learning
         """
-        batch_size = len(actions)
-        actions = np.array([action.cpu().detach().numpy() for action in actions])
+        # actions = np.array([action.cpu().detach().numpy() for action in actions])
+        # action = action.cpu().detach().numpy()
 
         start_recall = 0
         # compute returned action, if needed
         if self.return_action:
-            returned_action = self.get_returned_action(actions)
+            returned_action = self.get_returned_action(action)
         # recall phase, compute rewards
         if self.testing:
-            rewards = self.compute_reward(actions)
-            observations = np.zeros((batch_size, self.vocabulary_num+1))
-            info = {"phase": "recall"}
+            reward = self.compute_reward(action)
+            observations = np.zeros((self.vocabulary_num+1))
+            correct, wrong, not_know = 0, 0, 0
+            if reward == self.true_reward:
+                correct = 1
+            elif action == 0:
+                not_know = 1
+            else:
+                wrong = 1
+            info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep], "gt_mask": False, 
+                    "correct": correct, "wrong": wrong, "not_know": not_know}
             self.increase_timestep()
             done = self.check_done()
         else:
-            rewards = np.zeros(batch_size)
-            done = np.zeros(batch_size, dtype=bool)
+            reward = 0.0
+            done = False
             if self.encode_reward_weight > 0:
                 # during encoding, train the model to output the just inputed item
-                eq = np.equal(actions, self.memory_sequence[:, self.current_timestep]).astype(int)
-                rewards = eq * self.true_reward * self.encode_reward_weight + (1 - eq) * self.false_reward * self.encode_reward_weight
+                eq = action == self.memory_sequence[self.current_timestep]
+                    # np.equal(actions, self.memory_sequence[:, self.current_timestep]).astype(int)
+                reward = eq * self.true_reward * self.encode_reward_weight + (1 - eq) * self.false_reward * self.encode_reward_weight
                 # if action == self.memory_sequence[self.current_timestep]:
                 #     rewards = self.true_reward * self.encode_reward_weight
                 # else:
@@ -105,26 +126,28 @@ class FreeRecall(BaseEMTask):
             if self.current_timestep == self.current_memory_num:
                 # before the first timestep of the recall phase
                 self.testing = True
-                observations = np.zeros((batch_size, self.vocabulary_num+1))
+                observations = np.zeros((self.vocabulary_num+1))
                 self.increase_timestep(set_zero=True)
-                info = {"phase": "recall"}
+                info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True,
+                        "correct": 0, "wrong": 0, "not_know": 0}
                 if self.reset_state_before_test:    # send signal for the agent to reset its state
                     info["reset_state"] = True
                 start_recall = 1
             else:
-                observations = self.stimuli[:, self.current_timestep, :]
-                info = {"phase": "encoding"}
+                observations = self.stimuli[self.current_timestep, :]
+                info = {"phase": "encoding", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True,
+                        "correct": 0, "wrong": 0, "not_know": 0}
         if self.start_recall_cue:
-            observations = np.concatenate((observations, np.ones((batch_size, 1)) * start_recall), axis=1)
+            observations = np.concatenate((observations, np.ones(1) * start_recall), axis=0)
         if self.return_action:
             if self.testing and self.current_timestep > 0:
-                observations = np.concatenate((observations, returned_action), axis=1)
+                observations = np.concatenate((observations, returned_action), axis=0)
             else:
-                observations = np.concatenate((observations, np.zeros((batch_size, self.vocabulary_num+1))), axis=1)
+                observations = np.concatenate((observations, np.zeros((self.vocabulary_num+1))), axis=0)
         if self.return_reward:
-            observations = np.concatenate((observations, rewards.reshape(-1, 1)), axis=1)
+            observations = np.concatenate((observations, np.array([reward])), axis=0)
         # observations = observations.reshape(1, -1)
-        return observations, rewards, done, info
+        return observations, reward, done, False, info
 
     # def generate_smooth_matrix(self):
     #     """
@@ -141,18 +164,17 @@ class FreeRecall(BaseEMTask):
     #             smooth_matrix[j][j+i+1] = math.pow(self.backward_smooth, i+1)
     #     return smooth_matrix
 
-    def generate_sequence(self, batch_size=1):
+    def generate_sequence(self):
         """
         generate memory sequence, each item is a number from 1 to vocabulary_num
 
         output: batch_size * memory_num
         """
-        memory_sequence = np.zeros((batch_size, self.current_memory_num), dtype=int)
-        for i in range(batch_size):
-            memory_sequence[i] = np.random.choice(self.vocabulary_num, self.current_memory_num, replace=False) + 1
+        memory_sequence = np.zeros((self.current_memory_num), dtype=int)
+        memory_sequence = np.random.choice(self.vocabulary_num, self.current_memory_num, replace=False) + 1
         return memory_sequence      # axis 0: batch size, axis 1: length of sequence
 
-    def generate_stimuli(self, batch_size=1):
+    def generate_stimuli(self):
         """
         generate stimuli according to memory sequence
 
@@ -182,7 +204,7 @@ class FreeRecall(BaseEMTask):
             else:
                 self.current_timestep += 1
 
-    def get_returned_action(self, actions):
+    def get_returned_action(self, action):
         """
         compute action to return
 
@@ -192,15 +214,14 @@ class FreeRecall(BaseEMTask):
         input: action, int
         output: returned_actions, shape=vocabulary_num+1
         """
-        batch_size = len(actions)
 
         if self.current_timestep == 0 and not self.testing:
-            returned_action = np.zeros((batch_size, self.vocabulary_num+1))
+            returned_action = np.zeros((self.vocabulary_num+1))
         else:
-            returned_action = np.eye(self.vocabulary_num+1)[actions]
+            returned_action = np.eye(self.vocabulary_num+1)[action].reshape(-1)
         return returned_action
     
-    def compute_reward(self, actions):
+    def compute_reward(self, action):
         """
         compute rewards according to actions
 
@@ -212,32 +233,31 @@ class FreeRecall(BaseEMTask):
         input: action, int
         output: rewards, float
         """
-        rewards = []
-        for i, action in enumerate(actions):
-            if action in list(self.memory_sequence[i]):
-                if self.not_retrieved[i][action]:
-                    rewards.append(self.true_reward)
-                    self.not_retrieved[i][action] = False
-                elif np.sum(self.not_retrieved[i]) == 0:
-                    rewards.append(0.0)
-                else:
-                    rewards.append(self.repeat_penalty)
-                self.reported_memory[i] += 1
-            elif action == 0:
-                rewards.append(self.not_know_reward)
+        if action in list(self.memory_sequence):
+            if self.not_retrieved[action]:
+                reward = self.true_reward
+                self.not_retrieved[action] = False
+            elif np.sum(self.not_retrieved) == 0:
+                reward = 0.0
             else:
-                rewards.append(self.false_reward)
-                self.reported_memory[i] += 1
-        return np.array(rewards)
+                reward = self.repeat_penalty
+            self.reported_memory += 1
+        elif action == 0:
+            reward = self.not_know_reward
+        else:
+            reward = self.false_reward
+            self.reported_memory += 1
+        return reward
     
     def check_done(self):
         """
         check whether the trial has completed
         """
         if self.current_timestep >= self.current_retrieve_time_limit:
-            return np.ones(len(self.reported_memory), dtype=bool)
+            return True
         else:
-            return np.logical_and(self.reported_memory >= self.current_memory_num, np.sum(self.not_retrieved, axis=1) == 0)
+            return self.reported_memory >= self.current_memory_num and np.sum(self.not_retrieved) == 0
+                # np.logical_and(self.reported_memory >= self.current_memory_num, np.sum(self.not_retrieved, axis=1) == 0)
         # if self.current_timestep >= self.current_retrieve_time_limit or (self.reported_memory >= self.current_memory_num).all() \
         #     or (np.sum(self.not_retrieved, axis=1) == 0).all():
         #     return True
@@ -271,7 +291,6 @@ class FreeRecall(BaseEMTask):
         input: actions, (timesteps, batch_size)
         outputs: number of three types of results: correct, wrong, not_know, i.e. 3 int
         """
-        batch_size = len(actions)
         # actions = np.array(actions).T
         # print(actions[self.current_memory_num:], self.memory_sequence)
 
@@ -279,18 +298,29 @@ class FreeRecall(BaseEMTask):
         wrong_actions = 0
         not_know_actions = 0
 
-        not_retrieved = np.ones((batch_size, self.vocabulary_num+1), dtype=bool)
+        not_retrieved = np.ones((self.vocabulary_num+1), dtype=bool)
         
-        for action_batch in actions[self.current_memory_num:]:
-            for i, action in enumerate(action_batch):
-                action = int(action)
-                if action in self.memory_sequence[i] and not_retrieved[i, action]:
-                    correct_actions += 1
-                    not_retrieved[i, action] = False
-                elif action == 0:
-                    not_know_actions += 1
-                else:
-                    wrong_actions += 1
+        # for action_batch in actions[self.current_memory_num:]:
+        #     for i, action in enumerate(action_batch):
+        #         action = int(action)
+        #         if action in self.memory_sequence[i] and not_retrieved[i, action]:
+        #             correct_actions += 1
+        #             not_retrieved[i, action] = False
+        #         elif action == 0:
+        #             not_know_actions += 1
+        #         else:
+        #             wrong_actions += 1
+
+        for action in actions[self.current_memory_num:]:
+            action = int(action)
+            if action in self.memory_sequence and not_retrieved[action]:
+                correct_actions += 1
+                not_retrieved[action] = False
+            elif action == 0:
+                not_know_actions += 1
+            else:
+                wrong_actions += 1
+
         return correct_actions, wrong_actions, not_know_actions
 
     # def compute_rewards(self, actions):
@@ -324,7 +354,8 @@ class FreeRecall(BaseEMTask):
 
         output: ground truth with numbers (not one-hot), memory_num
         """
-        gt = np.concatenate((self.memory_sequence, self.memory_sequence), axis=1)
+        # gt = np.concatenate((self.memory_sequence, self.memory_sequence), axis=1)
+        gt = np.concatenate((self.memory_sequence, self.memory_sequence), axis=0)
 
         if phase == 'encoding':
             mask = np.concatenate((np.ones(self.memory_num), np.zeros(self.memory_num))).astype(int)
@@ -333,13 +364,40 @@ class FreeRecall(BaseEMTask):
         else:
             mask = np.ones(self.memory_num*2).astype(int)
 
-        return gt, mask.reshape(1, -1)
+        return gt, mask
     
     def get_trial_data(self):
         """
         get trial data
         """
         return self.memory_sequence
+
+
+# def compute_accuracy(actions, gts, gt_masks):
+#     """
+#     compute accuracy for all timesteps
+
+#     input: actions, gts, gt_masks, all with shape (timesteps, batch_size)
+#     outputs: number of three types of results: correct, wrong, not_know, i.e. 3 int
+#     """
+#     correct_actions = 0
+#     wrong_actions = 0
+#     not_know_actions = 0
+
+#     # switch to batch first
+#     actions, gts, gt_masks = np.array(actions).T, np.array(gts).T, np.array(gt_masks).T
+
+#     for action_batch, gt_batch, mask_batch in zip(actions, gts, gt_masks):
+#         for action, mask in zip(action_batch, mask_batch):
+#             if mask:
+#                 if action == gt:
+#                     correct_actions += 1
+#                 elif action == 0:
+#                     not_know_actions += 1
+#                 else:
+#                     wrong_actions += 1
+
+#     return correct_actions, wrong_actions, not_know_actions
 
 
 # test

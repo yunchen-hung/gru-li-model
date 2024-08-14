@@ -78,7 +78,7 @@ class RecallProbability:
         plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='b', zorder=2)
         plt.plot(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='k', zorder=1)
         plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
-        plt.xlabel("item position")
+        plt.xlabel("lag")
         plt.ylabel("conditional\nrecall probability")
         # title = title if title else "conditional recall probability"
         # plt.title(title)
@@ -120,7 +120,7 @@ class RecallProbabilityInTime:
     def __init__(self) -> None:
         self.results = None
 
-    def fit(self, memory_contexts, actions, condition=None):
+    def fit(self, memory_contexts, actions, condition=None, mask=None):
         """
         Params:
             condition: a tuple (i, t) with 2 int indicating "given recalling ith item at timestep t"
@@ -128,6 +128,9 @@ class RecallProbabilityInTime:
         Returns:
             results: a 2D array with shape (memory_num, memory_num), data at position (i, j) indicates the probability of recalling ith item at timestep j
         """
+        if mask is None:
+            mask = np.ones(memory_contexts.shape)
+
         if condition is not None:
             if isinstance(condition, tuple):
                 i_cond, t_cond = condition
@@ -149,11 +152,14 @@ class RecallProbabilityInTime:
 
             memory_contexts = memory_contexts[valid_contexts]
             actions = actions[valid_contexts]
+            mask = mask[valid_contexts]
 
         self.context_num, self.memory_num = memory_contexts.shape
         self.results = np.zeros((self.memory_num, self.memory_num))
         for i in range(self.context_num):
             for t in range(self.memory_num):
+                if mask[i][t] == 0:
+                    continue
                 position1 = np.where(memory_contexts[i] == actions[i][t])
                 # position1 = np.where(actions[i] == memory_contexts[i][t])
                 if position1[0].shape[0] != 0:

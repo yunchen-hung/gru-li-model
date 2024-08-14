@@ -17,7 +17,7 @@
                 "class": "ValueMemory",
                 "value_dim": 128,
                 "capacity": 8,
-                "recall_method": "weight_sum",
+                "recall_method": "argmax",
                 "subclasses": [
                     {
                         "name": "similarity_measure",

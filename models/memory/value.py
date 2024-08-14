@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,13 +9,14 @@ from ..base_module import BasicModule
 
 class ValueMemory(BasicModule):
     def __init__(self, similarity_measure, value_dim: int, capacity: int, recall_method="argmax", 
-                 batch_size=1, noise_std=0.0, device: str = 'cpu') -> None:
+                 batch_size=1, noise_std=0.0, force_false_prob=0.0, device: str = 'cpu') -> None:
         super().__init__()
         self.device = device
         self.similarity_measure = similarity_measure
         self.value_dim = value_dim
         self.capacity = capacity
         self.noise_std = noise_std
+        self.force_false_prob = force_false_prob
 
         self.values = torch.zeros((batch_size, capacity, value_dim)).to(self.device)
         
@@ -66,6 +68,13 @@ class ValueMemory(BasicModule):
             pass
         else:
             raise NotImplementedError
+        # print(similarity.shape)
+        if self.force_false_prob > 0:
+            force_false = np.random.uniform() < self.force_false_prob
+            if force_false:
+                retrieved_idx = torch.randint(0, self.capacity, (1,))
+                similarity = F.one_hot(retrieved_idx, self.capacity).float()
+                # print("force false", similarity.shape)
         self.write(similarity, "similarity")
         retrieved_memory = torch.bmm(torch.unsqueeze(similarity, dim=1), self.values).squeeze(1)
         self.write(retrieved_memory, "retrieved_memory")
