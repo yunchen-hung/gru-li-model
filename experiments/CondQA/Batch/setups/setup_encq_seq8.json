@@ -48,7 +48,7 @@
         "trainer": {
             "training_function": "train",
             "num_iter": 1e6,
-            "test_iter": 500,
+            "test_iter": 1000,
             "save_iter": 10000,
             "stop_test_accu": 0.99,
             "use_memory": true,
@@ -75,6 +75,6 @@
             }
         }
     }],
-    "load_saved_model": false,
+    "load_saved_model": true,
     "context_num": 1000
 }

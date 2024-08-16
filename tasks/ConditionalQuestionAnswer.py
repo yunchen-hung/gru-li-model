@@ -162,7 +162,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
                     "correct": 0, "wrong": 0, "not_know": 0,
                     "done": False}
 
-            if self.no_early_stop and self.answered:
+            if self.answered:
                 reward = 0.0
                 info["loss_mask"] = False
             elif action == self.action_space.n - 1:

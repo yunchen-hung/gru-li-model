@@ -55,19 +55,30 @@ def run(data_all, model_all, env, paths, exp_name):
         #     # print(np.sum(np.abs(states), axis=-1))
         #     print()
 
+        # print("example trials:")
+        # for i in range(10):
+        #     print(actions[i])
+        #     print(data["trial_data"][i]["correct_answer"])
+        # print()
+
         """ distribution of number of timesteps taken in recall phase """
         num_timesteps = np.zeros(timestep_each_phase)
         model_answers = []
         actions_mask = np.ones((context_num, timestep_each_phase), dtype=bool)
         for i in range(context_num):
+            answered = False
             for j in range(timestep_each_phase):
                 if actions[i][timestep_each_phase+j] != 2:
+                    answered = True
                     num_timesteps[j] += 1
                     model_answers.append(actions[i][timestep_each_phase+j])
                     if j != timestep_each_phase-1:
                         actions_mask[i, j+1:] = False
                     break
-            model_answers.append(actions[i][-1])
+            if not answered:
+                model_answers.append(actions[i][-1])
+        # print(len(model_answers))
+        # print(model_answers[:10])
         prop_timesteps = num_timesteps / context_num
         plt.figure(figsize=(4, 3), dpi=180)
         plt.bar(np.arange(timestep_each_phase), prop_timesteps)
@@ -110,9 +121,11 @@ def run(data_all, model_all, env, paths, exp_name):
 
             plt.figure(figsize=(4, 3), dpi=180)
             # mean_em_gate = np.mean(em_gates, axis=0)
-            mean_em_gate = np.sum(em_gates*actions_mask, axis=0) / np.sum(actions_mask, axis=0)
+            actions_mask_sum = np.sum(actions_mask, axis=0)
+            actions_mask_sum[actions_mask_sum==0] = 1
+            mean_em_gate = np.sum(em_gates*actions_mask, axis=0) / actions_mask_sum
             # std_em_gate = np.std(em_gates, axis=0)
-            std_em_gate = np.sqrt(np.sum((em_gates - mean_em_gate)**2*actions_mask, axis=0) / np.sum(actions_mask, axis=0))
+            std_em_gate = np.sqrt(np.sum((em_gates - mean_em_gate)**2*actions_mask, axis=0) / actions_mask_sum)
             plt.plot(mean_em_gate, label="mean")
             plt.fill_between(np.arange(mean_em_gate.shape[0]), mean_em_gate - std_em_gate, mean_em_gate + std_em_gate, alpha=0.3)
             ax = plt.gca()
