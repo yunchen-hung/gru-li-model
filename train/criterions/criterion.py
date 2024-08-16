@@ -49,7 +49,7 @@ class MultiRLLoss(nn.Module):
         self.criteria = criteria
         self.output_index = output_index
 
-    def forward(self, probs, values, rewards, entropys, print_info=False, device="cpu"):
+    def forward(self, probs, values, rewards, entropys, loss_masks=None, print_info=False, device="cpu"):
         assert len(probs) == len(values) == len(entropys)
         assert len(probs) > max(self.output_index)
         # loss = torch.tensor(0.0).to(device)
@@ -59,7 +59,7 @@ class MultiRLLoss(nn.Module):
         loss, policy_gradient, value_loss, pi_ent = None, None, None, None
         for i in range(len(self.criteria)):
             l, p, v, ent = self.criteria[i](probs[self.output_index[i]], values[self.output_index[i]], 
-                                     rewards, entropys[self.output_index[i]],
+                                     rewards, entropys[self.output_index[i]], loss_masks,
                                      print_info, device=device)
             # print(i, l, p, v, ent)
             if loss is None:

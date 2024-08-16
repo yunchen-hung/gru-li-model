@@ -36,14 +36,17 @@ class A2CLoss(nn.Module):
         self.phase = phase
         self.value_loss_func = value_loss_func
 
-    def forward(self, probs, values, rewards, entropys, print_info=False, device='cpu'):
+    def forward(self, probs, values, rewards, entropys, loss_masks=None, print_info=False, device='cpu'):
         """
         probs: list of torch.tensor, overall size is (timesteps, batch_size)
         values: list of torch.tensor, overall size is (timesteps, batch_size, 1)
         rewards, entropys: list of torch.tensor, overall size is (timesteps, batch_size)
+        loss_masks: list, overall size is (timesteps, batch_size)
         """
+        rewards, loss_masks = np.array(rewards), np.array(loss_masks)
+
         # returns: batch_size x timesteps
-        returns = compute_returns(rewards, gamma=self.gamma, normalize=self.returns_normalize)
+        returns = compute_returns(rewards, loss_masks, gamma=self.gamma, normalize=self.returns_normalize)
         policy_grads, value_losses = [], []
         # probs: batch_size x timesteps
         # values, returns: batch_size x timesteps
@@ -53,6 +56,11 @@ class A2CLoss(nn.Module):
         returns = returns.to(device)
         # entropys = torch.stack(entropys).to(device)
         entropys = torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
+
+        if loss_masks is None:
+            loss_masks = torch.ones_like(returns)
+        else:
+            loss_masks = torch.tensor(loss_masks).to(device).transpose(1, 0)
         
         batch_size = probs.shape[0]
 
@@ -77,7 +85,9 @@ class A2CLoss(nn.Module):
             A = returns
             value_losses = torch.tensor(0.0).to(device)
         # accumulate policy gradient
-        policy_grads = -probs * A
+        # print(loss_masks, probs, A)
+        # print(probs[loss_masks != 0], A[loss_masks != 0])
+        policy_grads = -probs[loss_masks != 0] * A[loss_masks != 0]
         policy_gradient = torch.sum(policy_grads) / batch_size
         value_loss = torch.sum(value_losses) / batch_size
         pi_ent = torch.sum(entropys) / batch_size
@@ -117,7 +127,7 @@ def pick_action(action_distribution):
     return a_t, log_prob_a_t, a_t_max
 
 
-def compute_returns(rewards, gamma=0, normalize=False):
+def compute_returns(rewards, loss_masks, gamma=0, normalize=False):
     """
     compute return in the standard policy gradient setting.
 
@@ -138,8 +148,9 @@ def compute_returns(rewards, gamma=0, normalize=False):
 
     """
     # compute cumulative discounted reward since t, for all t
-    rewards = np.array(rewards)
-    returns_all = []
+    # rewards = np.array(rewards)
+    # loss_masks = np.array(loss_masks)
+    rewards[loss_masks == 0] = 0
 
     R = np.zeros(rewards.shape[1])
     returns = np.zeros(rewards.shape)
@@ -149,6 +160,8 @@ def compute_returns(rewards, gamma=0, normalize=False):
     if normalize:
         returns = (returns - np.mean(returns, axis=0)) / (np.mean(returns, axis=0) + eps)
     returns = returns.T
+
+    returns[loss_masks.T == 0] = 0
     return torch.tensor(returns)
 
     # for i in range(rewards.shape[1]):
