@@ -1,4 +1,5 @@
 import csv
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.metrics.pairwise as skp
@@ -165,7 +166,7 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc", colormap_label="item position\nin study order",
                                 xlabel="time in encoding phase")
         np.save(fig_path/"ridge_encoding.npy", ridge_encoding_res)
-        np.save(fig_path/"ridge_encoding_stat.npy", list(ridge_encoding_stat_res.values()))
+        # np.save(fig_path/"ridge_encoding_stat.npy", list(ridge_encoding_stat_res.values()))
 
         ridge_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
         for i in range(all_context_num):
@@ -199,6 +200,23 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge_recall_res, index_recall_acc, index_recall_r2 = ridge.fit(c_recalling, recall_index, index_mask)
         ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_rec", xlabel="time in recall phase")
         np.save(fig_path/"ridge_recall_index.npy", ridge_recall_res)
+
+        ridge_classifier_stat = {
+            "item_enc_acc": ridge_encoding_stat_res["acc"],
+            "item_enc_r2": ridge_encoding_stat_res["r2"],
+            "item_enc_acc_last": ridge_encoding_stat_res["acc_last"],
+            "item_enc_r2_last": ridge_encoding_stat_res["r2_last"],
+            "item_rec_acc": ridge_recall_stat_res["acc"],
+            "item_rec_r2": ridge_recall_stat_res["r2"],
+            "item_rec_acc_last": ridge_recall_stat_res["acc_last"],
+            "item_rec_r2_last": ridge_recall_stat_res["r2_last"],
+            "index_enc_acc": index_encoding_acc,
+            "index_enc_r2": index_encoding_r2,
+            "index_rec_acc": index_recall_acc,
+            "index_rec_r2": index_recall_r2
+        }
+        with open(fig_path/"ridge_classifier_stat.pkl", "wb") as f:
+            pickle.dump(ridge_classifier_stat, f)
 
 
         """ overall decoding accuracy and r2 """
