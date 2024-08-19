@@ -14,13 +14,12 @@
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
-            "recall_method": "weight_sum",
+            "recall_method": "argmax",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "process_similarity": "softmax",
-                    "softmax_temperature": 0.1
+                    "process_similarity": "none"
                 }
             ]
         }]
@@ -28,7 +27,7 @@
     "training": [{
         "env": [{
             "vector_env": {
-                "mode": "sync",
+                "mode": "async",
                 "batch_size": 8
             },
             "class": "FreeRecall",
@@ -43,7 +42,7 @@
             "not_know_reward": -0.75
         }],
         "trainer": {
-            "num_iter": 0,
+            "num_iter": 200,
             "test_iter": 100,
             "save_iter": 200,
             "use_memory": true,
@@ -69,8 +68,8 @@
     }, {
         "env": [{
             "vector_env": {
-                "mode": "sync",
-                "batch_size": 8
+                "mode": "async",
+                "batch_size": 16
             },
             "class": "FreeRecall",
             "vocabulary_num": 50,
@@ -84,8 +83,8 @@
             "not_know_reward": -0.75
         }],
         "trainer": {
-            "num_iter": 50000,
-            "test_iter": 100,
+            "num_iter": 5e5,
+            "test_iter": 500,
             "save_iter": 5000,
             "use_memory": true,
             "stop_test_accu": 0.99,
@@ -102,7 +101,7 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 3e-3,
+                "lr": 2e-3,
                 "lr_decay_factor": 0.1,
                 "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,

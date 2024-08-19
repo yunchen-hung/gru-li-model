@@ -61,16 +61,4 @@
 
 
 # python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_nomem.json -train --time 10
-# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last.json -train --time 15
-# python run_cluster.py --exp CondQA.Sup --setup setup_recq_last.json -train --time 15
-# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_onestep.json -train --time 15
-# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_pretrain.json -train --time 15
-# python run_cluster.py --exp CondQA.Sup --setup setup_recq_last_pretrain.json -train --time 15
-# python run_cluster.py --exp CondQA.Sup --setup setup_encq.json -train --time 15
-# python run_cluster.py --exp CondQA.Sup --setup setup_recq.json -train --time 15
-# python run_cluster.py --exp CondQA.Sup --setup setup_encphase_last_nomem.json -train --time 10
-# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_nomem_onestep.json -train --time 10
 
-python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_largelr.json -train --time 15
-python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_pretrain_nocum.json -train --time 15
-python run_cluster.py --exp CondQA.Sup --setup setup_recq_last_pretrain_nocum.json -train --time 15
