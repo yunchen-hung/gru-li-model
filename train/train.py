@@ -258,12 +258,12 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             #     save_model(agent, model_save_path, filename="model.pt")
             save_model(agent, model_save_path, filename="model.pt")
             
-            # if accuracy >= stop_test_accu and i > min_iter:
-            #     print("training end")
-            #     break
+            if accuracy >= stop_test_accu and i > min_iter:
+                print("training end")
+                break
 
-            # test_accuracies.append(accuracy)
-            # test_errors.append(error)
+            test_accuracies.append(accuracy)
+            test_errors.append(error)
 
             total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, \
                 total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
