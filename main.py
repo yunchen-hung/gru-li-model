@@ -101,7 +101,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, training_setups, setup = model_instance
 
             # set up save model path
-            model_save_path = exp_path/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/run_name_with_num
+            model_save_path = exp_path/setup["model_name"]/run_name_with_num
             model_save_path.mkdir(parents=True, exist_ok=True)
 
             # load trained model when not specified to train again
@@ -113,11 +113,12 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 load_run_name_with_path = run_name_with_num
             # set up load model path
                 
-            model_load_path = exp_path/exp_dir/consts.SAVE_MODEL_FOLDER/setup["model_name"]/load_run_name_with_path
+            model_load_path = exp_path/setup["model_name"]/load_run_name_with_path
             if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
                 if setup.get("load_saved_model", False):
                     print("load saved model from {}".format(load_run_name_with_path))
                 model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu')))
+            # print(exp_path, setup["model_name"], load_run_name_with_path)
 
             model.to(device)
 

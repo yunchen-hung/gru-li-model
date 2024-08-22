@@ -259,11 +259,11 @@ def run(data_all, model_all, env, paths, exp_name):
         # Ridge
         regression(Ridge(), "ridge")
 
-        # Lasso
-        regression(Lasso(), "lasso")
+        # # Lasso
+        # regression(Lasso(), "lasso")
 
-        # Linear regression
-        regression(LinearRegression(), "linear")
+        # # Linear regression
+        # regression(LinearRegression(), "linear")
 
 
         
@@ -271,8 +271,8 @@ def run(data_all, model_all, env, paths, exp_name):
         kmeans = KMeans(n_clusters=env.memory_num)
         kmeans.fit(c_memorizing.reshape(-1, c_memorizing.shape[-1]))
         pred = kmeans.predict(c_memorizing.reshape(-1, c_memorizing.shape[-1]))
-        rand_index = rand_score(memory_sequence.reshape(-1), pred)
-        adj_mutual_info = adjusted_mutual_info_score(memory_sequence.reshape(-1), pred)
+        rand_index = rand_score(encoding_index.reshape(-1), pred)
+        adj_mutual_info = adjusted_mutual_info_score(encoding_index.reshape(-1), pred)
         
         kmeans.fit(c_recalling[ridge_mask])
         pred = kmeans.predict(c_recalling[ridge_mask])
@@ -285,6 +285,13 @@ def run(data_all, model_all, env, paths, exp_name):
             "rand_index_rec": rand_index_rec,
             "adj_mutual_info_rec": adj_mutual_info_rec
         }
+        with open(fig_path/"kmeans_stat.pkl", "wb") as f:
+            pickle.dump(kmeans_stat, f)
+
+        print()
+        print("kmeans clustering")
+        print("item identity encoding rand index: {}, adj mutual info: {}".format(rand_index, adj_mutual_info))
+        print("item identity recall rand index: {}, adj mutual info: {}".format(rand_index_rec, adj_mutual_info_rec))
         
 
 
