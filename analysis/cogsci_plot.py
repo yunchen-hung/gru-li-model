@@ -24,157 +24,159 @@ plt.rcParams['font.size'] = 14
 
 
 """ plot cogsci """
+
+""" average plot of each temporal discount factor parameter """
 exp_names = []
 # exp_names.append("setup_gru_negmementreg")
 # for i in range(1, 10):
 #     exp_names.append("setup_gru_negmementreg_gamma0{}".format(i))
 exp_names.append("setup_gru_negmementreg_gamma")
 
-# for exp in exp_names:
-#     run_names = []
-#     for i in range(100):
-#         # if i not in [3, 6, 7, 9, 15, 16, 19]:
-#             # print(i)
-#         run_names.append(exp + "-{}".format(i))
+for exp in exp_names:
+    run_names = []
+    for i in range(100):
+        # if i not in [3, 6, 7, 9, 15, 16, 19]:
+            # print(i)
+        run_names.append(exp + "-{}".format(i))
 
-#     ridge_encoding_res = []
-#     ridge_recall_res = []
-#     ridge_index_encoding_res = []
-#     ridge_index_recall_res = []
-#     pc_selectivity_res = []
-#     explained_var_res = []
+    ridge_encoding_res = []
+    ridge_recall_res = []
+    ridge_index_encoding_res = []
+    ridge_index_recall_res = []
+    pc_selectivity_res = []
+    explained_var_res = []
 
-#     label = None
-#     for run_name in run_names:
-#         data = np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/pc_selectivity_encoding.npz".format(run_name), allow_pickle=True)
-#         if data['selectivity'][1][-1] > 0.8:
-#             ridge_encoding_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_encoding.npy".format(run_name)))
-#             ridge_recall_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_recall.npy".format(run_name)))
-#             ridge_index_encoding_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_encoding_index.npy".format(run_name)))
-#             ridge_index_recall_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_recall_index.npy".format(run_name)))
-#             pc_selectivity_res.append(data['selectivity'])
-#             explained_var_res.append(data['explained_var'])
-#         label = data['labels']
+    label = None
+    for run_name in run_names:
+        data = np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/pc_selectivity_encoding.npz".format(run_name), allow_pickle=True)
+        if data['selectivity'][1][-1] > 0.8:
+            ridge_encoding_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_encoding.npy".format(run_name)))
+            ridge_recall_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_recall.npy".format(run_name)))
+            ridge_index_encoding_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_encoding_index.npy".format(run_name)))
+            ridge_index_recall_res.append(np.load("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/ridge_recall_index.npy".format(run_name)))
+            pc_selectivity_res.append(data['selectivity'])
+            explained_var_res.append(data['explained_var'])
+        label = data['labels']
 
-#     ridge_encoding_res = np.mean(np.array(ridge_encoding_res), axis=0)
-#     ridge_recall_res = np.mean(np.array(ridge_recall_res), axis=0)
-#     ridge_index_encoding_std = np.std(ridge_index_encoding_res, axis=0)
-#     ridge_index_encoding_res = np.mean(np.array(ridge_index_encoding_res), axis=0)
-#     # print(ridge_index_encoding_std.shape, ridge_index_encoding_res.shape)
-#     ridge_index_recall_std = np.std(ridge_index_recall_res, axis=0)
-#     ridge_index_recall_res = np.mean(np.array(ridge_index_recall_res), axis=0)
-#     pc_selectivity_std = np.std(pc_selectivity_res, axis=0)
-#     pc_selectivity_res = np.mean(np.array(pc_selectivity_res), axis=0)
-#     # print(pc_selectivity_std.shape, pc_selectivity_res.shape)
-#     explained_var_std = np.std(explained_var_res, axis=0)
-#     explained_var_res = np.mean(np.array(explained_var_res), axis=0)
+    ridge_encoding_res = np.mean(np.array(ridge_encoding_res), axis=0)
+    ridge_recall_res = np.mean(np.array(ridge_recall_res), axis=0)
+    ridge_index_encoding_std = np.std(ridge_index_encoding_res, axis=0)
+    ridge_index_encoding_res = np.mean(np.array(ridge_index_encoding_res), axis=0)
+    # print(ridge_index_encoding_std.shape, ridge_index_encoding_res.shape)
+    ridge_index_recall_std = np.std(ridge_index_recall_res, axis=0)
+    ridge_index_recall_res = np.mean(np.array(ridge_index_recall_res), axis=0)
+    pc_selectivity_std = np.std(pc_selectivity_res, axis=0)
+    pc_selectivity_res = np.mean(np.array(pc_selectivity_res), axis=0)
+    # print(pc_selectivity_std.shape, pc_selectivity_res.shape)
+    explained_var_std = np.std(explained_var_res, axis=0)
+    explained_var_res = np.mean(np.array(explained_var_res), axis=0)
 
-#     # decoding plot of item identity in encoding phase
-#     plt.figure(figsize=(0.6 * ridge_encoding_res.shape[1], 3.3), dpi=180)
-#     n_steps = ridge_encoding_res.shape[0]
-#     # colors = sns.color_palette("viridis", n_steps+1)
-#     colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
-#     for i in range(ridge_encoding_res.shape[1]):
-#         plt.plot(np.arange(1, ridge_encoding_res.shape[0]+1), ridge_encoding_res[:, i], label="item {}".format(i+1), color=colors[i])
-#     plt.xlim(0.5, 0.5 + ridge_encoding_res.shape[0])
-#     plt.xlabel("time in encoding phase")
-#     plt.ylabel("item identity\ndecoding accuracy")
+    # decoding plot of item identity in encoding phase
+    plt.figure(figsize=(0.6 * ridge_encoding_res.shape[1], 3.3), dpi=180)
+    n_steps = ridge_encoding_res.shape[0]
+    # colors = sns.color_palette("viridis", n_steps+1)
+    colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
+    for i in range(ridge_encoding_res.shape[1]):
+        plt.plot(np.arange(1, ridge_encoding_res.shape[0]+1), ridge_encoding_res[:, i], label="item {}".format(i+1), color=colors[i])
+    plt.xlim(0.5, 0.5 + ridge_encoding_res.shape[0])
+    plt.xlabel("time in encoding phase")
+    plt.ylabel("item identity\ndecoding accuracy")
 
-#     ax = plt.gca()
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-#     cmap = ListedColormap(colors[:-1])
-#     norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
-#     plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label="item index in study order")
+    cmap = ListedColormap(colors[:-1])
+    norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
+    plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label="item index in study order")
 
-#     plt.tight_layout()
-#     savefig("./figures/{}".format(exp), "ridge_identity_encoding", format="svg")
+    plt.tight_layout()
+    savefig("./figures/{}".format(exp), "ridge_identity_encoding", format="svg")
 
-#     # decoding plot of item identity in recall phase
-#     plt.figure(figsize=(0.6 * ridge_recall_res.shape[1], 3.3), dpi=180)
-#     n_steps = ridge_recall_res.shape[0]
-#     # colors = sns.color_palette("viridis", n_steps+1)
-#     for i in range(ridge_recall_res.shape[1]):
-#         plt.plot(np.arange(1, ridge_recall_res.shape[0]+1), ridge_recall_res[:, i], label="item {}".format(i+1), color=colors[i])
-#     plt.xlim(0.5, 0.5 + ridge_recall_res.shape[0])
-#     plt.xlabel("time in recall phase")
-#     plt.ylabel("item identity\ndecoding accuracy")
+    # decoding plot of item identity in recall phase
+    plt.figure(figsize=(0.6 * ridge_recall_res.shape[1], 3.3), dpi=180)
+    n_steps = ridge_recall_res.shape[0]
+    # colors = sns.color_palette("viridis", n_steps+1)
+    for i in range(ridge_recall_res.shape[1]):
+        plt.plot(np.arange(1, ridge_recall_res.shape[0]+1), ridge_recall_res[:, i], label="item {}".format(i+1), color=colors[i])
+    plt.xlim(0.5, 0.5 + ridge_recall_res.shape[0])
+    plt.xlabel("time in recall phase")
+    plt.ylabel("item identity\ndecoding accuracy")
 
-#     ax = plt.gca()
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-#     cmap = ListedColormap(colors[:-1])
-#     norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
-#     plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label="item index in recall order")
+    cmap = ListedColormap(colors[:-1])
+    norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
+    plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label="item index in recall order")
 
-#     plt.tight_layout()
-#     savefig("./figures/{}".format(exp), "ridge_identity_recall", format="svg")
+    plt.tight_layout()
+    savefig("./figures/{}".format(exp), "ridge_identity_recall", format="svg")
 
-#     # decoding plot of item index in encoding and recall phase
-#     plt.figure(figsize=(0.5 * ridge_index_encoding_res.shape[0], 3.3), dpi=180)
-#     plt.plot(np.arange(1, ridge_index_encoding_res.shape[0]+1), ridge_index_encoding_res, c='tab:blue', label="encoding phase")
-#     plt.errorbar(np.arange(1, ridge_index_encoding_res.shape[0]+1), ridge_index_encoding_res, yerr=ridge_index_encoding_std, c='tab:blue', alpha=0.4)
-#     # plt.fill_between(np.arange(1, ridge_index_encoding_res.shape[0]+1), ridge_index_encoding_res - ridge_index_encoding_std,
-#     #                  ridge_index_encoding_res + ridge_index_encoding_std, color='tab:blue', alpha=0.2)
-#     plt.plot(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res, c='tab:orange', label="recall phase")
-#     plt.errorbar(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res, yerr=ridge_index_recall_std, c='tab:orange', alpha=0.4)
-#     # plt.fill_between(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res - ridge_index_recall_std,
-#     #                  ridge_index_recall_res + ridge_index_recall_std, color='tab:orange', alpha=0.2)
-#     plt.legend(fontsize=11)
-#     plt.xlim(0.5, ridge_index_encoding_res.shape[0]+0.5)
-#     plt.ylim(0.0, 1.05)
-#     plt.xlabel("time")
-#     plt.ylabel("item index\ndecoding accuracy")
+    # decoding plot of item index in encoding and recall phase
+    plt.figure(figsize=(0.5 * ridge_index_encoding_res.shape[0], 3.3), dpi=180)
+    plt.plot(np.arange(1, ridge_index_encoding_res.shape[0]+1), ridge_index_encoding_res, c='tab:blue', label="encoding phase")
+    plt.errorbar(np.arange(1, ridge_index_encoding_res.shape[0]+1), ridge_index_encoding_res, yerr=ridge_index_encoding_std, c='tab:blue', alpha=0.4)
+    # plt.fill_between(np.arange(1, ridge_index_encoding_res.shape[0]+1), ridge_index_encoding_res - ridge_index_encoding_std,
+    #                  ridge_index_encoding_res + ridge_index_encoding_std, color='tab:blue', alpha=0.2)
+    plt.plot(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res, c='tab:orange', label="recall phase")
+    plt.errorbar(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res, yerr=ridge_index_recall_std, c='tab:orange', alpha=0.4)
+    # plt.fill_between(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res - ridge_index_recall_std,
+    #                  ridge_index_recall_res + ridge_index_recall_std, color='tab:orange', alpha=0.2)
+    plt.legend(fontsize=11)
+    plt.xlim(0.5, ridge_index_encoding_res.shape[0]+0.5)
+    plt.ylim(0.0, 1.05)
+    plt.xlabel("time")
+    plt.ylabel("item index\ndecoding accuracy")
 
-#     ax = plt.gca()
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-#     plt.tight_layout()
-#     savefig("./figures/{}".format(exp), "ridge_index", format="svg")
+    plt.tight_layout()
+    savefig("./figures/{}".format(exp), "ridge_index", format="svg")
 
-#     # decoding plot of item index in recall phase
-#     # plt.figure(figsize=(0.6 * ridge_index_recall_res.shape[0], 3.3), dpi=180)
-#     # plt.plot(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res)
-#     # plt.fill_between(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res - ridge_index_recall_std,
-#     #                  ridge_index_recall_res + ridge_index_recall_std, alpha=0.2)
-#     # plt.xlim(0.5, ridge_index_recall_res.shape[0]+0.5)
-#     # plt.ylim(0.0, 1.05)
-#     # plt.xlabel("hidden states in recall phase")
-#     # plt.ylabel("item index\ndecoding accuracy")
+    # decoding plot of item index in recall phase
+    # plt.figure(figsize=(0.6 * ridge_index_recall_res.shape[0], 3.3), dpi=180)
+    # plt.plot(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res)
+    # plt.fill_between(np.arange(1, ridge_index_recall_res.shape[0]+1), ridge_index_recall_res - ridge_index_recall_std,
+    #                  ridge_index_recall_res + ridge_index_recall_std, alpha=0.2)
+    # plt.xlim(0.5, ridge_index_recall_res.shape[0]+0.5)
+    # plt.ylim(0.0, 1.05)
+    # plt.xlabel("hidden states in recall phase")
+    # plt.ylabel("item index\ndecoding accuracy")
 
-#     # ax = plt.gca()
-#     # ax.spines['top'].set_visible(False)
-#     # ax.spines['right'].set_visible(False)
+    # ax = plt.gca()
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
 
-#     # plt.tight_layout()
-#     # savefig("./figures/{}".format(exp), "ridge_index_recall", format="svg")
+    # plt.tight_layout()
+    # savefig("./figures/{}".format(exp), "ridge_index_recall", format="svg")
 
-#     # pc selectivity
-#     plt.figure(figsize=(4, 3.3), dpi=180)
-#     c = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
-#     label = label.item()
-#     label_names = ["item identity", "item index"]
-#     for i, label_name in enumerate(label_names):
-#         plt.plot(np.arange(1, 129), pc_selectivity_res[i], label=label_name, color=c[i])
-#         plt.fill_between(np.arange(1, 129), pc_selectivity_res[i] - pc_selectivity_std[i],
-#                         pc_selectivity_res[i] + pc_selectivity_std[i], color=c[i], alpha=0.2)
-#     plt.plot(np.arange(1, 129), explained_var_res, label="explained variance", color='k')
-#     plt.fill_between(np.arange(1, 129), explained_var_res - explained_var_std,
-#                     explained_var_res + explained_var_std, color='k', alpha=0.2)
-#     plt.xlabel("PC of hidden states")
-#     plt.ylabel("decoding accuracy")
-#     plt.legend(fontsize=11)
+    # pc selectivity
+    plt.figure(figsize=(4, 3.3), dpi=180)
+    c = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
+    label = label.item()
+    label_names = ["item identity", "item index"]
+    for i, label_name in enumerate(label_names):
+        plt.plot(np.arange(1, 129), pc_selectivity_res[i], label=label_name, color=c[i])
+        plt.fill_between(np.arange(1, 129), pc_selectivity_res[i] - pc_selectivity_std[i],
+                        pc_selectivity_res[i] + pc_selectivity_std[i], color=c[i], alpha=0.2)
+    plt.plot(np.arange(1, 129), explained_var_res, label="explained variance", color='k')
+    plt.fill_between(np.arange(1, 129), explained_var_res - explained_var_std,
+                    explained_var_res + explained_var_std, color='k', alpha=0.2)
+    plt.xlabel("PC of hidden states")
+    plt.ylabel("decoding accuracy")
+    plt.legend(fontsize=11)
 
-#     ax = plt.gca()
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-#     plt.tight_layout()
+    plt.tight_layout()
 
-#     savefig("./figures/{}".format(exp), "pc_selectivity", format="svg")
+    savefig("./figures/{}".format(exp), "pc_selectivity", format="svg")
 
 
 
@@ -212,7 +214,7 @@ for exp in exp_names:
                     index_decoding_acc_dict[exp].append(data['selectivity'][1][-1])
 
 
-# temporal discount factor - forward asymmetry & temporal factor
+""" temporal discount factor - forward asymmetry & temporal factor """
 mean_forward_asymmetry = []
 std_forward_asymmetry = []
 mean_temporal_factor = []
@@ -250,28 +252,28 @@ plt.tight_layout()
 savefig("./figures", "tdf_contiguity", format="svg")
 
 
-# fig = plt.figure(figsize=(4.3, 3.3), dpi=180)
-# plt.errorbar(temporal_discount_factors, mean_forward_asymmetry, yerr=std_forward_asymmetry, fmt='o',
-#             alpha=0.8, capsize=3)
-# plt.xlabel("temporal discount factor ($\gamma$)")
-# plt.ylabel("forward asymmetry (FA)")
-# ax = plt.gca()
-# ax.spines['top'].set_visible(False)
-# ax.spines['right'].set_visible(False)
-# plt.tight_layout()
-# savefig("./figures", "tdf_forw_asym", format="svg")
+fig = plt.figure(figsize=(4.3, 3.3), dpi=180)
+plt.errorbar(temporal_discount_factors, mean_forward_asymmetry, yerr=std_forward_asymmetry, fmt='o',
+            alpha=0.8, capsize=3)
+plt.xlabel("temporal discount factor ($\gamma$)")
+plt.ylabel("forward asymmetry (FA)")
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "tdf_forw_asym", format="svg")
 
 
-# fig = plt.figure(figsize=(4.3, 3.3), dpi=180)
-# plt.errorbar(temporal_discount_factors, mean_temporal_factor, yerr=std_temporal_factor, fmt='o',  
-#              alpha=0.8, capsize=3, color='tab:orange')
-# plt.xlabel("temporal discount factor ($\gamma$)")
-# plt.ylabel("temporal factor (TF)")
-# ax = plt.gca()
-# ax.spines['top'].set_visible(False)
-# ax.spines['right'].set_visible(False)
-# plt.tight_layout()
-# savefig("./figures", "tdf_temporal_factor", format="svg")
+fig = plt.figure(figsize=(4.3, 3.3), dpi=180)
+plt.errorbar(temporal_discount_factors, mean_temporal_factor, yerr=std_temporal_factor, fmt='o',  
+             alpha=0.8, capsize=3, color='tab:orange')
+plt.xlabel("temporal discount factor ($\gamma$)")
+plt.ylabel("temporal factor (TF)")
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "tdf_temporal_factor", format="svg")
 
 
 fig = plt.figure(figsize=(4.2, 3.3), dpi=180)
@@ -287,7 +289,7 @@ savefig("./figures", "tdf_index_code", format="svg")
 
 
 
-# accuracy - forward asymmetry & temporal factor
+""" accuracy - forward asymmetry & temporal factor """
 exp = "setup_gru_negmementreg_gamma06"
 
 accuracy_list = []
@@ -453,7 +455,8 @@ plt.tight_layout()
 savefig("./figures", "sample4_tf_fa", format="svg")
 
 
-# recall probability multiple models
+
+""" recall probability multiple models """
 exp_names = ["setup_gru_negmementreg_gamma06-9", "setup_gru_negmementreg_gamma06-62",
              "setup_gru_negmementreg_gamma06-14", "setup_gru_negmementreg_gamma06-18"]
 recall_probs = []
@@ -511,46 +514,46 @@ savefig("./figures", "crp_seed2", format="svg")
 
 
 
-# recall_probs = []
-# exp = "setup_gru_negmementreg_gamma06"
-# i_valid = []
-# for i in range(100):
-#     run_name = exp + "-{}".format(i)
-#     with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
-#         reader = csv.reader(f)
-#         for row in reader:
-#             if float(row[0])>=0.65:
-#                 i_valid.append(i)
-#                 break
-# for i, i_v in enumerate(i_valid):
-#     run_name = exp + "-{}".format(i_v)
-#     if temporal_factor_list[i] < 0.45 or temporal_factor_list[i] > 0.6:
-#         continue
-#     with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/recall_probability.csv".format(run_name), "r") as f:
-#         reader = csv.reader(f)
-#         for row in reader:
-#             for k in range(len(row)):
-#                 row[k] = float(row[k])
-#             recall_probs.append(np.array(row))
-#             break
-# recall_prob_avg = np.mean(np.array(recall_probs), axis=0)
-# recall_prob_std = np.std(np.array(recall_probs), axis=0)
+recall_probs = []
+exp = "setup_gru_negmementreg_gamma06"
+i_valid = []
+for i in range(100):
+    run_name = exp + "-{}".format(i)
+    with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/contiguity_effect.csv".format(run_name), "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if float(row[0])>=0.65:
+                i_valid.append(i)
+                break
+for i, i_v in enumerate(i_valid):
+    run_name = exp + "-{}".format(i_v)
+    if temporal_factor_list[i] < 0.45 or temporal_factor_list[i] > 0.6:
+        continue
+    with open("./experiments/RL/figures/cogsci/ValueMemoryGRU/{}/recall_probability.csv".format(run_name), "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            for k in range(len(row)):
+                row[k] = float(row[k])
+            recall_probs.append(np.array(row))
+            break
+recall_prob_avg = np.mean(np.array(recall_probs), axis=0)
+recall_prob_std = np.std(np.array(recall_probs), axis=0)
 
-# plt.figure(figsize=(4, 3.3), dpi=180)
+plt.figure(figsize=(4, 3.3), dpi=180)
 
-# plt.scatter(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='w', marker="o", edgecolors='k', zorder=2)
-# plt.plot(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='k', zorder=1)
-# plt.errorbar(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], yerr=recall_prob_std[:nsteps], c='k', alpha=0.5, zorder=1)
-# plt.scatter(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='w', marker="o", edgecolors='k', zorder=2)
-# plt.plot(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='k', zorder=1)
-# plt.errorbar(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], yerr=recall_prob_std[nsteps+1:], c='k', alpha=0.5, zorder=1)
+plt.scatter(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='w', marker="o", edgecolors='k', zorder=2)
+plt.plot(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], c='k', zorder=1)
+plt.errorbar(np.arange(-nsteps, 0), recall_prob_avg[:nsteps], yerr=recall_prob_std[:nsteps], c='k', alpha=0.5, zorder=1)
+plt.scatter(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='w', marker="o", edgecolors='k', zorder=2)
+plt.plot(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], c='k', zorder=1)
+plt.errorbar(np.arange(1, nsteps+1), recall_prob_avg[nsteps+1:], yerr=recall_prob_std[nsteps+1:], c='k', alpha=0.5, zorder=1)
 
-# plt.xlabel("lag")
-# plt.ylabel("conditional recall probability")
+plt.xlabel("lag")
+plt.ylabel("conditional recall probability")
 
-# ax = plt.gca()
-# ax.spines['top'].set_visible(False)
-# ax.spines['right'].set_visible(False)
-# plt.tight_layout()
-# savefig("./figures", "crp", format="svg")
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+savefig("./figures", "crp", format="svg")
 

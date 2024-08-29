@@ -1,7 +1,7 @@
 {
     "run_num": 50,
     "model": {
-        "class": "ValueMemoryGRU",
+        "class": "ValueMemoryGRUOld",
         "hidden_dim": 128,
         "input_dim": 103,
         "output_dim": 51,
@@ -32,17 +32,16 @@
     },
     "training": [
         {
-            "env": {
+            "env": [{
                 "class": "FreeRecall",
                 "vocabulary_num": 50,
                 "memory_num": 16,
                 "return_action": true,
                 "return_reward": true,
                 "reset_state_before_test": true
-            },
+            }],
             "trainer": {
                 "num_iter": 5000,
-                "test": false,
                 "test_iter": 1000,
                 "save_iter": 2000,
                 "stop_test_accu": 0.99,
@@ -68,7 +67,7 @@
             }
         },
         {
-            "env": {
+            "env": [{
                 "class": "FreeRecall",
                 "vocabulary_num": 50,
                 "memory_num": 16,
@@ -78,11 +77,10 @@
                 "false_reward": -1.0,
                 "repeat_penalty": -1.0,
                 "not_know_reward": -1.0
-            },
+            }],
             "trainer": {
                 "training_function": "train_model",
                 "num_iter": 200000,
-                "test": false,
                 "test_iter": 1000,
                 "save_iter": 2000,
                 "use_memory": true,

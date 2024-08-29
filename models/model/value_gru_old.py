@@ -11,12 +11,13 @@ class ValueMemoryGRUOld(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dim: int, em_gate_type='constant',
     init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
     start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
-    layer_norm=False, device: str = 'cpu'):
+    two_output=False, layer_norm=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
         self.memory_module = memory_module      # memory module of the model, pre-instantiated
         self.use_memory = use_memory            # if false, do not use memory module in the forward pass
+        self.two_output = two_output            # if true, output two decisions in the forward pass
 
         self.step_for_each_timestep = step_for_each_timestep
 
@@ -44,6 +45,9 @@ class ValueMemoryGRUOld(BasicModule):
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.fc_decision = nn.Linear(hidden_dim, output_dim)
         self.fc_critic = nn.Linear(hidden_dim, 1)
+        if self.two_output:
+            self.fc_decision2 = nn.Linear(hidden_dim, output_dim)
+            self.fc_critic2 = nn.Linear(hidden_dim, 1)
 
         self.ln_i2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
         self.ln_h2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
@@ -172,12 +176,15 @@ class ValueMemoryGRUOld(BasicModule):
 
         # compute output decision(s)
         beta = self.softmax_beta if beta is None else beta
-        # for i in range(len(self.fc_decisions)):
-        # for i in range(1):
         decision = softmax(self.fc_decision(state), beta)
-        value = self.fc_critic(state)
         self.write(decision, 'decision')
-        self.write(value, 'value')
+        value = self.fc_critic(state)
+        if self.two_output:
+            decision2 = softmax(self.fc_decision2(state), beta)
+            value2 = self.fc_critic2(state)
+        else:
+            decision2 = None
+            value2 = None
 
         self.write(self.use_memory, 'use_memory')
         

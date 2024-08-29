@@ -137,17 +137,17 @@ def run(data_all, model_all, env, paths, exp_name):
         recall_probability_in_time.visualize(fig_path)
 
         """ PCA """
-        states = []
-        for i in range(10):
-            states.append(readouts[i]['state'])
-        states = np.stack(states).squeeze()
+        # states = []
+        # for i in range(10):
+        #     states.append(readouts[i]['state'])
+        # states = np.stack(states).squeeze()
         
-        pca = PCA()
-        pca.fit(states)
-        pca.visualize_state_space(save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
-                                file_name="encoding", format="svg")
-        pca.visualize_state_space(save_path=fig_path/"pca_state_space", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
-                                colormap_label="time in recall phase", file_name="recall", format="svg")
+        # pca = PCA()
+        # pca.fit(states)
+        # pca.visualize_state_space(save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
+        #                         file_name="encoding", format="svg")
+        # pca.visualize_state_space(save_path=fig_path/"pca_state_space", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
+        #                         colormap_label="time in recall phase", file_name="recall", format="svg")
 
         """ decode item identity """
         retrieved_memories = []
