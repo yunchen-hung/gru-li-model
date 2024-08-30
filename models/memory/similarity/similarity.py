@@ -41,7 +41,7 @@ class BasicSimilarity(BasicModule):
             similarities = (origin_similarities - torch.mean(origin_similarities)) / torch.std(origin_similarities)
             similarities = softmax(similarities, beta=beta)
         elif self.process_similarity == 'none':
-            pass
+            similarities = origin_similarities
         return similarities * input_weight, similarities # softmax(origin_similarities, beta=1.0)
 
 

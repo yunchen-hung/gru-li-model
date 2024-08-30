@@ -33,7 +33,8 @@ def record(agent, env, used_output=0, context_num=20, reset_memory=False, device
                 output, value, state, _ = agent(obs, state)
                 action_distribution = output[used_output]
                 action, log_prob_action, action_max = pick_action(action_distribution)
-                obs_, reward, done, _, info = env.step(action)
+                obs_, reward, _, _, info = env.step(action)
+                done = info["done"]
                 obs = torch.Tensor(obs_).reshape(1, -1).to(device)
 
                 actions_trial.append(action.detach().cpu())

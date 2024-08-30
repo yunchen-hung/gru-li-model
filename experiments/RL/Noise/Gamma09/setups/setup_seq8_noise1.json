@@ -1,10 +1,10 @@
 {
-    "run_num": [3],
+    "run_num": 50,
     "model": {
-        "class": "ValueMemoryGRU",
+        "class": "ValueMemoryGRUOld",
         "hidden_dim": 128,
         "input_dim": 103,
-        "output_dims": [51],
+        "output_dims": 51,
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,

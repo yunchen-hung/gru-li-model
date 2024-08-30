@@ -1,5 +1,5 @@
 {
-    "run_num": 3,
+    "run_num": 1,
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
@@ -74,6 +74,6 @@
             }
         }
     }],
-    "load_saved_model": false,
+    "load_saved_model": true,
     "context_num": 1000
 }

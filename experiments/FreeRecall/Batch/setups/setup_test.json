@@ -28,7 +28,7 @@
     "training": [{
         "env": [{
             "vector_env": {
-                "mode": "async",
+                "mode": "sync",
                 "batch_size": 8
             },
             "class": "FreeRecall",
@@ -69,8 +69,8 @@
     }, {
         "env": [{
             "vector_env": {
-                "mode": "async",
-                "batch_size": 16
+                "mode": "sync",
+                "batch_size": 8
             },
             "class": "FreeRecall",
             "vocabulary_num": 50,

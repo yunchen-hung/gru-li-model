@@ -13,7 +13,7 @@
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 8,
+            "capacity": 4,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -37,7 +37,7 @@
             }],
             "num_features": 4,
             "feature_dim": 2,
-            "sequence_len": 8,
+            "sequence_len": 4,
             "reset_state_before_test": true,
             "correct_reward": 2.0,
             "no_action_reward": -0.0,

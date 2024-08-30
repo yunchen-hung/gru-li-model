@@ -84,6 +84,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
         values, entropys = defaultdict(list), defaultdict(list)
         rewards, mem_similarities, mem_sim_entropys = [], [], []
         gts, gt_masks = [], []
+        loss_masks = []
 
         """ run the agent in the environment """
         correct_actions, wrong_actions, not_know_actions = 0, 0, 0
@@ -92,9 +93,9 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
         obs_, info = env.reset()
         obs = torch.Tensor(obs_).to(device)
         # print(env.memory_sequence)
-        done = np.zeros(batch_size, dtype=bool)
+        terminated = np.zeros(batch_size, dtype=bool)
         memory_num = 0
-        while not done.all():
+        while not terminated.all():
             # set up the phase of the agent
             if info["phase"][0] == "encoding":
                 memory_num += 1
@@ -116,22 +117,44 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
                 action_distribution = o
                 action, log_prob_action, action_max = pick_action(action_distribution)
                 if j == used_output_index[env_id]:
-                    obs_, reward, done, _, info = env.step(list(action))
+                    # print(action)
+                    obs_, reward, _, _, info = env.step(list(action))
+                    done = info["done"]
+                    # print(done, terminated)
                     obs = torch.Tensor(obs_).to(device)
                     rewards.append(reward)
                     env_updated = True
-                    if done.any():
-                        gts.append([final_info["gt"] for final_info in info["final_info"]])
-                        gt_masks.append([final_info["gt_mask"] for final_info in info["final_info"]])
-                        correct_actions += np.sum([final_info["correct"] for final_info in info["final_info"]])
-                        wrong_actions += np.sum([final_info["wrong"] for final_info in info["final_info"]])
-                        not_know_actions += np.sum([final_info["not_know"] for final_info in info["final_info"]])
-                    else:
-                        gts.append(info["gt"])
-                        gt_masks.append(info["gt_mask"])
-                        correct_actions += np.sum(info["correct"])
-                        wrong_actions += np.sum(info["wrong"])
-                        not_know_actions += np.sum(info["not_know"])
+
+                    gts.append(info["gt"])
+                    gt_masks.append(info["gt_mask"])
+                    loss_mask = np.array(info["loss_mask"])
+                    # print(info)
+                    # print(loss_mask)
+                    loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
+                    correct_actions += np.sum(info["correct"])
+                    wrong_actions += np.sum(info["wrong"])
+                    not_know_actions += np.sum(info["not_know"])
+                    # if done.all():
+                    #     gts.append([final_info["gt"] for final_info in info["final_info"]])
+                    #     gt_masks.append([final_info["gt_mask"] for final_info in info["final_info"]])
+                    #     loss_mask = np.array([final_info["loss_mask"] for final_info in info["final_info"]])
+                    #     print(loss_mask)
+                    #     loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
+                    #     correct_actions += np.sum([final_info["correct"] for final_info in info["final_info"]])
+                    #     wrong_actions += np.sum([final_info["wrong"] for final_info in info["final_info"]])
+                    #     not_know_actions += np.sum([final_info["not_know"] for final_info in info["final_info"]])
+                    # else:
+                    #     gts.append(info["gt"])
+                    #     gt_masks.append(info["gt_mask"])
+                    #     loss_mask = np.array(info["loss_mask"])
+                    #     print(info)
+                    #     print(loss_mask)
+                    #     loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
+                    #     correct_actions += np.sum(info["correct"])
+                    #     wrong_actions += np.sum(info["wrong"])
+                    #     not_know_actions += np.sum(info["not_know"])
+                    # print()
+                    terminated = np.logical_or(terminated, done)
                 outputs[j].append(o)
                 probs[j].append(log_prob_action)
                 actions[j].append(action)
@@ -159,7 +182,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
 
         # compute RL loss
         if criterion is not None:
-            loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+            loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, loss_masks[memory_num:],
                                                                 print_info=print_criterion_info, device=device)
             loss += loss_rl
 
@@ -200,14 +223,6 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             if (i+1) == test_iter:
                 print("Estimated time needed: {:2f}h".format((time.time()-start_time)/test_iter*num_iter/3600))
             
-            # env.render()
-            # gt, mask = env.get_ground_truth()
-            # show example ground truth and actions, including random sampled actions and argmax actions
-            # for j in range(len(outputs)):
-            #     print("gt{}, action{}, max_action{}:".format(j+1, j+1, j+1), gt[0][memory_num:], 
-            #         torch.stack(actions[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0],
-            #         torch.stack(actions_max[j][memory_num:]).cpu().detach().numpy().transpose(1, 0)[0])
-            
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error
@@ -227,6 +242,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
                 print("encoding phase, action:", actions_trial[0:memory_num, 0], "gt:", gts_trial[0:memory_num, 0])
             if criterion is not None:
                 # print(gts_trial[0:memory_num, 0])
+                # print(actions_trial, gts_trial, loss_masks)
                 print("recall phase, action:", actions_trial[memory_num:, 0], "gt:", gts_trial[memory_num:, 0])
             print()
 
@@ -242,12 +258,12 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             #     save_model(agent, model_save_path, filename="model.pt")
             save_model(agent, model_save_path, filename="model.pt")
             
-            # if accuracy >= stop_test_accu and i > min_iter:
-            #     print("training end")
-            #     break
+            if accuracy >= stop_test_accu and i > min_iter:
+                print("training end")
+                break
 
-            # test_accuracies.append(accuracy)
-            # test_errors.append(error)
+            test_accuracies.append(accuracy)
+            test_errors.append(error)
 
             total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, \
                 total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0

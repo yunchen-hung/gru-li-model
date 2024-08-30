@@ -1,12 +1,15 @@
 import csv
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.metrics.pairwise as skp
-from sklearn.linear_model import RidgeClassifier, Ridge
+from sklearn.linear_model import RidgeClassifier, Ridge, Lasso, LinearRegression
+from sklearn.cluster import KMeans
+from sklearn.metrics import rand_score, adjusted_mutual_info_score
 
 from utils import savefig
 from analysis.decomposition import PCA
-from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder
+from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor
 from analysis.behavior import RecallProbability, RecallProbabilityInTime, TemporalFactor
 
 
@@ -165,7 +168,7 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc", colormap_label="item position\nin study order",
                                 xlabel="time in encoding phase")
         np.save(fig_path/"ridge_encoding.npy", ridge_encoding_res)
-        np.save(fig_path/"ridge_encoding_stat.npy", list(ridge_encoding_stat_res.values()))
+        # np.save(fig_path/"ridge_encoding_stat.npy", list(ridge_encoding_stat_res.values()))
 
         ridge_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
         for i in range(all_context_num):
@@ -200,27 +203,96 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_rec", xlabel="time in recall phase")
         np.save(fig_path/"ridge_recall_index.npy", ridge_recall_res)
 
+        ridge_classifier_stat = {
+            "item_enc_acc": ridge_encoding_stat_res["acc"],
+            "item_enc_r2": ridge_encoding_stat_res["r2"],
+            "item_enc_acc_last": ridge_encoding_stat_res["acc_last"],
+            "item_enc_r2_last": ridge_encoding_stat_res["r2_last"],
+            "item_rec_acc": ridge_recall_stat_res["acc"],
+            "item_rec_r2": ridge_recall_stat_res["r2"],
+            "item_rec_acc_last": ridge_recall_stat_res["acc_last"],
+            "item_rec_r2_last": ridge_recall_stat_res["r2_last"],
+            "index_enc_acc": index_encoding_acc,
+            "index_enc_r2": index_encoding_r2,
+            "index_rec_acc": index_recall_acc,
+            "index_rec_r2": index_recall_r2
+        }
+        with open(fig_path/"ridge_classifier_stat.pkl", "wb") as f:
+            pickle.dump(ridge_classifier_stat, f)
+
 
         """ overall decoding accuracy and r2 """
-        acc_index, r2_index = index_encoding_acc, index_encoding_r2
-        acc_identity, r2_identity = ridge_encoding_stat_res["acc"], ridge_encoding_stat_res["r2"]
-        acc_identity_last, r2_identity_last = ridge_recall_stat_res["acc_last"], ridge_recall_stat_res["r2_last"]
-        np.save(fig_path/"strategy_metrics.npy", [acc_index, r2_index, acc_identity, r2_identity, acc_identity_last, r2_identity_last])
-        print("item index decoding accuracy: {}, r2: {}".format(acc_index, r2_index))
-        print("item identity decoding accuracy: {}, r2: {}".format(acc_identity, r2_identity))
-        print("last item identity decoding accuracy: {}, r2: {}".format(acc_identity_last, r2_identity_last))
+        def regression(decoder, file_name):
+            regressor = Regressor(decoder=decoder)
+            r2_identity_enc, ev_identity_enc = regressor.fit(c_memorizing, memory_sequence)
+            r2_identity_rec, ev_identity_rec = regressor.fit(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
+            r2_identity_last_enc, ev_identity_last_enc = regressor.fit(c_memorizing[:, 1:], memory_sequence[:, :-1])
+            r2_identity_last_rec, ev_identity_last_rec = regressor.fit(c_recalling[:, 1:], actions[:, -timestep_each_phase:-1], ridge_mask[:, :-1])
+            r2_index_enc, ev_index_enc = regressor.fit(c_memorizing, encoding_index)
+            r2_index_rec, ev_index_rec = regressor.fit(c_recalling, recall_index, index_mask)
+            regression_stat = {
+                "item_enc_r2": r2_identity_enc,
+                "item_enc_ev": ev_identity_enc,
+                "item_rec_r2": r2_identity_rec,
+                "item_rec_ev": ev_identity_rec,
+                "item_enc_r2_last": r2_identity_last_enc,
+                "item_enc_ev_last": ev_identity_last_enc,
+                "item_rec_r2_last": r2_identity_last_rec,
+                "item_rec_ev_last": ev_identity_last_rec,
+                "index_enc_r2": r2_index_enc,
+                "index_enc_ev": ev_index_enc,
+                "index_rec_r2": r2_index_rec,
+                "index_rec_ev": ev_index_rec
+            }
+            with open(fig_path/f"{file_name}_regression_stat.pkl", "wb") as f:
+                pickle.dump(regression_stat, f)
+            
+            print()
+            print("{} regression".format(file_name))
+            print("item identity encoding r2: {}, ev: {}".format(r2_identity_enc, ev_identity_enc))
+            print("item identity encoding last r2: {}, ev: {}".format(r2_identity_last_enc, ev_identity_last_enc))
+            print("item identity recall r2: {}, ev: {}".format(r2_identity_rec, ev_identity_rec))
+            print("item identity recall last r2: {}, ev: {}".format(r2_identity_last_rec, ev_identity_last_rec))
+            print("item index encoding r2: {}, ev: {}".format(r2_index_enc, ev_index_enc))
+            print("item index recall r2: {}, ev: {}".format(r2_index_rec, ev_index_rec))
 
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.bar(["item index", "item identity"], [acc_index, acc_identity], color=["#1f77b4", "#ff7f0e"])
-        plt.ylabel("decoding accuracy")
-        plt.tight_layout()
-        savefig(fig_path/"strategy_metrics", "accuracy")
+        # Ridge
+        regression(Ridge(), "ridge")
 
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.bar(["item index", "item identity"], [r2_index, r2_identity], color=["#1f77b4", "#ff7f0e"])
-        plt.ylabel("r2 score")
-        plt.tight_layout()
-        savefig(fig_path/"strategy_metrics", "r2")
+        # # Lasso
+        # regression(Lasso(), "lasso")
+
+        # # Linear regression
+        # regression(LinearRegression(), "linear")
+
+
+        
+        """ clustering of item index """
+        kmeans = KMeans(n_clusters=env.memory_num)
+        kmeans.fit(c_memorizing.reshape(-1, c_memorizing.shape[-1]))
+        pred = kmeans.predict(c_memorizing.reshape(-1, c_memorizing.shape[-1]))
+        rand_index = rand_score(encoding_index.reshape(-1), pred)
+        adj_mutual_info = adjusted_mutual_info_score(encoding_index.reshape(-1), pred)
+        
+        kmeans.fit(c_recalling[ridge_mask])
+        pred = kmeans.predict(c_recalling[ridge_mask])
+        rand_index_rec = rand_score(recall_index[ridge_mask], pred)
+        adj_mutual_info_rec = adjusted_mutual_info_score(recall_index[ridge_mask], pred)
+
+        kmeans_stat = {
+            "rand_index_enc": rand_index,
+            "adj_mutual_info_enc": adj_mutual_info,
+            "rand_index_rec": rand_index_rec,
+            "adj_mutual_info_rec": adj_mutual_info_rec
+        }
+        with open(fig_path/"kmeans_stat.pkl", "wb") as f:
+            pickle.dump(kmeans_stat, f)
+
+        print()
+        print("kmeans clustering")
+        print("item identity encoding rand index: {}, adj mutual info: {}".format(rand_index, adj_mutual_info))
+        print("item identity recall rand index: {}, adj mutual info: {}".format(rand_index_rec, adj_mutual_info_rec))
+        
 
 
         """ PC selectivity """

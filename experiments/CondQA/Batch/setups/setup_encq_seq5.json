@@ -13,7 +13,7 @@
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 8,
+            "capacity": 5,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -37,12 +37,12 @@
             }],
             "num_features": 4,
             "feature_dim": 2,
-            "sequence_len": 8,
+            "sequence_len": 5,
             "reset_state_before_test": true,
             "correct_reward": 2.0,
             "no_action_reward": -0.0,
             "wrong_reward": -2.0,
-            "include_question_during_encode": false,
+            "include_question_during_encode": true,
             "no_early_stop": false
         }],
         "trainer": {
@@ -50,7 +50,7 @@
             "num_iter": 1e6,
             "test_iter": 1000,
             "save_iter": 10000,
-            "stop_test_accu": 0.99,
+            "stop_test_accu": 0.999,
             "use_memory": true,
             "used_output_index": [0],
             "criterion": {

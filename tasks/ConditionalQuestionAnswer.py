@@ -135,29 +135,36 @@ class ConditionalQuestionAnswer(BaseEMTask):
 
         self.timestep += 1
         if self.phase == "encoding":
+            info = {"phase": "encoding", 
+                    "gt": 2, "gt_mask": False, 
+                    "loss_mask": True, 
+                    "correct": 0, "wrong": 0, "not_know": 0,
+                    "done": False}
             if self.timestep >= self.sequence_len:
                 # first timestep of recall phase
                 self.phase = "recall"
                 self.timestep = 0
                 obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
                                                  include_question=True)
-                info = {"phase": "recall", "reset_state": self.reset_state_before_test, "gt": 0, "gt_mask": False}
+                info["phase"] = "recall"
+                info["reset_state"] = self.reset_state_before_test
             else:
                 # encoding phase
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_feature, self.question_value,
                                                 self.sum_feature, include_question=self.include_question_during_encode)
-                info = {"phase": "encoding", "gt": 0, "gt_mask": False}
-            info.update({"correct": 0, "wrong": 0, "not_know": 0})
             return obs, 0.0, False, False, info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
                                              include_question=True)
-            info = {"phase": "recall"}
+            info = {"phase": "recall",
+                    "gt": 2, "gt_mask": False, 
+                    "loss_mask": True,
+                    "correct": 0, "wrong": 0, "not_know": 0,
+                    "done": False}
 
-            info.update({"correct": 0, "wrong": 0, "not_know": 0, "gt": 0, "gt_mask": False})
-
-            if self.no_early_stop and self.answered:
+            if self.answered:
                 reward = 0.0
+                info["loss_mask"] = False
             elif action == self.action_space.n - 1:
                 # no action
                 reward = self.no_action_reward
@@ -177,20 +184,19 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 info["wrong"] = 1
 
             if (not self.no_early_stop and self.answered) or self.timestep >= self.retrieve_time_limit:
-                done = True
+                # done = True
+                info["done"] = True
+                info["gt"] = self.answer
+                info["gt_mask"] = True
                 if not self.answered:
                     info["not_know"] = 1
                     # info["gt"] = self.answer
                     # info["gt_mask"] = True
             else:
-                done = False
-
-            if done:
-                info["gt"] = self.answer
-                info["gt_mask"] = True
-            else:
-                info["gt"] = 0
-                info["gt_mask"] = False
+                info["done"] = False
+                # done = False
+            
+            done = False
             
             return obs, reward, done, False, info
 
