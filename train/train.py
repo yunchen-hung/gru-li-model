@@ -90,7 +90,6 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
         correct_actions, wrong_actions, not_know_actions = 0, 0, 0
 
         # reset environment
-        print(1)
         obs_, info = env.reset()
         obs = torch.Tensor(obs_).to(device)
         # print(env.memory_sequence)

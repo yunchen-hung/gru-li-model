@@ -74,8 +74,8 @@ class ConditionalEMRecall(BaseEMTask):
         if self.sum_feature_placeholder:
             obs_space_list.append(self.question_space_dim)
         # self.observation_space = spaces.MultiDiscrete(obs_space_list)
-        obs_shape = np.sum(obs_space_list)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(obs_shape,), dtype=np.float32)
+        self.obs_shape = np.sum(obs_space_list)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.obs_shape,), dtype=np.float32)
         # print(self.observation_space)
         self.action_space = spaces.Discrete(feature_dim ** num_features + 2)
         
@@ -125,6 +125,7 @@ class ConditionalEMRecall(BaseEMTask):
         self.timestep = 0
         self.correct_answer_num = 0
         self.answered = np.zeros(self.num_answers, dtype=bool) # whether each answer has been outputted
+        self.done = False
 
         # convert the first observation to concatenated one-hot vectors
         obs = self._generate_observation(self.memory_sequence[0], self.question_type, self.question_value, include_question=self.include_question_during_encode)
@@ -143,14 +144,28 @@ class ConditionalEMRecall(BaseEMTask):
             action = action[0].item()
         except:
             pass
+        if self.done:
+            obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
+            info = {"phase": "recall", 
+                    "gt": self.action_space.n - 1, "gt_mask": False, "loss_mask": False,
+                    "correct": 0, "wrong": 0, "not_know": 0,
+                    "done": True}
+            return obs, 0.0, False, False, info
         self.timestep += 1
         if self.phase == "encoding":
             if self.timestep >= self.sequence_len:
                 # first timestep of recall phase
                 self.phase = "recall"
-                self.timestep = 0
                 obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
-                info = {"phase": "recall", "reset_state": self.reset_state_before_test}
+                if self.include_question_during_encode and not self._check_action(self.memory_sequence[self.timestep-1]):
+                    gt = self.action_space.n - 2
+                else:
+                    gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep-1])
+                self.timestep = 0
+                info = {"phase": "recall", "reset_state": self.reset_state_before_test,
+                        "gt": gt, "gt_mask": True, "loss_mask": True,
+                        "correct": 0, "wrong": 0, "not_know": 0,
+                        "done": False}
                 return obs, 0.0, False, False, info
             else:
                 # encoding phase
@@ -159,12 +174,22 @@ class ConditionalEMRecall(BaseEMTask):
                 if self.include_question_during_encode and not self._check_action(self.memory_sequence[self.timestep]):
                     gt = self.action_space.n - 2
                 else:
-                    gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep])
-                info = {"phase": "encoding", "gt": gt}
+                    gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep-1])
+                info = {"phase": "encoding", 
+                        "gt": gt, "gt_mask": True, "loss_mask": True,
+                        "correct": 0, "wrong": 0, "not_know": 0,
+                        "done": False}
                 return obs, 0.0, False, False, info
         elif self.phase == "recall":
             obs = self._generate_observation(None, self.question_type, self.question_value, include_question=self.has_question)
-            info = {"phase": "recall"}
+            if not self._check_action(self.memory_sequence[self.timestep-1]):
+                gt = self.action_space.n - 2
+            else:
+                gt = self.convert_stimuli_to_action(self.memory_sequence[self.timestep-1])
+            info = {"phase": "recall",
+                    "gt": gt, "gt_mask": True, "loss_mask": True,
+                    "correct": 0, "wrong": 0, "not_know": 0,
+                    "done": False}
 
             converted_action = self.convert_action_to_stimuli(action)
             action_correct = self._check_action(converted_action)
@@ -172,20 +197,23 @@ class ConditionalEMRecall(BaseEMTask):
             if action_correct or (not self.no_early_stop and converted_action[0] == "stop" and self.correct_answer_num == self.num_answers):
                 reward = self.correct_reward
                 self.correct_answer_num += 1
+                info["correct"] = 1
             elif converted_action[0] == "no_action" or (self.no_early_stop and converted_action[0] == "stop" 
                                                         and self.correct_answer_num == self.num_answers):
                 reward = self.no_action_reward
+                info["not_know"] = 1
             elif converted_action[0] == "stop":
                 reward = self.early_stop_reward
+                info["wrong"] = 1
             else:
                 reward = self.wrong_reward
+                info["wrong"] = 1
 
             if (not self.no_early_stop and converted_action[0] == "stop") or self.timestep >= self.retrieve_time_limit:
-                done = True
-            else:
-                done = False
+                self.done = True
+            info["done"] = self.done
             
-            return obs, reward, done, False, info
+            return obs, reward, False, False, info
 
     def render(self, mode='human'):
         print("memory sequence:", self.memory_sequence)
@@ -363,7 +391,7 @@ class ConditionalEMRecall(BaseEMTask):
             e.g. given the value of the 1st feature as x, x is the question_value
         include_question: whether to include the question in the observation
         """
-        observation = np.zeros(np.sum(self.observation_space.nvec))
+        observation = np.zeros(self.obs_shape)
         if self.one_hot_stimuli:
             if stimuli is not None:
                 stimuli_int = self.convert_stimuli_to_action(stimuli)

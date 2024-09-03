@@ -75,6 +75,6 @@
             }
         }
     }],
-    "load_saved_model": true,
+    "load_saved_model": false,
     "context_num": 1000
 }
