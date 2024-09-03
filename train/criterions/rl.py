@@ -55,7 +55,7 @@ class A2CLoss(nn.Module):
         values = torch.stack(values).squeeze(2).to(device).transpose(1, 0)
         returns = returns.to(device)
         # entropys = torch.stack(entropys).to(device)
-        entropys = torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
+        entropys = torch.stack([torch.stack(entropys_t) for entropys_t in entropys]).transpose(1, 0)
 
         if loss_masks is None:
             loss_masks = torch.ones_like(returns)
@@ -63,12 +63,6 @@ class A2CLoss(nn.Module):
             loss_masks = torch.tensor(loss_masks).to(device).transpose(1, 0)
         
         batch_size = probs.shape[0]
-
-        # probs, values, rewards, entropys = torch.stack([torch.stack(prob_t).to(device) for prob_t in probs]).transpose(1, 0).to(device), \
-        #                         torch.stack(values).squeeze(2).transpose(1, 0).to(device), \
-        #                         returns.to(device), \
-        #                         torch.stack(entropys)
-                                #torch.stack([torch.stack(entropys_t) for entropys_t in entropys])
 
         if print_info:
             print("loss info:", probs[0], values[0], returns[0])
@@ -78,22 +72,18 @@ class A2CLoss(nn.Module):
             if self.value_loss_func == 'mse':
                 value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device).float()), torch.squeeze(returns.to(device).float()))
             elif self.value_loss_func == 'l1':
-                value_losses = smooth_l1_loss(torch.squeeze(values.to(device).float()), torch.squeeze(returns.to(device).float()))
+                value_losses = smooth_l1_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
+                                              torch.squeeze(returns[loss_masks != 0].to(device).float())) * values[loss_masks != 0].shape[0]
             # smooth_l1_loss(torch.squeeze(v_t.to(self.device)), torch.squeeze(R_t.to(self.device)))
         else:
             # policy gradient loss
             A = returns
             value_losses = torch.tensor(0.0).to(device)
         # accumulate policy gradient
-        # print(loss_masks, probs, A)
-        # print(probs[loss_masks != 0], A[loss_masks != 0])
         policy_grads = -probs[loss_masks != 0] * A[loss_masks != 0]
         policy_gradient = torch.sum(policy_grads) / batch_size
         value_loss = torch.sum(value_losses) / batch_size
-        pi_ent = torch.sum(entropys) / batch_size
-        # policy_gradient = torch.mean(policy_grads)
-        # value_loss = torch.mean(value_losses)
-        # pi_ent = torch.mean(entropys)
+        pi_ent = torch.sum(entropys[loss_masks != 0]) / batch_size
         loss = policy_gradient + value_loss - pi_ent * self.eta
         return loss, policy_gradient, value_loss, pi_ent * self.eta
 

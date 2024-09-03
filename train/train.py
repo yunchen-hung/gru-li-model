@@ -90,6 +90,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
         correct_actions, wrong_actions, not_know_actions = 0, 0, 0
 
         # reset environment
+        print(1)
         obs_, info = env.reset()
         obs = torch.Tensor(obs_).to(device)
         # print(env.memory_sequence)
@@ -134,26 +135,6 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
                     correct_actions += np.sum(info["correct"])
                     wrong_actions += np.sum(info["wrong"])
                     not_know_actions += np.sum(info["not_know"])
-                    # if done.all():
-                    #     gts.append([final_info["gt"] for final_info in info["final_info"]])
-                    #     gt_masks.append([final_info["gt_mask"] for final_info in info["final_info"]])
-                    #     loss_mask = np.array([final_info["loss_mask"] for final_info in info["final_info"]])
-                    #     print(loss_mask)
-                    #     loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
-                    #     correct_actions += np.sum([final_info["correct"] for final_info in info["final_info"]])
-                    #     wrong_actions += np.sum([final_info["wrong"] for final_info in info["final_info"]])
-                    #     not_know_actions += np.sum([final_info["not_know"] for final_info in info["final_info"]])
-                    # else:
-                    #     gts.append(info["gt"])
-                    #     gt_masks.append(info["gt_mask"])
-                    #     loss_mask = np.array(info["loss_mask"])
-                    #     print(info)
-                    #     print(loss_mask)
-                    #     loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
-                    #     correct_actions += np.sum(info["correct"])
-                    #     wrong_actions += np.sum(info["wrong"])
-                    #     not_know_actions += np.sum(info["not_know"])
-                    # print()
                     terminated = np.logical_or(terminated, done)
                 outputs[j].append(o)
                 probs[j].append(log_prob_action)
