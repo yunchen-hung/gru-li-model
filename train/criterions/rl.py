@@ -9,7 +9,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 class A2CLoss(nn.Module):
-    def __init__(self, returns_normalize=False, use_V=True, eta=0.0, gamma=0.0, phase='recall', value_loss_func='l1') -> None:
+    def __init__(self, returns_normalize=False, use_V=True, value_weight=1.0, eta=0.0, gamma=0.0, phase='recall', value_loss_func='mse') -> None:
         """
         compute the objective node for policy/value networks
 
@@ -31,6 +31,7 @@ class A2CLoss(nn.Module):
         super().__init__()
         self.returns_normalize = returns_normalize
         self.use_V = use_V
+        self.value_weight = value_weight
         self.eta = eta
         self.gamma = gamma
         self.phase = phase
@@ -70,7 +71,8 @@ class A2CLoss(nn.Module):
             # A2C loss
             A = returns - values.data
             if self.value_loss_func == 'mse':
-                value_losses = 0.5 * mse_loss(torch.squeeze(values.to(device).float()), torch.squeeze(returns.to(device).float()))
+                value_losses = 0.5 * mse_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
+                                              torch.squeeze(returns[loss_masks != 0].to(device).float())) * values[loss_masks != 0].shape[0]
             elif self.value_loss_func == 'l1':
                 value_losses = smooth_l1_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
                                               torch.squeeze(returns[loss_masks != 0].to(device).float())) * values[loss_masks != 0].shape[0]
@@ -84,7 +86,7 @@ class A2CLoss(nn.Module):
         policy_gradient = torch.sum(policy_grads) / batch_size
         value_loss = torch.sum(value_losses) / batch_size
         pi_ent = torch.sum(entropys[loss_masks != 0]) / batch_size
-        loss = policy_gradient + value_loss - pi_ent * self.eta
+        loss = policy_gradient + value_loss * self.value_weight - pi_ent * self.eta
         return loss, policy_gradient, value_loss, pi_ent * self.eta
 
 
