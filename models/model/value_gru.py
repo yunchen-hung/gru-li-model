@@ -191,8 +191,11 @@ class ValueMemoryGRU(BasicModule):
             self.write(value, 'value{}'.format(i))
 
         self.write(self.use_memory, 'use_memory')
+        info = {
+            "memory_similarity": memory_similarity
+        }
         
-        return decisions, values, state, memory_similarity
+        return decisions, values, state, info
     
     def gru(self, inp, state, mem_gate=None, retrieved_memory=None):
         gate_x = self.fc_input(inp)

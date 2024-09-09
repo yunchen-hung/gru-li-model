@@ -98,7 +98,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             print("run_name: {}".format(run_name_with_num))
 
             # unpack model_instance
-            model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, training_setups, setup = model_instance
+            model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, ax_criterions, training_setups, setup = model_instance
 
             # set up save model path
             model_save_path = exp_path/setup["model_name"]/run_name_with_num
@@ -125,8 +125,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             # train the model with each training setup
             if train or not os.path.exists(model_load_path/"model.pt"):
                 training_session = 1
-                for env, optimizer, scheduler, criterion, sl_criterion, training_setup in \
-                        zip(envs, optimizers, schedulers, criterions, sl_criterions, training_setups):
+                for env, optimizer, scheduler, criterion, sl_criterion, ax_criterion, training_setup in \
+                        zip(envs, optimizers, schedulers, criterions, sl_criterions, ax_criterions, training_setups):
                     if env and optimizer and scheduler and (criterion or sl_criterion):
                         print("\ntraining session {}".format(training_session))
                         training_func = training_setup["trainer"].pop("training_function", "train")
@@ -138,7 +138,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                         # accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, sl_criterion,
                         #     device=device, model_save_path=model_save_path, **training_setup["trainer"])
                         accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, criterion, sl_criterion,
-                            device=device, model_save_path=model_save_path, **training_setup["trainer"])
+                            ax_criterion, device=device, model_save_path=model_save_path, **training_setup["trainer"])
                         # save accuracy and error to file
                         np.save(model_save_path/"accuracy_{}.npy".format(training_session), np.array(accuracies))
                         np.save(model_save_path/"error_{}.npy".format(training_session), np.array(errors))

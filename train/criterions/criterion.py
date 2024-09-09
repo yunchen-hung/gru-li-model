@@ -74,3 +74,20 @@ class MultiRLLoss(nn.Module):
                 pi_ent += ent
         # print()
         return loss, policy_gradient, value_loss, pi_ent
+
+
+class MultiAuxiliaryLoss(nn.Module):
+    def __init__(self, criteria):
+        """
+        a list of criterions for auxiliary loss
+        
+        criteria: list of criterion
+        """
+        super().__init__()
+        self.criteria = criteria
+
+    def forward(self, device="cpu", **kwargs):
+        loss = torch.tensor(0.0, device=device)
+        for criterion in self.criteria:
+            loss += criterion(device=device, **kwargs)
+        return loss

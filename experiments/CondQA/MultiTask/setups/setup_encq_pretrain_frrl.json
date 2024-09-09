@@ -91,10 +91,11 @@
             "reset_state_before_test": true,
             "no_early_stop": true,
             "sum_feature_placeholder": true,
-            "has_question": false
+            "has_question": false,
+            "no_action_reward": -0.2
         }],
         "trainer": {
-            "num_iter": 2e5,
+            "num_iter": 5e4,
             "test_iter": 1000,
             "save_iter": 10000,
             "stop_test_accu": 0.99,

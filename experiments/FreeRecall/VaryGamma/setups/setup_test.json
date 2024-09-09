@@ -1,10 +1,10 @@
 {
-    "run_num": 3,
+    "run_num": 20,
     "model": {
-        "class": "DeepValueMemoryGRU",
+        "class": "ValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 22,
-        "output_dims": [3],
+        "input_dim": 103,
+        "output_dims": [51],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
@@ -29,52 +29,54 @@
         "env": [{
             "vector_env": {
                 "mode": "async",
-                "batch_size": 128
+                "batch_size": 4
             },
-            "class": "ConditionalQuestionAnswer",
-            "wrapper": [{
-                "class": "MetaLearningEnv"
-            }],
-            "num_features": 4,
-            "feature_dim": 2,
-            "sequence_len": 8,
+            "class": "FreeRecall",
+            "vocabulary_num": 50,
+            "memory_num": 8,
+            "retrieve_time_limit": 8,
+            "return_action": true,
+            "return_reward": true,
             "reset_state_before_test": true,
-            "correct_reward": 2.0,
-            "no_action_reward": -0.0,
-            "wrong_reward": -2.0,
-            "include_question_during_encode": true,
-            "no_early_stop": false
+            "false_reward": -0.75,
+            "repeat_penalty": -0.75,
+            "not_know_reward": -0.75
         }],
         "trainer": {
-            "training_function": "train",
-            "num_iter": 1e6,
-            "test_iter": 1000,
-            "save_iter": 10000,
-            "stop_test_accu": 0.999,
+            "num_iter": 1e5,
+            "test_iter": 500,
+            "save_iter": 5000,
             "use_memory": true,
-            "used_output_index": [0],
+            "stop_test_accu": 0.99,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.01,
-                        "gamma": 1.0
+                        "eta": 0.005,
+                        "gamma": 0.99
+                    }
+                ]
+            },
+            "ax_criterion": {
+                "class": "MultiAuxiliaryLoss",
+                "criteria": [
+                    {
+                        "class": "MemoryOneHotRegularization"
                     }
                 ]
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 5e-4,
-                "weight_decay": 1e-5,
+                "lr": 3e-3,
                 "lr_decay_factor": 0.1,
-                "lr_decay_patience": 100,
-                "lr_decay_threshold": 1e-4,
+                "lr_decay_patience": 30,
+                "lr_decay_threshold": 1e-3,
                 "min_lr": 1e-7
             }
         }
     }],
     "load_saved_model": false,
-    "context_num": 1000
+    "context_num": 5000
 }
