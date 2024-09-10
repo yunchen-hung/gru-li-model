@@ -8,7 +8,7 @@ from .criterions.rl import pick_action
 def record(agent, env, used_output=0, context_num=20, reset_memory=False, device='cpu'):
     data = {'actions': [], 'probs': [], 'rewards': [], 'values': [], 'readouts': [],
     'trial_data': [], 'accuracy': 0.0}
-    actions_total_num, actions_correct_num, actions_wrong_num = 0, 0, 0
+    correct_actions, wrong_actions, not_know_actions = 0, 0, 0
     batch_size = 1 # env.num_envs
     for i in range(context_num):
         obs_, info = env.reset()
@@ -36,6 +36,10 @@ def record(agent, env, used_output=0, context_num=20, reset_memory=False, device
                 obs_, reward, _, _, info = env.step(action)
                 done = info["done"]
                 obs = torch.Tensor(obs_).reshape(1, -1).to(device)
+
+                correct_actions += np.sum(info["correct"])
+                wrong_actions += np.sum(info["wrong"])
+                not_know_actions += np.sum(info["not_know"])
 
                 actions_trial.append(action.detach().cpu())
                 probs_trial.append(log_prob_action)
@@ -68,10 +72,10 @@ def record(agent, env, used_output=0, context_num=20, reset_memory=False, device
         data['trial_data'].append(trial_data)
 
     # print("test accuracy: {}".format(actions_correct_num/actions_total_num))
-    # data['accuracy'] = actions_correct_num/actions_total_num
-    # data['correct_actions'] = actions_correct_num
-    # data['wrong_actions'] = actions_wrong_num
-    # data['total_actions'] = actions_total_num
+    data['accuracy'] = correct_actions / (correct_actions + wrong_actions + not_know_actions)
+    data['correct_actions'] = correct_actions
+    data['wrong_actions'] = wrong_actions
+    data['not_know_actions'] = not_know_actions
 
     print("finished recording")
     
