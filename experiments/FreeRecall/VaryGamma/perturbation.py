@@ -61,3 +61,9 @@ def run(data_all, model_all, env, paths, exp_name):
         else:
             has_memory = False
 
+        
+
+        # ridge classification
+        
+
+

@@ -1,24 +1,15 @@
-# squeue -u <username> -h -t pending,running -r -O "state" | uniq -c
+# # squeue -u <username> -h -t pending,running -r -O "state" | uniq -c
 
-for i in {1..9}
-do
-python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma0$i.json --time 1
-done
+# for i in {1..9}
+# do
+# python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma0$i.json --time 1
+# done
 
-python run_cluster.py --exp RL --setup setup_gru_negmementreg.json --time 1
-python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --time 1
+# python run_cluster.py --exp RL --setup setup_gru_negmementreg.json --time 1
+# python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --time 1
 
 # python run_cluster.py --exp RL --setup setup_gru_negmementreg.json --exp_file cogsci
 # python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --exp_file cogsci
-
-
-# gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '1')
-
-# for g in "${gamma[@]}"
-# do
-#     python run_cluster.py --exp FreeRecall.VaryGamma --cpus_per_task 8 --setup setup_gamma${g}.json --time 10 -train
-# done
-
 
 # noise=('0' '02' '04' '06' '08' '1')
 # # noise=('0' '1')
@@ -28,17 +19,18 @@ python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --time 
 # do
 #     for n in "${noise[@]}"
 #     do
-#         python run_cluster.py --exp FreeRecall.VaryNoise --cpus_per_task 8 --setup setup_seq${s}_noise${n}.json --time 10 -train
+#         python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 1
 #     done
 # done
 
 
-# gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '1')
 
-# for g in "${gamma[@]}"
-# do
-#     python run_cluster.py --exp RL --setup setup_gamma${g}.json --time 1
-# done
+gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '1')
+
+for g in "${gamma[@]}"
+do
+    python run_cluster.py --exp FreeRecall.VaryGamma --cpus_per_task 1 --setup setup_gamma${g}.json --time 2
+done
 
 
 noise=('0' '02' '04' '06' '08' '1')
@@ -49,9 +41,12 @@ for s in "${seqlen[@]}"
 do
     for n in "${noise[@]}"
     do
-        python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 1
+        python run_cluster.py --exp FreeRecall.VaryNoise --cpus_per_task 1 --setup setup_seq${s}_noise${n}.json --time 2
     done
 done
+
+
+
 
 # for s in "${seqlen[@]}"
 # do
