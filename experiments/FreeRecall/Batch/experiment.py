@@ -15,7 +15,7 @@ from analysis.behavior import RecallProbability, RecallProbabilityInTime, Tempor
 
 
 def run(data_all, model_all, env, paths, exp_name):
-    plt.rcParams['font.size'] = 16
+    plt.rcParams['font.size'] = 18
 
     env = env[0]
 

@@ -11,6 +11,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
+        "init_state_type": "noise_all",
         "flush_noise": 0.4,
         "subclasses": [
             {

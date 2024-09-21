@@ -69,7 +69,7 @@
     }, {
         "env": [{
             "vector_env": {
-                "mode": "async",
+                "mode": "sync",
                 "batch_size": 16
             },
             "class": "FreeRecall",
