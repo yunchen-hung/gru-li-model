@@ -136,7 +136,7 @@ class ValueMemoryGRU(BasicModule):
         self.write(state, 'init_state')
         return state
 
-    def forward(self, inp, state, beta=None, mem_beta=None):
+    def forward(self, inp, state, beta=None, mem_beta=None, noise=None):
         batch_size = inp.shape[0]
 
         if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
@@ -146,6 +146,8 @@ class ValueMemoryGRU(BasicModule):
                 state = self.gru(inp, state)
                 self.last_encoding = False
                 self.write(state, 'state')
+
+        # state = state + noise if noise is not None else state
 
         # retrieve memory
         if self.use_memory and self.retrieving:
