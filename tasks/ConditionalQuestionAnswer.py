@@ -165,7 +165,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
             if self.answered:
                 reward = 0.0
                 info["loss_mask"] = False
-            elif action == self.action_space.n - 1:
+            elif action == self.action_space.n - 1 and not self.timestep >= self.retrieve_time_limit:
                 # no action
                 reward = self.no_action_reward
             # elif self.answer is None:

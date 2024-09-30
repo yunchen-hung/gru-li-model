@@ -11,9 +11,9 @@ from ..module.decoders import ActorCriticMLPDecoder
 
 class DeepValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dims: list, em_gate_type='constant',
-            init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
+            init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, wm_noise_prop=0, em_noise_prop=0, softmax_beta=1.0, 
             start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
-            layer_norm=False, device: str = 'cpu'):
+            layer_norm=False, use_memory=True, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -27,7 +27,8 @@ class DeepValueMemoryGRU(BasicModule):
         self.encoding = False
         self.retrieving = False
 
-        self.noise_std = noise_std
+        self.wm_noise_prop = wm_noise_prop      # noise proportion for working memory
+        self.em_noise_prop = em_noise_prop      # noise proportion for episodic memory
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
         # try:
         #     # self.mem_beta = self.memory_module.similarity_measure.softmax_temperature   # TODO: make it more flexible with other kinds of memory
@@ -235,9 +236,12 @@ class DeepValueMemoryGRU(BasicModule):
         inputgate = torch.sigmoid(i_i + h_i)
         newgate_preact = i_n + resetgate * h_n
         if mem_gate is not None and retrieved_memory is not None:
+            retrieved_memory = (1 - self.em_noise_prop) * retrieved_memory + \
+                self.em_noise_prop * torch.randn_like(retrieved_memory) * torch.std(retrieved_memory)
             newgate_preact += mem_gate * retrieved_memory
         newgate = torch.tanh(newgate_preact)
         state = newgate + inputgate * (state - newgate)
+        state = (1 - self.wm_noise_prop) * state + self.wm_noise_prop * torch.randn_like(state) * torch.std(state)
         return state
 
     def set_encoding(self, status):
