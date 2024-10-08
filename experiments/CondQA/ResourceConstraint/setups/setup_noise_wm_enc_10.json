@@ -1,5 +1,5 @@
 {
-    "run_num": [2],
+    "run_num": 3,
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
@@ -9,11 +9,14 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
+        "wm_enc_noise_prop": 0.999,
+        "init_state_type": "noise",
+        "init_state_noise": 0.1,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 6,
+            "capacity": 4,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -29,7 +32,7 @@
         "env": [{
             "vector_env": {
                 "mode": "async",
-                "batch_size": 128
+                "batch_size": 64
             },
             "class": "ConditionalQuestionAnswer",
             "wrapper": [{
@@ -37,13 +40,13 @@
             }],
             "num_features": 4,
             "feature_dim": 2,
-            "sequence_len": 6,
+            "sequence_len": 4,
             "reset_state_before_test": true,
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
             "include_question_during_encode": false,
-            "no_early_stop": false 
+            "no_early_stop": false
         }],
         "trainer": {
             "training_function": "train",

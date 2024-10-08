@@ -37,7 +37,13 @@ def run(data_all, model_all, env, paths, exp_name):
 
         readouts = data['readouts']
         actions = data['actions']
-        actions = np.array(actions).squeeze(-1)
+        actions_len = []
+        for i in actions:
+            actions_len.append(len(i))
+        actions_array = np.ones((context_num, max(actions_len))) * 2
+        for i in range(context_num):
+            actions_array[i, :actions_len[i]] = actions[i].reshape(-1)
+        actions = actions_array
         actions = actions.reshape(-1, actions.shape[-1])
 
         # for i in range(10):
@@ -102,13 +108,23 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
         """ em gate at each timestep """
+        # em_gate_shape = []
+        # for i in range(context_num):
+        #     em_gate_shape.append(readouts[i]['mem_gate_recall'].shape)
+        # print("em_gate_shape:", em_gate_shape)
+
+
         em_gates = []
         if "mem_gate_recall" in readouts[0]:
             plt.figure(figsize=(4, 3), dpi=180)
             for i in range(context_num):
-                em_gate = readouts[i]['mem_gate_recall']
-                plt.plot(np.mean(em_gate.squeeze(1), axis=-1)[:timestep_each_phase][actions_mask[i]], label="context {}".format(i))
-                em_gates.append(em_gate.squeeze(1))
+                em_gate = np.zeros((timestep_each_phase))
+                em_gate_len = readouts[i]['mem_gate_recall'].shape[0]
+                em_gate[:em_gate_len] = readouts[i]['mem_gate_recall'].squeeze()
+                # plt.plot(np.mean(em_gate.squeeze(1), axis=-1)[:timestep_each_phase][actions_mask[i]], label="context {}".format(i))
+                # em_gates.append(em_gate.squeeze(1))
+                plt.plot(em_gate[actions_mask[i]], label="context {}".format(i))
+                em_gates.append(em_gate)
             ax = plt.gca()
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -136,11 +152,12 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.tight_layout()
             savefig(fig_path, "em_gate_recall_mean")
 
-        retrieved_memories = []
+
+
+        retrieved_memories = np.zeros((context_num, timestep_each_phase, timestep_each_phase))
         for i in range(context_num):
             retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
-            retrieved_memories.append(retrieved_memory)
-        retrieved_memories = np.stack(retrieved_memories, axis=0)
+            retrieved_memories[i, :retrieved_memory.shape[0], :] = retrieved_memory
         # print("retrieved_memories:", retrieved_memories.shape)
         # print(np.argmax(retrieved_memories, axis=2)[:10])
 
@@ -182,12 +199,15 @@ def run(data_all, model_all, env, paths, exp_name):
         c_memorizing = []
         c_recalling = []
         memory_sequences = []
-        retrieved_memories = []     
+        correct_trials = []
+        # retrieved_memories = []
         # answers = []   
-        answers = model_answers
+        # answers = model_answers
         for i in range(context_num):
             if data["trial_data"][i]["correct_answer"] != model_answers[i]:
                 continue
+            correct_trials.append(i)
+
             sum_feature_index = data["trial_data"][i]["sum_feature"]
             memory_sequence = data["trial_data"][i]["memory_sequence"]
             sum_feature = memory_sequence[:, sum_feature_index]
@@ -201,8 +221,8 @@ def run(data_all, model_all, env, paths, exp_name):
             c_memorizing.append(readouts[i]['state'][:timestep_each_phase].squeeze())
             c_recalling.append(readouts[i]['state'][-timestep_each_phase:].squeeze())
             memory_sequences.append(data["trial_data"][i]["memory_sequence_int"])
-            retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
-            retrieved_memories.append(retrieved_memory)
+            # retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
+            # retrieved_memories.append(retrieved_memory)
 
             # answers.append(actions[i][-1])
 
@@ -212,8 +232,19 @@ def run(data_all, model_all, env, paths, exp_name):
         c_memorizing = np.stack(c_memorizing, axis=0)
         c_recalling = np.stack(c_recalling, axis=0)
         memory_sequences = np.stack(memory_sequences, axis=0)
-        retrieved_memories = np.stack(retrieved_memories, axis=0)
+        answers = np.array(model_answers)[correct_trials]
+
+        # retrieved_memories = np.stack(retrieved_memories, axis=0)
         # print(sum_features.shape, matched_mask.shape, unmatched_mask.shape)
+
+        retrieved_memories = np.zeros((c_memorizing.shape[0], timestep_each_phase))
+        cnt = 0
+        for i in range(context_num):
+            if data["trial_data"][i]["correct_answer"] != model_answers[i]:
+                continue
+            retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
+            retrieved_memories[cnt, :retrieved_memory.shape[0]] = retrieved_memory
+            cnt += 1
 
         # c_memorizing = np.stack([readouts[i]['state'][:timestep_each_phase].squeeze() for i in range(context_num)])   # context_num * time * state_dim
         # c_recalling = np.stack([readouts[i]['state'][-timestep_each_phase:].squeeze() for i in range(context_num)])
@@ -228,7 +259,7 @@ def run(data_all, model_all, env, paths, exp_name):
             for j in range(timestep_each_phase):
                 if not actions_mask[i, j]:
                     continue
-                num_actions[actions[i][timestep_each_phase+j], j] += 1
+                num_actions[int(actions[i][timestep_each_phase+j]), j] += 1
                 num_total_trials[j] += 1
         num_total_trials[num_total_trials==0] = 1
         num_actions = num_actions / num_total_trials
@@ -256,24 +287,25 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
         """ decoding final answer """
-        # ridge_decoder = RidgeClassifier()
-        # decoder = DMAnserDecoder(decoder=ridge_decoder)
-        # decoder.fit(c_recalling.transpose(1, 0, 2), answers)
-        # decoder.visualize(save_path=fig_path, save_name="answer_decode", xlabel="time in recall phase", figsize=(4, 3.3))
+        ridge_decoder = RidgeClassifier()
+        decoder = DMAnserDecoder(decoder=ridge_decoder)
+        print(c_recalling.shape, len(answers))
+        decoder.fit(c_recalling.transpose(1, 0, 2), answers)
+        decoder.visualize(save_path=fig_path, save_name="answer_decode", xlabel="time in recall phase", figsize=(4, 3.3))
 
         """ decoding """
-        # ridge_decoder = RidgeClassifier()
-        # ridge = ItemIdentityDecoder(decoder=ridge_decoder)
+        ridge_decoder = RidgeClassifier()
+        ridge = ItemIdentityDecoder(decoder=ridge_decoder)
 
-        # ridge_encoding_item = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_item", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_encoding_item.npy", ridge_encoding_item)
+        ridge_encoding_item, _ = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_item", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_encoding_item.npy", ridge_encoding_item)
 
-        # ridge_encoding_sum_feature = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
+        ridge_encoding_sum_feature, _ = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
 
         # ridge_encoding_sum_feature_matched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
         # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_mat", colormap_label="item position\nin study order",
@@ -285,15 +317,15 @@ def run(data_all, model_all, env, paths, exp_name):
         #                         xlabel="time in encoding phase", figsize=(4, 3.3))
         # np.save(fig_path/"ridge_encoding_sum_feature_unmatched.npy", ridge_encoding_sum_feature_unmatched)
 
-        # ridge_recall_item = ridge.fit(c_recalling.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item", colormap_label="item position\nin study order",
-        #                         xlabel="time in recall phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_decoding_item.npy", ridge_recall_item)
+        ridge_recall_item, _ = ridge.fit(c_recalling.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item", colormap_label="item position\nin study order",
+                                xlabel="time in recall phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_decoding_item.npy", ridge_recall_item)
 
-        # ridge_recall_sum_feature = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
-        #                         xlabel="time in recall phase", figsize=(4, 3.3))
-        # np.save(fig_path/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
+        ridge_recall_sum_feature, _ = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
+                                xlabel="time in recall phase", figsize=(4, 3.3))
+        np.save(fig_path/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
 
         # ridge_recall_sum_feature_matched = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
         # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_mat", colormap_label="item position\nin study order",
@@ -306,17 +338,17 @@ def run(data_all, model_all, env, paths, exp_name):
         # np.save(fig_path/"ridge_decoding_sum_feature_unmatched.npy", ridge_recall_sum_feature_unmatched)
 
 
-        # recall_probability = RecallProbability()
-        # recall_probability.fit(memory_sequences, retrieved_memories)
-        # # plot CRP curve
-        # recall_probability.visualize_all_time(fig_path/"recall_prob")
-        # recall_probability.visualize(fig_path/"recall_prob")
-        # results_all_time = recall_probability.get_results_all_time()
-        # # write to csv file
-        # with open(fig_path/"recall_probability.csv", "w") as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow(results_all_time)
+        recall_probability = RecallProbability()
+        recall_probability.fit(memory_sequences, retrieved_memories)
+        # plot CRP curve
+        recall_probability.visualize_all_time(fig_path/"recall_prob")
+        recall_probability.visualize(fig_path/"recall_prob")
+        results_all_time = recall_probability.get_results_all_time()
+        # write to csv file
+        with open(fig_path/"recall_probability.csv", "w") as f:
+            writer = csv.writer(f)
+            writer.writerow(results_all_time)
 
-        # recall_probability_in_time = RecallProbabilityInTime()
-        # recall_probability_in_time.fit(memory_sequences, retrieved_memories)
-        # recall_probability_in_time.visualize(fig_path)
+        recall_probability_in_time = RecallProbabilityInTime()
+        recall_probability_in_time.fit(memory_sequences, retrieved_memories)
+        recall_probability_in_time.visualize(fig_path)

@@ -11,7 +11,8 @@ from ..module.decoders import ActorCriticMLPDecoder
 
 class DeepValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dims: list, em_gate_type='constant',
-            init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, wm_noise_prop=0, em_noise_prop=0, softmax_beta=1.0, 
+            init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, softmax_beta=1.0, 
+            wm_noise_prop=0, em_noise_prop=0, wm_enc_noise_prop=0,
             start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
             layer_norm=False, use_memory=True, device: str = 'cpu'):
         super().__init__()
@@ -29,6 +30,8 @@ class DeepValueMemoryGRU(BasicModule):
 
         self.wm_noise_prop = wm_noise_prop      # noise proportion for working memory
         self.em_noise_prop = em_noise_prop      # noise proportion for episodic memory
+        self.wm_enc_noise_prop = wm_enc_noise_prop   # noise proportion for working memory only during encoding phase
+
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
         # try:
         #     # self.mem_beta = self.memory_module.similarity_measure.softmax_temperature   # TODO: make it more flexible with other kinds of memory
@@ -172,11 +175,13 @@ class DeepValueMemoryGRU(BasicModule):
             mem_gate = 0.0
             memory_similarity = torch.zeros(batch_size, self.memory_module.capacity)
 
+        if self.use_memory and self.encoding:
+            state = (1 - self.wm_enc_noise_prop) * state + self.wm_enc_noise_prop * torch.randn_like(state) * torch.std(state)
+
         # compute forward pass
         for i in range(self.step_for_each_timestep):
             state = self.gru(inp, state, mem_gate, retrieved_memory)
-        self.write(state, 'state')
-
+        
         # store memory
         if self.use_memory and self.encoding:
             # print("store memory")
@@ -185,6 +190,8 @@ class DeepValueMemoryGRU(BasicModule):
             self.current_timestep += 1
             if self.current_timestep == self.start_recall_with_ith_item_init:
                 self.ith_item_state = state.detach().clone()
+
+        self.write(state, 'state')
 
         # output_state = self.fc_output(state)
 
