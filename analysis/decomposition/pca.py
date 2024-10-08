@@ -3,6 +3,7 @@ import sklearn.decomposition as decomposition
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import seaborn as sns
+import colorcet as cc
 
 from utils import savefig
 
@@ -75,10 +76,10 @@ class PCA:
         if end_step is None:
             end_step = self.n_steps
         n_steps = end_step - start_step
-        # colors = np.array([plt.cm.rainbow.reversed()(i) for i in np.linspace(0, 1, n_steps)])
+        colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0, 0.9, n_steps)])
         # colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
-        colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
+        # colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
 
         plt.figure(figsize=(4, 3.3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()

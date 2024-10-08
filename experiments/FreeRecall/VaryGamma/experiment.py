@@ -384,34 +384,49 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
 
+        """ compute statistics of weights and activity """
+        weights_activity_data = {}
+        
+        input_weights = model.fc_input.weight.detach().cpu().numpy()
+        hidden_weights = model.fc_hidden.weight.detach().cpu().numpy()
+        print(input_weights.shape, hidden_weights.shape)
+
+        i_r_weights, i_i_weights, i_n_weights = np.split(input_weights, 3, axis=0)
+        h_r_weights, h_i_weights, h_n_weights = np.split(hidden_weights, 3, axis=0)
+
+        weights_activity_data["i_r_weights_mean"] = np.mean(i_r_weights)
+        weights_activity_data["i_r_weights_std"] = np.std(i_r_weights)
+        weights_activity_data["i_i_weights_mean"] = np.mean(i_i_weights)
+        weights_activity_data["i_i_weights_std"] = np.std(i_i_weights)
+        weights_activity_data["i_n_weights_mean"] = np.mean(i_n_weights)
+        weights_activity_data["i_n_weights_std"] = np.std(i_n_weights)
+        weights_activity_data["h_r_weights_mean"] = np.mean(h_r_weights)
+        weights_activity_data["h_r_weights_std"] = np.std(h_r_weights)
+        weights_activity_data["h_i_weights_mean"] = np.mean(h_i_weights)
+        weights_activity_data["h_i_weights_std"] = np.std(h_i_weights)
+        weights_activity_data["h_n_weights_mean"] = np.mean(h_n_weights)
+        weights_activity_data["h_n_weights_std"] = np.std(h_n_weights)
 
 
-        """ policy distribution over all memory items """
-        # policy = []
-        # for i in range(all_context_num):
-        #     policy.append(readouts[i]['decision'])
-        # policy = np.stack(policy).squeeze()
-        # print(policy.shape, actions.shape)
+        states = []
+        for i in range(context_num):
+            states.append(readouts[i]['state'])
+        states = np.stack(states).squeeze()
+        print(states.shape)
 
-        # policy_sorted = []
-        # for i in range(all_context_num):
-        #     policy_sorted.append(policy[i, -env.memory_num:, actions[i, -env.memory_num:]])
-        # policy_sorted = np.stack(policy_sorted).squeeze()
-        # print(policy_sorted.shape)
+        activity_mean_timestep = np.mean(states, axis=(0,2))
+        activity_std_timestep = np.std(states, axis=(0,2))
+        activity_mean = np.mean(activity_mean_timestep)
+        activity_std = np.mean(activity_std_timestep)
 
-        # plt.imshow(policy_sorted[0], cmap="Blues")
-        # plt.colorbar()
-        # plt.title("policy distribution, one trial")
-        # plt.xlabel("time step")
-        # plt.ylabel("memory item")
-        # plt.tight_layout()
-        # savefig(fig_path/"policy", "one_trial.png")
+        weights_activity_data["activity_mean"] = activity_mean
+        weights_activity_data["activity_std"] = activity_std
+        weights_activity_data["activity_mean_timestep"] = activity_mean_timestep
+        weights_activity_data["activity_std_timestep"] = activity_std_timestep
 
-        # plt.imshow(np.mean(policy_sorted, axis=0), cmap="Blues")
-        # plt.colorbar()
-        # plt.title("policy distribution, averaged")
-        # plt.xlabel("time step")
-        # plt.ylabel("memory item")
-        # plt.tight_layout()
-        # savefig(fig_path/"policy", "all_trial.png")
+        with open(fig_path/"weights_activity_data.pkl", "wb") as f:
+            pickle.dump(weights_activity_data, f)
+
+        print(weights_activity_data)
+
 
