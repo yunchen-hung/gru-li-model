@@ -70,7 +70,7 @@ class RecallProbability:
             plt.tight_layout()
             savefig(save_path, "timestep_{}".format(t+1), format=format)
 
-    def visualize_all_time(self, save_path, title="", format="png"):
+    def visualize_all_time(self, save_path, save_name="all_time", title="", format="png"):
         # plot of all time
         plt.figure(figsize=(4, 3.3), dpi=180)
         plt.scatter(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='b', zorder=2)
@@ -88,7 +88,7 @@ class RecallProbability:
         ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
-        savefig(save_path, "all_time", format=format)
+        savefig(save_path, save_name, format=format)
 
     def visualize_mat(self, save_path, format="png"):
         # plot of matrix
@@ -182,10 +182,13 @@ class RecallProbabilityInTime:
             plt.tight_layout()
         savefig(save_path, save_name, format=format)
 
-    def visualize_in_time(self, save_path, save_name="output_probability_by_time", format="png"):
+    def visualize_in_time(self, save_path, time=None, save_name="output_probability_by_time", format="png"):
+        if time is None:
+            time = self.memory_num
+        time = np.min([time, self.results.shape[0]])
         plt.figure(figsize=(4, 3.3), dpi=180)
         for t in range(self.memory_num):
-            plt.plot(np.arange(1, self.memory_num+1), self.results[:, t], label="item {}".format(t+1))
+            plt.plot(np.arange(1, time+1), self.results[:time, t], label="item {}".format(t+1))
         plt.xlabel("time in recall phase")
         plt.ylabel("recall probability")
         # plt.title("recall probability by time")

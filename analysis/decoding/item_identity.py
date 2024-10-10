@@ -157,7 +157,7 @@ class ItemIdentityDecoder:
             raise Exception("Please run fit() first")
         figsize = figsize if figsize is not None else (0.6 * self.results.shape[1], 3.3)
         plt.figure(figsize=figsize, dpi=180)
-        n_steps = self.results.shape[0]
+        n_steps = self.results.shape[1]
         colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0, 0.9, n_steps)])
         # colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
@@ -174,7 +174,7 @@ class ItemIdentityDecoder:
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
-        cmap = ListedColormap(colors[:-1])
+        cmap = ListedColormap(colors)
         norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
         plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label, ax=ax)
 

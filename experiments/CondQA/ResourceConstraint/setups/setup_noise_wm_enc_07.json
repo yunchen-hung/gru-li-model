@@ -9,7 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
-        "wm_enc_noise_prop": 0.999,
+        "wm_enc_noise_prop": 0.7,
         "init_state_type": "noise",
         "random_init_noise": 0.1,
         "subclasses": [{

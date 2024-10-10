@@ -11,7 +11,7 @@
         "em_gate_type": "scalar_sigmoid",
         "wm_enc_noise_prop": 0.2,
         "init_state_type": "noise",
-        "init_state_noise": 0.1,
+        "random_init_noise": 0.1,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",

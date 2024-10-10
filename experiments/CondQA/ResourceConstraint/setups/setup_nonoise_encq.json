@@ -9,9 +9,6 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
-        "wm_enc_noise_prop": 0.999,
-        "init_state_type": "noise",
-        "random_init_noise": 0.1,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -45,7 +42,7 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": false,
+            "include_question_during_encode": true,
             "no_early_stop": false
         }],
         "trainer": {

@@ -8,7 +8,7 @@ import seaborn as sns
 from utils import savefig
 
 
-class DMAnserDecoder:
+class DMAnswerDecoder:
     """
     decode the answer to a DM task from each timestep of the data
     """
