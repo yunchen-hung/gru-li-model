@@ -11,9 +11,10 @@ from ..module.decoders import ActorCriticMLPDecoder
 
 class DeepValueMemoryGRU(BasicModule):
     def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dims: list, em_gate_type='constant',
-            init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
+            init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, softmax_beta=1.0, 
+            wm_noise_prop=0, em_noise_prop=0, wm_enc_noise_prop=0,
             start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
-            layer_norm=False, device: str = 'cpu'):
+            layer_norm=False, use_memory=True, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -27,7 +28,10 @@ class DeepValueMemoryGRU(BasicModule):
         self.encoding = False
         self.retrieving = False
 
-        self.noise_std = noise_std
+        self.wm_noise_prop = wm_noise_prop      # noise proportion for working memory
+        self.em_noise_prop = em_noise_prop      # noise proportion for episodic memory
+        self.wm_enc_noise_prop = wm_enc_noise_prop   # noise proportion for working memory only during encoding phase
+
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
         # try:
         #     # self.mem_beta = self.memory_module.similarity_measure.softmax_temperature   # TODO: make it more flexible with other kinds of memory
@@ -171,11 +175,13 @@ class DeepValueMemoryGRU(BasicModule):
             mem_gate = 0.0
             memory_similarity = torch.zeros(batch_size, self.memory_module.capacity)
 
+        if self.use_memory and self.encoding:
+            state = (1 - self.wm_enc_noise_prop) * state + self.wm_enc_noise_prop * torch.randn_like(state) * torch.std(state)
+
         # compute forward pass
         for i in range(self.step_for_each_timestep):
             state = self.gru(inp, state, mem_gate, retrieved_memory)
-        self.write(state, 'state')
-
+        
         # store memory
         if self.use_memory and self.encoding:
             # print("store memory")
@@ -184,6 +190,8 @@ class DeepValueMemoryGRU(BasicModule):
             self.current_timestep += 1
             if self.current_timestep == self.start_recall_with_ith_item_init:
                 self.ith_item_state = state.detach().clone()
+
+        self.write(state, 'state')
 
         # output_state = self.fc_output(state)
 
@@ -211,8 +219,11 @@ class DeepValueMemoryGRU(BasicModule):
             self.write(value, 'value{}'.format(i+1))
 
         self.write(self.use_memory, 'use_memory')
+        info = {
+            "memory_similarity": memory_similarity
+        }
         
-        return decisions, values, state, memory_similarity
+        return decisions, values, state, info
     
     def gru(self, inp, state, mem_gate=None, retrieved_memory=None):
         # gate_x = self.fc_input1(inp)
@@ -232,9 +243,12 @@ class DeepValueMemoryGRU(BasicModule):
         inputgate = torch.sigmoid(i_i + h_i)
         newgate_preact = i_n + resetgate * h_n
         if mem_gate is not None and retrieved_memory is not None:
+            retrieved_memory = (1 - self.em_noise_prop) * retrieved_memory + \
+                self.em_noise_prop * torch.randn_like(retrieved_memory) * torch.std(retrieved_memory)
             newgate_preact += mem_gate * retrieved_memory
         newgate = torch.tanh(newgate_preact)
         state = newgate + inputgate * (state - newgate)
+        state = (1 - self.wm_noise_prop) * state + self.wm_noise_prop * torch.randn_like(state) * torch.std(state)
         return state
 
     def set_encoding(self, status):

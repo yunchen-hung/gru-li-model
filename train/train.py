@@ -8,7 +8,7 @@ from models.utils import entropy
 from .utils import count_accuracy, save_model
 
 
-def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, 
+def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criterion=None,
     model_save_path=None, device='cpu', use_memory=None,
     num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, stop_test_accu=1.0, 
     reset_memory=True, used_output_index=[0], env_sample_prob=[1.0],
@@ -82,6 +82,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
         outputs = defaultdict(list)
         actions, probs, actions_max = defaultdict(list), defaultdict(list), defaultdict(list)
         values, entropys = defaultdict(list), defaultdict(list)
+        model_infos = defaultdict(list)
         rewards, mem_similarities, mem_sim_entropys = [], [], []
         gts, gt_masks = [], []
         loss_masks = []
@@ -110,7 +111,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
 
             # do one step of forward pass for the agent
             # output: batch_size x action_space, value: batch_size x 1
-            output, value, state, mem_similarity = agent(obs, state)
+            output, value, state, model_info = agent(obs, state)
 
             env_updated = False
             for j, o in enumerate(output):
@@ -134,26 +135,6 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
                     correct_actions += np.sum(info["correct"])
                     wrong_actions += np.sum(info["wrong"])
                     not_know_actions += np.sum(info["not_know"])
-                    # if done.all():
-                    #     gts.append([final_info["gt"] for final_info in info["final_info"]])
-                    #     gt_masks.append([final_info["gt_mask"] for final_info in info["final_info"]])
-                    #     loss_mask = np.array([final_info["loss_mask"] for final_info in info["final_info"]])
-                    #     print(loss_mask)
-                    #     loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
-                    #     correct_actions += np.sum([final_info["correct"] for final_info in info["final_info"]])
-                    #     wrong_actions += np.sum([final_info["wrong"] for final_info in info["final_info"]])
-                    #     not_know_actions += np.sum([final_info["not_know"] for final_info in info["final_info"]])
-                    # else:
-                    #     gts.append(info["gt"])
-                    #     gt_masks.append(info["gt_mask"])
-                    #     loss_mask = np.array(info["loss_mask"])
-                    #     print(info)
-                    #     print(loss_mask)
-                    #     loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
-                    #     correct_actions += np.sum(info["correct"])
-                    #     wrong_actions += np.sum(info["wrong"])
-                    #     not_know_actions += np.sum(info["not_know"])
-                    # print()
                     terminated = np.logical_or(terminated, done)
                 outputs[j].append(o)
                 probs[j].append(log_prob_action)
@@ -163,8 +144,11 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
                 entropys[j].append(entropy(action_distribution, device))
             assert env_updated
 
-            mem_similarities.append(mem_similarity)
-            mem_sim_entropys.append(entropy(mem_similarity, device))
+            for key in model_info.keys():
+                model_infos[key].append(model_info[key])
+
+            mem_similarities.append(model_info["memory_similarity"])
+            mem_sim_entropys.append(entropy(model_info["memory_similarity"], device))
             total_reward += np.sum(reward)
 
         """ compute the loss and do backpropagation """
@@ -179,6 +163,9 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             values[j] = values[j][memory_num:]
             entropys[j] = entropys[j][memory_num:]
             outputs[j] = torch.stack(outputs[j]).to(device)
+
+        for key in model_infos:
+            model_infos[key] = torch.stack(model_infos[key]).to(device)
 
         # compute RL loss
         if criterion is not None:
@@ -201,6 +188,13 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion,
             loss_sl = sl_criterion([outputs[o][gt_masks] for o in outputs], gts[gt_masks])
             loss += loss_sl
             total_sl_loss += loss_sl.item()
+
+        # compute auxiliary loss
+        if ax_criterion is not None:
+            loss_ax = ax_criterion(device=device, **model_infos)
+            loss += loss_ax
+            if print_criterion_info:
+                print("auxiliary loss:", loss_ax.item())
 
         # backpropagation
         optimizer.zero_grad()

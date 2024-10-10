@@ -136,7 +136,7 @@ class ValueMemoryGRU(BasicModule):
         self.write(state, 'init_state')
         return state
 
-    def forward(self, inp, state, beta=None, mem_beta=None):
+    def forward(self, inp, state, beta=None, mem_beta=None, noise=None):
         batch_size = inp.shape[0]
 
         if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
@@ -146,6 +146,8 @@ class ValueMemoryGRU(BasicModule):
                 state = self.gru(inp, state)
                 self.last_encoding = False
                 self.write(state, 'state')
+
+        # state = state + noise if noise is not None else state
 
         # retrieve memory
         if self.use_memory and self.retrieving:
@@ -191,8 +193,11 @@ class ValueMemoryGRU(BasicModule):
             self.write(value, 'value{}'.format(i))
 
         self.write(self.use_memory, 'use_memory')
+        info = {
+            "memory_similarity": memory_similarity
+        }
         
-        return decisions, values, state, memory_similarity
+        return decisions, values, state, info
     
     def gru(self, inp, state, mem_gate=None, retrieved_memory=None):
         gate_x = self.fc_input(inp)

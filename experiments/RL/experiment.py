@@ -1,3 +1,4 @@
+import os
 import csv
 import pickle
 import numpy as np
@@ -9,7 +10,7 @@ from sklearn.metrics import rand_score, adjusted_mutual_info_score
 
 from utils import savefig
 from analysis.decomposition import PCA
-from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor
+from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor, Classifier
 from analysis.behavior import RecallProbability, RecallProbabilityInTime, TemporalFactor
 
 
@@ -65,6 +66,7 @@ def run(data_all, model_all, env, paths, exp_name):
             has_memory = False
         
         # print ground truths, actions and rewards for 5 trials
+        print("accuracy: {}".format(data['accuracy']))
         for i in range(5):
             if has_memory:
                 print("context {}, gt: {}, action: {}, retrieved memory: {}, rewards: {}".format(i, memory_contexts[i], actions[i][env.memory_num:], 
@@ -90,6 +92,17 @@ def run(data_all, model_all, env, paths, exp_name):
         # plt.title("encoding-recalling state similarity")
         plt.tight_layout()
         savefig(fig_path/"state_similarity", "encode_recall")
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(similarity[:timestep_each_phase, :timestep_each_phase], cmap="Blues")
+        plt.colorbar(label="cosine similarity\nbetween hidden states")
+        plt.xlabel("time in encoding phase")
+        plt.ylabel("time in encoding phase")
+        # plt.title("encoding state similarity")
+        plt.tight_layout()
+        savefig(fig_path/"state_similarity", "encode_encode")
+
+        np.save(fig_path/"state_similarity.npy", similarity)
 
         """ memory gate """
         # if "mem_gate_recall" in readouts[0]:
@@ -180,6 +193,25 @@ def run(data_all, model_all, env, paths, exp_name):
                                 xlabel="time in recall phase")
         np.save(fig_path/"ridge_recall.npy", ridge_recall_res)
 
+        # SVM
+        svm = ItemIdentityDecoder()
+        svm_encoding_res, svm_encoding_stat_res = svm.fit(c_memorizing.transpose(1, 0, 2), memory_sequence.transpose(1, 0))
+        svm.visualize_by_memory(save_path=fig_path/"svm", save_name="c_enc", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase")
+        np.save(fig_path/"svm_encoding.npy", svm_encoding_res)
+
+        svm_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
+        for i in range(all_context_num):
+            for t in range(env.memory_num):
+                if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
+                    svm_mask[i][t] = 1
+        svm_recall_res, svm_recall_stat_res = svm.fit(c_recalling.transpose(1, 0, 2), actions[:, -timestep_each_phase:].transpose(1, 0), svm_mask.transpose(1, 0))
+        svm.visualize_by_memory(save_path=fig_path/"svm", save_name="c_rec", colormap_label="item position\nin recall order",
+                                xlabel="time in recall phase")
+        np.save(fig_path/"svm_recall.npy", svm_recall_res)
+
+
+
 
         """ decode item index """
         encoding_index = np.repeat(np.arange(env.memory_num).reshape(1, -1), all_context_num, axis=0)
@@ -219,6 +251,36 @@ def run(data_all, model_all, env, paths, exp_name):
         }
         with open(fig_path/"ridge_classifier_stat.pkl", "wb") as f:
             pickle.dump(ridge_classifier_stat, f)
+
+
+        # SVM
+        svm = ItemIndexDecoder()
+        svm_encoding_res, index_encoding_acc, index_encoding_r2 = svm.fit(c_memorizing, encoding_index)
+        svm.visualize(save_path=fig_path/"svm_index", save_name="c_enc", xlabel="time in encoding phase")
+        np.save(fig_path/"svm_encoding_index.npy", svm_encoding_res)
+
+        svm_recall_res, index_recall_acc, index_recall_r2 = svm.fit(c_recalling, recall_index, index_mask)
+        svm.visualize(save_path=fig_path/"svm_index", save_name="c_rec", xlabel="time in recall phase")
+        np.save(fig_path/"svm_recall_index.npy", svm_recall_res)
+
+        svm_classifier_stat = {
+            "item_enc_acc": svm_encoding_stat_res["acc"],
+            "item_enc_r2": svm_encoding_stat_res["r2"],
+            "item_enc_acc_last": svm_encoding_stat_res["acc_last"],
+            "item_enc_r2_last": svm_encoding_stat_res["r2_last"],
+            "item_rec_acc": svm_recall_stat_res["acc"],
+            "item_rec_r2": svm_recall_stat_res["r2"],
+            "item_rec_acc_last": svm_recall_stat_res["acc_last"],
+            "item_rec_r2_last": svm_recall_stat_res["r2_last"],
+            "index_enc_acc": index_encoding_acc,
+            "index_enc_r2": index_encoding_r2,
+            "index_rec_acc": index_recall_acc,
+            "index_rec_r2": index_recall_r2
+        }
+        with open(fig_path/"svm_classifier_stat.pkl", "wb") as f:
+            pickle.dump(svm_classifier_stat, f)
+
+
 
 
         """ overall decoding accuracy and r2 """
@@ -292,41 +354,34 @@ def run(data_all, model_all, env, paths, exp_name):
         print("kmeans clustering")
         print("item identity encoding rand index: {}, adj mutual info: {}".format(rand_index, adj_mutual_info))
         print("item identity recall rand index: {}, adj mutual info: {}".format(rand_index_rec, adj_mutual_info_rec))
-        
 
 
-        """ PC selectivity """
-        # # convert actions and item index to one-hot
-        # actions_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
-        # for i in range(all_context_num):
-        #     actions_one_hot[i] = np.eye(env.vocabulary_num)[actions[i, env.memory_num:]-1]
 
-        # # memory content
-        # memories_one_hot = np.zeros((all_context_num, env.memory_num, env.vocabulary_num))
-        # for i in range(all_context_num):
-        #     memories_one_hot[i] = np.eye(env.vocabulary_num)[memory_contexts[i]-1]
 
-        # # memory index
-        # # print(retrieved_memories.shape)
-        # retrieved_memories_one_hot = np.zeros((all_context_num, env.memory_num, env.memory_num))
-        # for i in range(all_context_num):
-        #     retrieved_memories_one_hot[i] = np.eye(env.memory_num)[retrieved_memories[i]]
-        
-        # # labels = {"actions": actions[:, env.memory_num:], "memory index": retrieved_memories}
 
-        # pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # # labels = {"memory content": memories_one_hot, "memory index": retrieved_memories_one_hot}
-        # labels = {"item identity": memory_contexts-1, "item index": retrieved_memories}
-        # selectivity, explained_var = pc_selectivity.fit(c_memorizing, labels)
-        # pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="encoding", format="svg")
-        # np.savez(fig_path/"pc_selectivity_encoding.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
+        """ decoding each previous item """
+        for i in range(1, env.memory_num-1):
+            # Ridge
+            ridge_decoder = RidgeClassifier()
+            ridge = Classifier(decoder=ridge_decoder)
+            ridge_r2, ridge_acc = ridge.fit(c_memorizing[:, i:], memory_sequence[:, :-i])
 
-        # pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # # labels = {"recalled memory": actions_one_hot, "memory index": retrieved_memories_one_hot}
-        # labels = {"item identity": actions[:, env.memory_num:]-1, "item index": retrieved_memories}
-        # selectivity, explained_var = pc_selectivity.fit(c_recalling, labels)
-        # pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="recalling", format="svg")
-        # np.savez(fig_path/"pc_selectivity_recalling.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
+            # SVM
+            svm = Classifier()
+            svm_r2, svm_acc = svm.fit(c_memorizing[:, i:], memory_sequence[:, :-i])
+
+            res = {
+                "ridge_r2": ridge_r2,
+                "ridge_acc": ridge_acc,
+                "svm_r2": svm_r2,
+                "svm_acc": svm_acc
+            }
+            os.makedirs(fig_path/"prev_item_decode", exist_ok=True)
+            with open(fig_path/"prev_item_decode"/f"item_{i}.pkl", "wb") as f:
+                pickle.dump(res, f)
+
+
+
 
 
         """ policy distribution over all memory items """
