@@ -48,7 +48,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
         """ print sample trials """
-        # for i in range(10):
+        # for i in range(5):
         #     retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
         #     print(retrieved_memory)
         #     print(np.argmax(retrieved_memory, axis=-1))
@@ -343,7 +343,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
 
-        """ decoding final answer """
+        """ decoding answer """
         ridge_decoder = RidgeClassifier()
         decoder = DMAnswerDecoder(decoder=ridge_decoder)
         # print(c_recalling.shape, len(answers))
@@ -351,7 +351,8 @@ def run(data_all, model_all, env, paths, exp_name):
         decoder.visualize(save_path=fig_path/"decode_answer", save_name="all_rec", xlabel="time in recall phase", figsize=(4, 3.3))
 
         decoder.fit(c_memorizing.transpose(1, 0, 2), answers)
-        decoder.visualize(save_path=fig_path/"decode_answer", save_name="all_mem", xlabel="time in encoding phase", figsize=(4, 3.3))
+        final_answer_decode_results = decoder.results
+        decoder.visualize(save_path=fig_path/"decode_answer", save_name="all_enc", xlabel="time in encoding phase", figsize=(4, 3.3))
 
         for j in range(1, timestep_each_phase+1):
             chosen_trials = np.where(answer_timesteps == j)[0]
@@ -359,6 +360,40 @@ def run(data_all, model_all, env, paths, exp_name):
                 continue
             decoder.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), answers[chosen_trials])
             decoder.visualize(save_path=fig_path/"decode_answer", save_name="timestep_{}".format(j), xlabel="time in recall phase", figsize=(4, 3.3))
+
+
+        """ decode each possible answer """
+        # compute all possible answers
+        num_features = env.unwrapped.num_features
+        num_questions = num_features * (num_features - 1)
+        all_possible_answers = np.zeros((correct_trials.shape[0], num_questions))
+        cnt_trial = 0
+        for k in correct_trials:
+            mem_seq = data["trial_data"][k]["memory_sequence"]
+            cnt = 0
+            for i in range(num_features):
+                for j in range(num_features):
+                    if i == j:
+                        continue
+                    matched_trial = np.where(mem_seq[:, i] == 1)[0]
+                    answer = np.sum(mem_seq[matched_trial, j]) % 2
+                    all_possible_answers[cnt_trial, cnt] = answer
+                    cnt += 1
+            cnt_trial += 1
+
+        plt.figure(figsize=(1.0*timestep_each_phase, 3.3), dpi=180)
+        for i in range(num_questions):
+            decoder.fit(c_memorizing.transpose(1, 0, 2), all_possible_answers[:, i])
+            plt.plot(np.arange(1, timestep_each_phase+1), decoder.results, color="tab:blue")
+        plt.plot(np.arange(1, final_answer_decode_results.shape[0]+1), final_answer_decode_results, color="tab:orange", label="final answer")
+        plt.legend()
+        plt.xlabel("time in encoding phase")
+        plt.ylabel("answer decoding accuracy")
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout()
+        savefig(fig_path/"decode_answer", "all_ans_all_enc")
 
 
         """ decoding """

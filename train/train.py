@@ -5,14 +5,14 @@ import torch
 
 from .criterions.rl import pick_action
 from models.utils import entropy
-from .utils import count_accuracy, save_model
+from .utils import count_accuracy, save_model, plot_accuracy_and_error
 
 
 def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criterion=None,
     model_save_path=None, device='cpu', use_memory=None,
     num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, stop_test_accu=1.0, 
     reset_memory=True, used_output_index=[0], env_sample_prob=[1.0],
-    grad_clip=True, grad_max_norm=1.0):
+    grad_clip=True, grad_max_norm=1.0, session_num=1):
     """
     Trains the agent using the specified environments and optimization parameters.
 
@@ -261,6 +261,8 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
 
             total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, \
                 total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
+            
+            plot_accuracy_and_error(test_accuracies, test_errors, model_save_path, filename="accuracy_session_{}.png".format(session_num))
         
         if i+1 % save_iter == 0:
             save_model(agent, model_save_path, filename="{}.pt".format(i))

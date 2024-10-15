@@ -1,5 +1,5 @@
 {
-    "run_num": 1,
+    "run_num": 3,
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
@@ -9,6 +9,9 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
+        "wm_enc_noise_prop": 0.999,
+        "init_state_type": "noise",
+        "random_init_noise": 0.1,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -61,6 +64,14 @@
                         "use_V": true,
                         "eta": 0.01,
                         "gamma": 1.0
+                    }
+                ]
+            },
+            "ax_criterion": {
+                "class": "MultiAuxiliaryLoss",
+                "criteria": [
+                    {
+                        "class": "MemoryOneHotRegularization"
                     }
                 ]
             },

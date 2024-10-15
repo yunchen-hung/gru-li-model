@@ -138,7 +138,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                         # accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, sl_criterion,
                         #     device=device, model_save_path=model_save_path, **training_setup["trainer"])
                         accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, criterion, sl_criterion,
-                            ax_criterion, device=device, model_save_path=model_save_path, **training_setup["trainer"])
+                            ax_criterion, device=device, model_save_path=model_save_path, session_num=training_session, **training_setup["trainer"])
                         # save accuracy and error to file
                         np.save(model_save_path/"accuracy_{}.npy".format(training_session), np.array(accuracies))
                         np.save(model_save_path/"error_{}.npy".format(training_session), np.array(errors))
