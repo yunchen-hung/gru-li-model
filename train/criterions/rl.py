@@ -49,14 +49,19 @@ class A2CLoss(nn.Module):
         # returns: batch_size x timesteps
         returns = compute_returns(rewards, loss_masks, gamma=self.gamma, normalize=self.returns_normalize)
         policy_grads, value_losses = [], []
+
         # probs: batch_size x timesteps
         # values, returns: batch_size x timesteps
         # entropys: timesteps x batch_size
         probs = torch.stack(probs).to(device).transpose(1, 0)
         values = torch.stack(values).squeeze(2).to(device).transpose(1, 0)
+        # probs = probs.to(device).transpose(1, 0)
+        # values = values.to(device).transpose(1, 0)
         returns = returns.to(device)
         # entropys = torch.stack(entropys).to(device)
-        entropys = torch.stack([torch.stack(entropys_t) for entropys_t in entropys]).transpose(1, 0)
+        # entropys = torch.stack([torch.stack(entropys_t) for entropys_t in entropys]).transpose(1, 0)
+        entropys = torch.stack(entropys).to(device).transpose(1, 0)
+        # entropys = entropys.to(device).transpose(1, 0)
 
         if loss_masks is None:
             loss_masks = torch.ones_like(returns)

@@ -5,42 +5,40 @@ import torch
 
 from .criterions.rl import pick_action
 from models.utils import entropy
-from .utils import count_accuracy, save_model, plot_accuracy_and_error
+from .utils import save_model, plot_accuracy_and_error
 
 
-def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criterion=None,
-    model_save_path=None, device='cpu', use_memory=None,
-    num_iter=10000, test_iter=200, save_iter=1000, min_iter=0, stop_test_accu=1.0, 
-    reset_memory=True, used_output_index=[0], env_sample_prob=[1.0],
-    grad_clip=True, grad_max_norm=1.0, session_num=1):
+def train(setup,                    # setup dict, including model and training info
+          agent,                    # agent to be trained
+          envs,                     # list of environments, each may use a different output from the agent
+          optimizer,                # optimizer used for updating the agent's parameters
+          scheduler,                # learning rate scheduler
+          criterion,                # loss criterion used for reinforcement learning
+          sl_criterion,             # loss criterion used for supervised learning
+          ax_criterion=None,        # auxiliary loss criterion
+          model_save_path=None,     # path to save the trained model
+          device='cpu',             # device
+          use_memory=None,          # whether to use memory module
+          num_iter=10000,           # number of training iterations
+          test_iter=200,            # number of iterations between testing (outputting results)
+          save_iter=1000,           # number of iterations between saving the model
+          min_iter=0,               # minimum number of iterations before stopping the training
+          stop_test_accu=1.0,       # accuracy threshold to stop the training
+          reset_memory=True,        # whether to reset the memory module before each trial
+          used_output_index=[0],    # list of indices specifying the output used for each environment
+          env_sample_prob=[1.0],    # list of probabilities for sampling each environment
+          grad_clip=True,           # whether to clip the gradients during optimization
+          grad_max_norm=1.0,        # maximum norm value for gradient clipping
+          session_num=1             # session number for saving the accuracy and error plot
+    ):
     """
     Trains the agent using the specified environments and optimization parameters.
 
-    Args:
-        agent (object):             The agent to be trained.
-        envs (list):                List of environments, each may use a different output from the agent.
-        optimizer (object):         The optimizer used for updating the agent's parameters.
-        scheduler (object):         The learning rate scheduler.
-        criterion (object):         The loss criterion used for reinforcement learning.
-        sl_criterion (object):      The loss criterion used for supervised learning.
-        model_save_path (str):      Path to save the trained model.
-        device (str):               Device to run the training on.
-        use_memory (object):        Memory module used by the agent.
-        num_iter (int):             Number of training iterations.
-        test_iter (int):            Number of iterations between testing.
-        save_iter (int):            Number of iterations between saving the model.
-        min_iter (int):             Minimum number of iterations before stopping the training.
-        stop_test_accu (float):     Accuracy threshold to stop the training.
-        reset_memory (bool):        Whether to reset the memory module before each trial, used to set the agent.
-        used_output_index (list):   List of indices specifying the output used for each environment.
-        env_sample_prob (list, optional):   List of probabilities for sampling each environment.
-        grad_clip (bool, optional):         Whether to clip the gradients during optimization.
-        grad_max_norm (float, optional):    Maximum norm value for gradient clipping.
-
     Returns:
         test_accuracies (list): List of accuracies computed during testing.
-        test_errors (list): List of errors computed during
+        test_errors (list): List of errors computed during testing.
     """
+    torch.autograd.set_detect_anomaly(True)
     # each used_output_index corresponds to an environment
     # specifying the output that is used for computing the action for stepping the environment
     assert len(envs) == len(used_output_index) == len(env_sample_prob)
@@ -48,7 +46,12 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
     # set up some parameters and variables
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, \
         total_critic_loss, total_sl_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0
-    test_accuracies, test_errors = [], []
+    
+    num_iter = int(num_iter)
+    test_accuracies = np.zeros(num_iter // test_iter + 5)
+    test_errors = np.zeros(num_iter // test_iter + 5)
+    test_times = 0
+    # test_accuracies, test_errors = [], []
 
     batch_size = envs[0].num_envs
     if use_memory:
@@ -60,12 +63,17 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
 
     current_lr = optimizer.state_dict()['param_groups'][0]['lr']
     
-    num_iter = int(num_iter)
     loss = 0.0
+
+    # compute time for each process
+    env_time, forward_time, loss_time, backward_time, total_time, env_step_time = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
     for i in range(num_iter):
         # record time for the first iteration to estimate total time needed
         if i == 0:
             start_time = time.time()
+
+        t_start = time.time()
 
         # randomly sample an environment from the list of environments
         env_id = np.random.choice(len(envs), p=env_sample_prob)
@@ -79,13 +87,30 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
         agent.reset_memory(flush=reset_memory)
 
         # create variables to store data related to outputs and results
+        output_num = len(agent.output_dims)
+        seq_len = setup["training"]["env"][0]["sequence_len"]
+
+        # outputs = torch.zeros((output_num, seq_len*2, batch_size, agent.output_dims[0]))
+        # actions = torch.zeros((output_num, seq_len*2, batch_size), dtype=int)
+        # probs = torch.zeros((output_num, seq_len*2, batch_size))
+        # actions_max = torch.zeros((output_num, seq_len*2, batch_size), dtype=int)
+        # values = torch.zeros((output_num, seq_len*2, batch_size))
+        # entropys = torch.zeros((output_num, seq_len*2, batch_size))
+        rewards = np.zeros((seq_len*2, batch_size))
+        # mem_similarities = torch.zeros((seq_len*2, batch_size, seq_len))
+        # mem_sim_entropys = torch.zeros((seq_len*2, batch_size))
+        gts = np.zeros((seq_len*2, batch_size))
+        gt_masks = np.zeros((seq_len*2, batch_size), dtype=bool)
+        loss_masks = np.zeros((seq_len*2, batch_size), dtype=bool)
+
         outputs = defaultdict(list)
         actions, probs, actions_max = defaultdict(list), defaultdict(list), defaultdict(list)
         values, entropys = defaultdict(list), defaultdict(list)
         model_infos = defaultdict(list)
-        rewards, mem_similarities, mem_sim_entropys = [], [], []
-        gts, gt_masks = [], []
-        loss_masks = []
+        # rewards = []
+        mem_similarities, mem_sim_entropys = [], []
+        # gts, gt_masks = [], []
+        # loss_masks = []
 
         """ run the agent in the environment """
         correct_actions, wrong_actions, not_know_actions = 0, 0, 0
@@ -96,6 +121,7 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
         # print(env.memory_sequence)
         terminated = np.zeros(batch_size, dtype=bool)
         memory_num = 0
+        timestep = 0
         while not terminated.all():
             # set up the phase of the agent
             if info["phase"][0] == "encoding":
@@ -109,9 +135,13 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
             if "reset_state" in info and info["reset_state"][0]:
                 state = agent.init_state(batch_size, recall=True, prev_state=state)
 
+            t1 = time.time()
+
             # do one step of forward pass for the agent
             # output: batch_size x action_space, value: batch_size x 1
             output, value, state, model_info = agent(obs, state)
+
+            t2 = time.time()
 
             env_updated = False
             for j, o in enumerate(output):
@@ -119,29 +149,46 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
                 action, log_prob_action, action_max = pick_action(action_distribution)
                 if j == used_output_index[env_id]:
                     # print(action)
+                    t7 = time.time()
                     obs_, reward, _, _, info = env.step(list(action))
+                    env_step_time += time.time() - t7
                     done = info["done"]
                     # print(done, terminated)
                     obs = torch.Tensor(obs_).to(device)
-                    rewards.append(reward)
+                    rewards[timestep] = reward
+                    # rewards.append(reward)
                     env_updated = True
 
-                    gts.append(info["gt"])
-                    gt_masks.append(info["gt_mask"])
-                    loss_mask = np.array(info["loss_mask"])
-                    # print(info)
-                    # print(loss_mask)
-                    loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
+                    # gts.append(info["gt"])
+                    # gt_masks.append(info["gt_mask"])
+                    # loss_mask = np.array(info["loss_mask"])
+                    # # print(info)
+                    # # print(loss_mask)
+                    # loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
+                    
+                    gts[timestep] = info["gt"]
+                    gt_masks[timestep] = info["gt_mask"]
+                    loss_masks[timestep] = np.logical_and(info["loss_mask"], np.logical_not(terminated))
+                    
                     correct_actions += np.sum(info["correct"])
                     wrong_actions += np.sum(info["wrong"])
                     not_know_actions += np.sum(info["not_know"])
                     terminated = np.logical_or(terminated, done)
+
                 outputs[j].append(o)
                 probs[j].append(log_prob_action)
                 actions[j].append(action)
                 actions_max[j].append(action_max)
                 values[j].append(value[j])
                 entropys[j].append(entropy(action_distribution, device))
+
+                # outputs[j][timestep] = o
+                # probs[j][timestep] = log_prob_action
+                # actions[j][timestep] = action
+                # actions_max[j][timestep] = action_max
+                # values[j][timestep] = value[j].squeeze(1)
+                # entropys[j][timestep] = entropy(action_distribution, device)
+
             assert env_updated
 
             for key in model_info.keys():
@@ -149,7 +196,16 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
 
             mem_similarities.append(model_info["memory_similarity"])
             mem_sim_entropys.append(entropy(model_info["memory_similarity"], device))
+            # mem_similarities[timestep] = model_info["memory_similarity"]
+            # mem_sim_entropys[timestep] = entropy(model_info["memory_similarity"], device)
             total_reward += np.sum(reward)
+
+            t3 = time.time()
+
+            forward_time += t2 - t1
+            env_time += t3 - t2
+
+            timestep += 1
 
         """ compute the loss and do backpropagation """
         if (i+1) % test_iter == 0:
@@ -163,21 +219,23 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
             values[j] = values[j][memory_num:]
             entropys[j] = entropys[j][memory_num:]
             outputs[j] = torch.stack(outputs[j]).to(device)
+        # print(outputs[0].shape)
 
         for key in model_infos:
             model_infos[key] = torch.stack(model_infos[key]).to(device)
 
+        t4 = time.time()
+
         # compute RL loss
         if criterion is not None:
-            loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, loss_masks[memory_num:],
-                                                                print_info=print_criterion_info, device=device)
+            loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+                                                                       loss_masks[memory_num:], print_info=print_criterion_info, device=device)
             loss += loss_rl
 
             total_loss += loss_rl.item()
             total_actor_loss += loss_actor.item()
             total_critic_loss += loss_critic.item()
-            total_entropy += np.mean(torch.stack([torch.stack(entropys_t) for entropys_t \
-                                                  in entropys[used_output_index[env_id]]]).cpu().detach().numpy())
+            total_entropy += np.mean(torch.stack(entropys[used_output_index[env_id]]).cpu().detach().numpy())
 
         # compute SL loss
         gts = torch.tensor(np.array(gts)).to(device)    # time x batch_size
@@ -196,6 +254,8 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
             if print_criterion_info:
                 print("auxiliary loss:", loss_ax.item())
 
+        t5 = time.time()
+
         # backpropagation
         optimizer.zero_grad()
         loss.backward()
@@ -204,6 +264,11 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
         optimizer.step()
         loss = 0.0
 
+        t6 = time.time()
+
+        loss_time += t5 - t4
+        backward_time += t6 - t5
+
         # compute accuracy
         # correct_actions, wrong_actions, not_know_actions = \
         #     compute_accuracy(torch.stack(actions[used_output_index[env_id]]), gts, gt_masks)
@@ -211,6 +276,8 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
         # actions_total_num += batch_size * memory_num
+
+        total_time += time.time() - t_start
 
         """ print training information and save model """
         if (i+1) % test_iter == 0:
@@ -256,13 +323,21 @@ def train(agent, envs, optimizer, scheduler, criterion, sl_criterion, ax_criteri
                 print("training end")
                 break
 
-            test_accuracies.append(accuracy)
-            test_errors.append(error)
+            # test_accuracies.append(accuracy)
+            # test_errors.append(error)
+            test_accuracies[test_times] = accuracy
+            test_errors[test_times] = error
 
             total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, \
                 total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
             
+            print("total time: {:.2f}s, env time: {:.2f}s, env step time: {:.2f}s, forward time: {:.2f}s, loss time: {:.2f}s, backward time: {:.2f}s".format(
+                total_time, env_time, env_step_time, forward_time, loss_time, backward_time))
+            env_time, forward_time, loss_time, backward_time, total_time, env_step_time = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            
             plot_accuracy_and_error(test_accuracies, test_errors, model_save_path, filename="accuracy_session_{}.png".format(session_num))
+
+            test_times += 1
         
         if i+1 % save_iter == 0:
             save_model(agent, model_save_path, filename="{}.pt".format(i))

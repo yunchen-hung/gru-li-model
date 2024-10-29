@@ -19,7 +19,8 @@ def parse_setup(general_setup, device):
     model_instances = {}
 
     for run_name, setup in setups.items():
-        model = load_model(setup.pop("model"), device)
+        model_setup = setup.pop("model")
+        model = load_model(model_setup, device)
         setup["model_name"] = model.__class__.__name__
 
         if "model_for_record" in setup:
@@ -28,8 +29,11 @@ def parse_setup(general_setup, device):
             model_for_record = None
 
         training_setups = setup.pop("training")
-        envs, optimizers, schedulers, criterions, sl_criterions, ax_criterions = [], [], [], [], [], []
+        envs, optimizers, schedulers, criterions, sl_criterions, ax_criterions, setups = [], [], [], [], [], [], []
+        setup_session = {"model": copy.deepcopy(model_setup), "model_name": model.__class__.__name__}
+        setup_session.update(setup)
         for training_setup in training_setups:
+            setup_session["training"] = copy.deepcopy(training_setup)
             if "env" in training_setup:
                 env, single_env = load_environment(training_setup.pop("env"))
             else:
@@ -56,7 +60,9 @@ def parse_setup(general_setup, device):
             criterions.append(criterion)
             sl_criterions.append(sl_criterion)
             ax_criterions.append(ax_criterion)
-        model_instances[run_name] = model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, ax_criterions, training_setups, setup
+            setups.append(setup_session)
+        model_instances[run_name] = model, model_for_record, envs, single_env, optimizers, schedulers, criterions, \
+            sl_criterions, ax_criterions, training_setups, setups
     
     return model_instances
 
@@ -127,8 +133,12 @@ def load_single_environment(setup, seed=None):
 
 def load_optimizer(setup, model):
     optimizer_class = setup.pop("class")
-    optimizer = import_attr("torch.optim.{}".format(optimizer_class))(model.parameters(), lr=setup["lr"], weight_decay=setup.get("weight_decay", 0))
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=setup.get("lr_decay_factor", 1e-3), patience=setup.get("lr_decay_patience", 30), 
+    optimizer = import_attr("torch.optim.{}".format(optimizer_class))(model.parameters(), 
+                                                                      lr=setup["lr"], 
+                                                                      weight_decay=setup.get("weight_decay", 0))
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                           factor=setup.get("lr_decay_factor", 1e-3), 
+                                                           patience=setup.get("lr_decay_patience", 30), 
         threshold=setup.get("lr_decay_threshold", 1e-3), min_lr=setup.get("min_lr", 1e-8))
     return optimizer, scheduler
 

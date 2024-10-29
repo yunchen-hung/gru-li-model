@@ -88,7 +88,8 @@ def run(data_all, model_all, env, paths, exp_name):
                     break
             if not answered:
                 model_answers.append(actions[i][-1])
-                answer_timesteps[j] += 1
+                # answer_timesteps[j] += 1
+                answer_timesteps.append(timestep_each_phase)
         answer_timesteps = np.array(answer_timesteps)
         prop_timesteps = num_timesteps / context_num
         plt.figure(figsize=(4, 3), dpi=180)
