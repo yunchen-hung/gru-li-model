@@ -9,7 +9,7 @@ from sklearn.linear_model import RidgeClassifier, Ridge
 from utils import savefig
 from analysis.decomposition import PCA
 from analysis.behavior import RecallProbability, RecallProbabilityInTime
-from analysis.decoding import ItemIdentityDecoder, DMAnswerDecoder, Classifier
+from analysis.decoding import ItemIdentityDecoder, DMAnswerDecoder
 
 
 def run(data_all, model_all, env, paths, exp_name):
@@ -111,10 +111,7 @@ def run(data_all, model_all, env, paths, exp_name):
                 correct_num += 1
         accuracy = correct_num / context_num
         print("accuracy: ", accuracy)
-        with open(fig_path/"accuracy.csv", "w") as f:
-            writer = csv.writer(f)
-            writer.writerow([accuracy])
-        
+
 
 
         """ em gate at each timestep """
@@ -414,17 +411,6 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf", colormap_label="item position\nin study order",
                                 xlabel="time in encoding phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
-
-        ridge_classifier = RidgeClassifier()
-        classifier = Classifier(decoder=ridge_classifier)
-        _, identity_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        _, sum_feature_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
-        print("identity_acc: ", identity_acc)
-        print("sum_feature_acc: ", sum_feature_acc)
-        with open(fig_path/"enc_ridge.csv", "w") as f:
-            writer = csv.writer(f)
-            writer.writerow([identity_acc, sum_feature_acc])
-
 
         # ridge_encoding_sum_feature_matched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
         # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_mat", colormap_label="item position\nin study order",

@@ -50,6 +50,7 @@ def train(setup,                    # setup dict, including model and training i
     num_iter = int(num_iter)
     test_accuracies = np.zeros(num_iter // test_iter + 5)
     test_errors = np.zeros(num_iter // test_iter + 5)
+    training_time = np.zeros(num_iter // test_iter + 5)
     test_times = 0
     # test_accuracies, test_errors = [], []
 
@@ -281,9 +282,6 @@ def train(setup,                    # setup dict, including model and training i
 
         """ print training information and save model """
         if (i+1) % test_iter == 0:
-            if (i+1) == test_iter:
-                print("Estimated time needed: {:2f}h".format((time.time()-start_time)/test_iter*num_iter/3600))
-            
             accuracy = actions_correct_num / actions_total_num
             error = actions_wrong_num / actions_total_num
             not_know_rate = 1 - accuracy - error
@@ -305,7 +303,6 @@ def train(setup,                    # setup dict, including model and training i
                 # print(gts_trial[0:memory_num, 0])
                 # print(actions_trial, gts_trial, loss_masks)
                 print("recall phase, action:", actions_trial[memory_num:, 0], "gt:", gts_trial[memory_num:, 0])
-            print()
 
             if i != 0:
                 scheduler.step(-mean_reward)  # TODO: change a criterion here?
@@ -337,6 +334,11 @@ def train(setup,                    # setup dict, including model and training i
             
             plot_accuracy_and_error(test_accuracies, test_errors, model_save_path, filename="accuracy_session_{}.png".format(session_num))
 
+            training_time[test_times] = time.time() - start_time
+            print("Estimated time needed: {:2f}h".format(np.mean(training_time[:test_times+1])/test_iter*(num_iter-test_iter*test_times)/3600))
+            start_time = time.time()
+
+            print()
             test_times += 1
         
         if i+1 % save_iter == 0:

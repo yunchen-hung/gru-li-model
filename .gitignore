@@ -2,6 +2,8 @@ saved_models/
 saved_models
 figures/
 figures
+figures_qa/
+figures_qa
 logs/
 logs
 jupyter-log/
