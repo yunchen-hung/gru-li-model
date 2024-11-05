@@ -1,4 +1,5 @@
 import time
+from datetime import timedelta
 from collections import defaultdict
 import numpy as np
 import torch
@@ -8,28 +9,31 @@ from models.utils import entropy
 from .utils import save_model, plot_accuracy_and_error
 
 
-def train(setup,                    # setup dict, including model and training info
-          agent,                    # agent to be trained
-          envs,                     # list of environments, each may use a different output from the agent
-          optimizer,                # optimizer used for updating the agent's parameters
-          scheduler,                # learning rate scheduler
-          criterion,                # loss criterion used for reinforcement learning
-          sl_criterion,             # loss criterion used for supervised learning
-          ax_criterion=None,        # auxiliary loss criterion
-          model_save_path=None,     # path to save the trained model
-          device='cpu',             # device
-          use_memory=None,          # whether to use memory module
-          num_iter=10000,           # number of training iterations
-          test_iter=200,            # number of iterations between testing (outputting results)
-          save_iter=1000,           # number of iterations between saving the model
-          min_iter=0,               # minimum number of iterations before stopping the training
-          stop_test_accu=1.0,       # accuracy threshold to stop the training
-          reset_memory=True,        # whether to reset the memory module before each trial
-          used_output_index=[0],    # list of indices specifying the output used for each environment
-          env_sample_prob=[1.0],    # list of probabilities for sampling each environment
-          grad_clip=True,           # whether to clip the gradients during optimization
-          grad_max_norm=1.0,        # maximum norm value for gradient clipping
-          session_num=1             # session number for saving the accuracy and error plot
+def train(setup,                            # setup dict, including model and training info
+          agent,                            # agent to be trained
+          envs,                             # list of environments, each may use a different output from the agent
+          optimizer,                        # optimizer used for updating the agent's parameters
+          scheduler,                        # learning rate scheduler
+          criterion,                        # loss criterion used for reinforcement learning
+          sl_criterion,                     # loss criterion used for supervised learning
+          ax_criterion=None,                # auxiliary loss criterion
+          model_save_path=None,             # path to save the trained model
+          device='cpu',                     # device
+          use_memory=None,                  # whether to use memory module
+          num_iter=10000,                   # number of training iterations
+          test_iter=200,                    # number of iterations between testing (outputting results)
+          save_iter=1000,                   # number of iterations between saving the model
+          min_iter=0,                       # minimum number of iterations before stopping the training
+          stop_test_accu=1.0,               # accuracy threshold to stop the training
+          reset_memory=True,                # whether to reset the memory module before each trial
+          used_output_index=[0],            # list of indices specifying the output used for each environment
+          env_sample_prob=[1.0],            # list of probabilities for sampling each environment
+          grad_clip=True,                   # whether to clip the gradients during optimization
+          grad_max_norm=1.0,                # maximum norm value for gradient clipping
+          session_num=1,                    # session number for saving the accuracy and error plot
+          mem_beta_decay_threshold=None,    # performance threshold for decaying softmax beta
+          mem_beta_decay_iter=10000,        # number of iterations between decaying softmax beta, 
+                                                # if mem_beta_decay_threshold is not None, decay based on the performance
     ):
     """
     Trains the agent using the specified environments and optimization parameters.
@@ -65,6 +69,7 @@ def train(setup,                    # setup dict, including model and training i
     current_lr = optimizer.state_dict()['param_groups'][0]['lr']
     
     loss = 0.0
+    decay_mem_beta = False
 
     # compute time for each process
     env_time, forward_time, loss_time, backward_time, total_time, env_step_time = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -84,7 +89,7 @@ def train(setup,                    # setup dict, including model and training i
         # before each trial, for the agent:
         # 1. reset initial state
         # 2. reset memory module
-        state = agent.init_state(batch_size)
+        state = agent.init_state(batch_size, decay_mem_beta=decay_mem_beta)
         agent.reset_memory(flush=reset_memory)
 
         # create variables to store data related to outputs and results
@@ -271,14 +276,16 @@ def train(setup,                    # setup dict, including model and training i
         backward_time += t6 - t5
 
         # compute accuracy
-        # correct_actions, wrong_actions, not_know_actions = \
-        #     compute_accuracy(torch.stack(actions[used_output_index[env_id]]), gts, gt_masks)
         actions_total_num += correct_actions + wrong_actions + not_know_actions
         actions_correct_num += correct_actions
         actions_wrong_num += wrong_actions
-        # actions_total_num += batch_size * memory_num
 
         total_time += time.time() - t_start
+
+        # decide whether to decay mem_beta based on decay iter
+        decay_mem_beta = False
+        if mem_beta_decay_threshold is None and (i+1) % mem_beta_decay_iter == 0:
+            decay_mem_beta = True
 
         """ print training information and save model """
         if (i+1) % test_iter == 0:
@@ -296,14 +303,12 @@ def train(setup,                    # setup dict, including model and training i
                                                               mean_entropy))
             actions_trial = torch.stack(actions[used_output_index[env_id]]).cpu().detach().numpy()
             gts_trial = gts.cpu().detach().numpy()
-            # print(actions_trial.shape, gts_trial.shape)
             if sl_criterion is not None:
                 print("encoding phase, action:", actions_trial[0:memory_num, 0], "gt:", gts_trial[0:memory_num, 0])
             if criterion is not None:
-                # print(gts_trial[0:memory_num, 0])
-                # print(actions_trial, gts_trial, loss_masks)
                 print("recall phase, action:", actions_trial[memory_num:, 0], "gt:", gts_trial[memory_num:, 0])
 
+            # update learning rate
             if i != 0:
                 scheduler.step(-mean_reward)  # TODO: change a criterion here?
                 lr = optimizer.state_dict()['param_groups'][0]['lr']
@@ -311,31 +316,43 @@ def train(setup,                    # setup dict, including model and training i
                     print("lr changed from {} to {}".format(current_lr, lr))
                     current_lr = lr
 
+            # decide whether to decay mem_beta based on decay threshold of performance
+            if mem_beta_decay_threshold is not None and accuracy >= mem_beta_decay_threshold:
+                decay_mem_beta = True
+
+            # save model
             # if error - accuracy <= min_test_loss:
             #     min_test_loss = error - accuracy
             #     save_model(agent, model_save_path, filename="model.pt")
             save_model(agent, model_save_path, filename="model.pt")
             
+            # stop training if accuracy is high enough
             if accuracy >= stop_test_accu and i > min_iter:
                 print("training end")
                 break
 
-            # test_accuracies.append(accuracy)
-            # test_errors.append(error)
+            # plot accuracy and error
             test_accuracies[test_times] = accuracy
             test_errors[test_times] = error
+            plot_accuracy_and_error(test_accuracies, test_errors, model_save_path, filename="accuracy_session_{}.png".format(session_num))
 
+            # reset training variables
             total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, \
                 total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
             
+            # print training time and estimated time needed
             print("total time: {:.2f}s, env time: {:.2f}s, env step time: {:.2f}s, forward time: {:.2f}s, loss time: {:.2f}s, backward time: {:.2f}s".format(
                 total_time, env_time, env_step_time, forward_time, loss_time, backward_time))
             env_time, forward_time, loss_time, backward_time, total_time, env_step_time = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
             
-            plot_accuracy_and_error(test_accuracies, test_errors, model_save_path, filename="accuracy_session_{}.png".format(session_num))
+            # training_time[test_times] = time.time() - start_time
+            # print("Estimated time needed: {:2f}h".format(np.mean(training_time[:test_times+1])/test_iter*(num_iter-test_iter*test_times)/3600))
+            # start_time = time.time()
 
             training_time[test_times] = time.time() - start_time
-            print("Estimated time needed: {:2f}h".format(np.mean(training_time[:test_times+1])/test_iter*(num_iter-test_iter*test_times)/3600))
+            estimated_time_seconds = np.mean(training_time[:test_times+1]) / test_iter * (num_iter - test_iter * test_times)
+            estimated_time = timedelta(seconds=estimated_time_seconds)
+            print("Estimated time needed: {}".format(str(estimated_time)[:-3]))  # Remove microseconds
             start_time = time.time()
 
             print()

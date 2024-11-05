@@ -10,7 +10,7 @@ SIMILARITY_MEASURES = ['cosine', 'l1', 'l2']
 
 
 class BasicSimilarity(BasicModule):
-    def __init__(self, similarity_measure='cosine', process_similarity='normalize', softmax_temperature=1.0, device: str = 'cpu'):
+    def __init__(self, similarity_measure='cosine', process_similarity='softmax', softmax_temperature=1.0, device: str = 'cpu'):
         super().__init__()
         self.measure = similarity_measure
         self.process_similarity = process_similarity

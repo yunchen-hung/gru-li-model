@@ -17,6 +17,6 @@ class MemoryOneHotRegularization(nn.Module):
         batch_size = memory_similarity.shape[1]
         memory_similarity = memory_similarity.reshape(-1, memory_similarity.shape[-1])
         sim_entropy = entropy(memory_similarity, device)
-        sim_entropy = torch.stack(sim_entropy)
+        # sim_entropy = torch.stack(sim_entropy)
         loss = torch.sum(sim_entropy) / batch_size * self.weight
         return loss
