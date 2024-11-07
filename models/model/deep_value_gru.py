@@ -188,6 +188,8 @@ class DeepValueMemoryGRU(BasicModule):
             else:
                 raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
             self.write(mem_gate, 'mem_gate_recall')
+            self.write(memory_similarity, 'memory_similarity')
+            self.write(retrieved_memory, 'retrieved_memory')
         else:
             retrieved_memory = torch.zeros(batch_size, self.hidden_dim)
             mem_gate = 0.0

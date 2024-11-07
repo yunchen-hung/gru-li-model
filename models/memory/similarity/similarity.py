@@ -15,6 +15,7 @@ class BasicSimilarity(BasicModule):
         self.measure = similarity_measure
         self.process_similarity = process_similarity
         self.softmax_temperature = softmax_temperature
+        self.min_beta = 1e-8
         self.device = device
 
     def forward(self, query, values, input_weight=1.0, beta=None):
@@ -30,14 +31,15 @@ class BasicSimilarity(BasicModule):
         else:
             raise Exception(f'Unrecognizable similarity measure: {self.measure}')
         self.write(origin_similarities, 'raw_similarity')
+        
+        beta = self.softmax_temperature if beta is None else beta
+        beta = max(beta, self.min_beta)
         if self.process_similarity == 'normalize':
             # normalize
             similarities = origin_similarities / torch.sum(origin_similarities, dim=-1, keepdim=True)
         elif self.process_similarity == 'softmax':
-            beta = self.softmax_temperature if beta is None else beta
             similarities = softmax(origin_similarities, beta=beta)
         elif self.process_similarity == 'normalize_softmax':
-            beta = self.softmax_temperature if beta is None else beta
             similarities = (origin_similarities - torch.mean(origin_similarities)) / torch.std(origin_similarities)
             similarities = softmax(similarities, beta=beta)
         elif self.process_similarity == 'none':
