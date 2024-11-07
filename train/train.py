@@ -244,7 +244,7 @@ def train(setup,                            # setup dict, including model and tr
             total_entropy += np.mean(torch.stack(entropys[used_output_index[env_id]]).cpu().detach().numpy())
 
         # compute SL loss
-        gts = torch.tensor(np.array(gts)).to(device)    # time x batch_size
+        gts = torch.tensor(np.array(gts), dtype=torch.long).to(device)    # time x batch_size
         gt_masks = torch.tensor(np.array(gt_masks)).to(device)
         # print(gts, gt_masks)
         if sl_criterion is not None:

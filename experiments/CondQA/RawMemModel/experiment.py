@@ -146,8 +146,8 @@ def run(data_all, model_all, env, paths, exp_name):
             # states in encoding and recall phase
             # c_memorizing.append(readouts[i]['state'][:timestep_each_phase].squeeze())
             c_rec = np.zeros((timestep_each_phase, readouts[i]['state'].shape[-1]))
-            c_rec_len = readouts[i]['state'].shape[0] - timestep_each_phase - 1
-            c_rec[:c_rec_len] = readouts[i]['state'][-c_rec_len:].squeeze()
+            c_rec_len = readouts[i]['state'].shape[0] - 1
+            c_rec[:c_rec_len] = readouts[i]['state'][1:].squeeze()
             c_recalling.append(c_rec)
 
             # ground truthmemory sequence, items in integer
@@ -309,7 +309,41 @@ def run(data_all, model_all, env, paths, exp_name):
             plot_em_gate_mean(chosen_trials, "mean_timestep_{}".format(j))
 
 
-        
+        """ plot example memory similarity """
+        cnt = 1
+        for i in range(correct_trials_num):
+            if answer_timesteps[i] == 4:
+                ms = memory_similarities[i]
+                plt.figure(figsize=(4, 3), dpi=180)
+                for j in range(ms.shape[1]):
+                    plt.plot(ms[:, j], label="memory {}".format(j))
+                plt.legend()
+                plt.xlabel("time of recall phase")
+                plt.ylabel("memory similarity")
+                plt.tight_layout()
+                savefig(fig_path/"memory_similarity", "mem_sim_example{}".format(cnt))
+                if cnt == 5:
+                    break
+                cnt += 1
+
+
+        """ count average number of differnt memories retrieved each trial and average entropy of memory similarity """
+        num_retrieved_memories = []
+        entropy_mem_similarity = []
+        for i in range(correct_trials_num):
+           mem_retrieved = np.zeros(timestep_each_phase)
+           for j in range(timestep_each_phase):
+               if int(retrieved_memory_indexes[i, j]) != -1:
+                   mem_retrieved[int(retrieved_memory_indexes[i, j])] = 1
+           num_retrieved_memories.append(np.sum(mem_retrieved))
+           entropy_mem_similarity.append(-np.sum(memory_similarities[i]*np.log(memory_similarities[i]+1e-10))/timestep_each_phase)
+        print("average number of retrieved memories: ", np.mean(num_retrieved_memories))
+        print("average entropy of memory similarity: ", np.mean(entropy_mem_similarity))
+        with open(fig_path/"num_retrieved_mem_and_mem_sim_entropy.csv", "w") as f:
+            writer = csv.writer(f)
+            writer.writerow([num_retrieved_memories, entropy_mem_similarity])
+
+
         """ plot actions """
         def plot_actions(trials, timesteps, fig_name):
             num_actions = np.zeros((3, timestep_each_phase))
@@ -452,17 +486,38 @@ def run(data_all, model_all, env, paths, exp_name):
         #     writer.writerow([identity_acc, sum_feature_acc])
 
 
-        # decode item identity from recall phase, by time step, all trials
-        ridge_recall_item, _ = ridge.fit(c_recalling.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item", colormap_label="item position\nin study order",
-                                xlabel="time in recall phase", figsize=(4, 3.3))
-        np.save(fig_path/"decode_data"/"ridge_decoding_item.npy", ridge_recall_item)
+        
+        valid_c_recalling = []
+        for i in range(c_recalling.shape[0]):
+            valid_c_recalling.append(c_recalling[i][actions_mask[i]])
+            # print(c_recalling[i][actions_mask[i]].shape)
+        valid_c_recalling = np.concatenate(valid_c_recalling, axis=0)
+        print(valid_c_recalling.shape)
 
-        # decode related feature from recall phase, by time step, all trials
-        ridge_recall_sum_feature, _ = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
-        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
-                                xlabel="time in recall phase", figsize=(4, 3.3))
-        np.save(fig_path/"decode_data"/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
+        retrieved_memories_int = []
+        retrieved_sum_features = []
+        for i in range(retrieved_memory_indexes.shape[0]):
+            valid_indexes = retrieved_memory_indexes[i][actions_mask[i]].astype(int)
+            valid_memory_sequence = memory_sequences[i][valid_indexes]
+            retrieved_memories_int.append(valid_memory_sequence)
+            retrieved_sum_features.append(sum_features[i][valid_indexes])
+        retrieved_memories_int = np.concatenate(retrieved_memories_int, axis=0)
+        retrieved_sum_features = np.concatenate(retrieved_sum_features, axis=0)
+        print(retrieved_memories_int.shape)
+        
+        # # decode item identity from recall phase, by time step, all trials
+        # # ridge_recall_item, _ = ridge.fit(c_recalling.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
+        # ridge_recall_item, _ = ridge.fit(valid_c_recalling.transpose(1, 0, 2), retrieved_memories_int.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item", colormap_label="item position\nin study order",
+        #                         xlabel="time in recall phase", figsize=(4, 3.3))
+        # np.save(fig_path/"decode_data"/"ridge_decoding_item.npy", ridge_recall_item)
+
+        # # decode related feature from recall phase, by time step, all trials
+        # # ridge_recall_sum_feature, _ = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        # ridge_recall_sum_feature, _ = ridge.fit(valid_c_recalling.transpose(1, 0, 2), retrieved_sum_features.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
+        #                         xlabel="time in recall phase", figsize=(4, 3.3))
+        # np.save(fig_path/"decode_data"/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
 
         # decode item identity and related feature from recall phase, by time step, separate for trials with different answer timesteps
         for j in range(1, timestep_each_phase+1):
@@ -470,28 +525,36 @@ def run(data_all, model_all, env, paths, exp_name):
             if len(chosen_trials) < 10:
                 continue
 
-            ridge_recall_item, _ = ridge.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), memory_sequences[chosen_trials].transpose(1, 0))
+            memory_seq = []
+            for i in range(chosen_trials.shape[0]):
+                ms = memory_sequences[i, retrieved_memory_indexes[i, :j].astype(int)]
+                memory_seq.append(ms)
+            memory_seq = np.stack(memory_seq, axis=0)
+
+            # print(c_recalling[chosen_trials, :j].shape, memory_seq.shape)
+
+            ridge_recall_item, _ = ridge.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), memory_seq.transpose(1, 0))
             ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item_timestep_{}".format(j), colormap_label="item position\nin study order",
                                     xlabel="time in recall phase", figsize=(4, 3.3))
             np.save(fig_path/"decode_data"/"ridge_decoding_item_timestep_{}.npy".format(j), ridge_recall_item)
 
-            ridge_recall_sum_feature, _ = ridge.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), sum_features[chosen_trials].transpose(1, 0))
+            ridge_recall_sum_feature, _ = ridge.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), memory_seq.transpose(1, 0))
             ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_timestep_{}".format(j), colormap_label="item position\nin study order",
                                     xlabel="time in recall phase", figsize=(4, 3.3))
             np.save(fig_path/"decode_data"/"ridge_decoding_sum_feature_timestep_{}.npy".format(j), ridge_recall_sum_feature)
 
 
-        # decode item identity from retrieved memories, by time step, all trials
-        ridge_recall_item, _ = ridge.fit(retrieved_memories.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_retrievedmem_item", colormap_label="item position\nin study order",
-                                xlabel="time in recall phase", figsize=(4, 3.3))
-        np.save(fig_path/"decode_data"/"ridge_retrievedmem_item_.npy", ridge_recall_item)
+        # # decode item identity from retrieved memories, by time step, all trials
+        # ridge_recall_item, _ = ridge.fit(retrieved_memories.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_retrievedmem_item", colormap_label="item position\nin study order",
+        #                         xlabel="time in recall phase", figsize=(4, 3.3))
+        # np.save(fig_path/"decode_data"/"ridge_retrievedmem_item_.npy", ridge_recall_item)
 
-        # decode related feature from retrieved memories, by time step, all trials
-        ridge_recall_sum_feature, _ = ridge.fit(retrieved_memories.transpose(1, 0, 2), sum_features.transpose(1, 0))
-        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_retrievedmem_sumf", colormap_label="item position\nin study order",
-                                xlabel="time in recall phase", figsize=(4, 3.3))
-        np.save(fig_path/"decode_data"/"ridge_retrievedmem_sum_feature.npy", ridge_recall_sum_feature)
+        # # decode related feature from retrieved memories, by time step, all trials
+        # ridge_recall_sum_feature, _ = ridge.fit(retrieved_memories.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_retrievedmem_sumf", colormap_label="item position\nin study order",
+        #                         xlabel="time in recall phase", figsize=(4, 3.3))
+        # np.save(fig_path/"decode_data"/"ridge_retrievedmem_sum_feature.npy", ridge_recall_sum_feature)
 
         # decode item identity and related feature from retrieved memories, by time step, separate for trials with different answer timesteps
         for j in range(1, timestep_each_phase+1):
@@ -499,7 +562,15 @@ def run(data_all, model_all, env, paths, exp_name):
             if len(chosen_trials) < 10:
                 continue
 
-            ridge_retrievedmem_item, _ = ridge.fit(retrieved_memories[chosen_trials, :j].transpose(1, 0, 2), memory_sequences[chosen_trials].transpose(1, 0))
+            memory_seq = []
+            for i in range(chosen_trials.shape[0]):
+                ms = memory_sequences[i, retrieved_memory_indexes[i, :j].astype(int)]
+                memory_seq.append(ms)
+            memory_seq = np.stack(memory_seq, axis=0)
+
+            # print(retrieved_memories[chosen_trials, :j].shape, memory_seq.shape)
+
+            ridge_retrievedmem_item, _ = ridge.fit(retrieved_memories[chosen_trials, :j].transpose(1, 0, 2), memory_seq.transpose(1, 0))
             ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_retrievedmem_item_timestep_{}".format(j), colormap_label="item position\nin study order",
                                     xlabel="time in recall phase", figsize=(4, 3.3))
             np.save(fig_path/"decode_data"/"ridge_retrievedmem_item_timestep_{}.npy".format(j), ridge_retrievedmem_item)
@@ -508,7 +579,6 @@ def run(data_all, model_all, env, paths, exp_name):
             ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_retrievedmem_sumf_timestep_{}".format(j), colormap_label="item position\nin study order",
                                     xlabel="time in recall phase", figsize=(4, 3.3))
             np.save(fig_path/"decode_data"/"ridge_retrievedmem_sum_feature_timestep_{}.npy".format(j), ridge_retrievedmem_sum_feature)
-
 
 
         

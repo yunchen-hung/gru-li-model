@@ -67,7 +67,8 @@ def write_sbatch_script(experiment, setup_name, exp_dir, device, train, cpus_per
         # f"#SBATCH --cpus-per-task=1\n" +
         f"#SBATCH --time={time_limit}:00:00\n" +
         f'#SBATCH --cpus-per-task={cpus_per_task}\n' +
-        f"#SBATCH --mem-per-cpu=16G\n" +
+        # f"#SBATCH --mem-per-cpu=16G\n" +
+        f"#SBATCH --mem=32G\n" +
         f"#SBATCH -e {save_dir}/stderr/slurm-%A_%a.err\n" +
         f"#SBATCH -o {save_dir}/stdout/slurm-%A_%a.out\n" +
         f"#SBATCH --array=0-{len(run_nums)-1}\n" + 

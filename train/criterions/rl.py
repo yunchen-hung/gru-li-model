@@ -74,6 +74,7 @@ class A2CLoss(nn.Module):
             print("loss info:", probs[0], values[0], returns[0])
         if self.use_V:
             # A2C loss
+            # print(returns.shape, values.shape)
             A = returns - values.data
             if self.value_loss_func == 'mse':
                 value_losses = 0.5 * mse_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
