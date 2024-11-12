@@ -5,3 +5,4 @@ from .gru import GRU
 from .deep_value_gru import DeepValueMemoryGRU
 from .deep_value_gru_multitask import MultiTaskDeepValueMemoryGRU
 from .value_gru_old import ValueMemoryGRUOld
+from .raw_deep_value_gru import RawDeepValueMemoryGRU

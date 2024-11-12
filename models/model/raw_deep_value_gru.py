@@ -9,30 +9,30 @@ from ..module.encoders import MLPEncoder
 from ..module.decoders import ActorCriticMLPDecoder
 
 
-class DeepValueMemoryGRU(BasicModule):
+class RawDeepValueMemoryGRU(BasicModule):
     def __init__(self, 
-                 memory_module: ValueMemory, 
-                 hidden_dim: int, 
-                 input_dim: int, 
-                 output_dims: list, 
-                 em_gate_type='constant',
-                 init_state_type="zeros", 
-                 evolve_state_between_phases=False, 
-                 evolve_steps=1, 
-                 softmax_beta=1.0, 
-                 wm_noise_prop=0, 
-                 em_noise_prop=0, 
-                 wm_enc_noise_prop=0,
-                 start_recall_with_ith_item_init=0, 
-                 reset_param=True, 
-                 step_for_each_timestep=1, 
-                 flush_noise=0.1, 
-                 random_init_noise=0.1, 
-                 layer_norm=False, 
-                 use_memory=True, 
-                 mem_beta_decay=False,             # whether to decay softmax beta for computing memory similarity loss
-                 mem_beta_decay_rate=0.5,          # decay rate for softmax beta
-                 device: str = 'cpu'):
+                memory_module: ValueMemory, 
+                hidden_dim: int, 
+                input_dim: int, 
+                output_dims: list, 
+                em_gate_type: str = 'constant',
+                init_state_type: str = "zeros", 
+                evolve_state_between_phases: bool = False, 
+                evolve_steps: int = 1, 
+                softmax_beta: float = 1.0, 
+                wm_noise_prop: float = 0, 
+                em_noise_prop: float = 0, 
+                wm_enc_noise_prop: float = 0,
+                start_recall_with_ith_item_init: int = 0, 
+                reset_param: bool = True, 
+                step_for_each_timestep: int = 1, 
+                flush_noise: float = 0.1, 
+                random_init_noise: float = 0.1, 
+                layer_norm: bool = False, 
+                use_memory: bool = True, 
+                mem_beta_decay=False,             # whether to decay softmax beta for computing memory similarity loss
+                mem_beta_decay_rate=0.5,          # decay rate for softmax beta
+                device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -58,7 +58,7 @@ class DeepValueMemoryGRU(BasicModule):
             self.mem_beta = None
         self.mem_beta_decay = mem_beta_decay
         self.mem_beta_decay_rate = mem_beta_decay_rate
-        
+
         self.flush_noise = flush_noise
         self.random_init_noise = random_init_noise
         self.layer_norm = layer_norm
@@ -156,7 +156,7 @@ class DeepValueMemoryGRU(BasicModule):
                 state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
-        
+            
         if self.mem_beta_decay and decay_mem_beta:
             self.mem_beta = self.mem_beta * self.mem_beta_decay_rate
             print("mem_beta decayed to {}".format(self.mem_beta))
@@ -175,54 +175,68 @@ class DeepValueMemoryGRU(BasicModule):
                 self.last_encoding = False
                 self.write(state, 'state')
 
-        # retrieve memory
-        if self.use_memory and self.retrieving:
-            # mem_beta = self.mem_beta if mem_beta is None else mem_beta
-            retrieved_memory, memory_similarity = self.memory_module.retrieve(state, beta=self.mem_beta)
-            if self.em_gate_type == "constant":
-                mem_gate = self.em_gate
-            elif self.em_gate_type == "scalar_sigmoid" or self.em_gate_type == "vector":
-                mem_gate = self.em_gate(state).sigmoid()
-            elif self.em_gate_type == "scalar":
-                mem_gate = self.em_gate(state)
-            else:
-                raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
-            self.write(mem_gate, 'mem_gate_recall')
-            self.write(memory_similarity, 'memory_similarity')
-            self.write(retrieved_memory, 'retrieved_memory')
-        else:
-            retrieved_memory = torch.zeros(batch_size, self.hidden_dim)
-            mem_gate = 0.0
+        if self.encoding:
+            if self.use_memory:
+                # Pad input with zeros to match hidden dimension
+                padded_inp = torch.zeros(batch_size, self.hidden_dim, device=inp.device)
+                padded_inp[:, :inp.shape[1]] = inp
+                
+                # Directly encode padded input into memory
+                self.memory_module.encode(padded_inp)
+                self.last_encoding = True
+                self.current_timestep += 1
+                if self.current_timestep == self.start_recall_with_ith_item_init:
+                    self.ith_item_state = padded_inp.detach().clone()
+
+            beta = self.softmax_beta if beta is None else beta
+            decisions, values = [], []
+            for i in range(len(self.decoders)):
+                decision = torch.randn(batch_size, self.output_dims[i], device=self.device)
+                decision = softmax(decision, beta)
+                value = torch.zeros(batch_size, 1, device=self.device)
+                decisions.append(decision)
+                values.append(value)
+            
             memory_similarity = torch.zeros(batch_size, self.memory_module.capacity)
+            info = {
+                "memory_similarity": memory_similarity
+            }
+        elif self.retrieving:
+            if self.use_memory:
+                # retrieve memory
+                # mem_beta = self.mem_beta if mem_beta is None else mem_beta
+                retrieved_memory, memory_similarity = self.memory_module.retrieve(state, beta=self.mem_beta)
+                self.write(retrieved_memory, 'retrieved_memory')
+                if self.em_gate_type == "constant":
+                    mem_gate = self.em_gate
+                elif self.em_gate_type == "scalar_sigmoid" or self.em_gate_type == "vector":
+                    mem_gate = self.em_gate(state).sigmoid()
+                elif self.em_gate_type == "scalar":
+                    mem_gate = self.em_gate(state)
+                else:
+                    raise ValueError(f"Invalid em_gate_type: {self.em_gate_type}")
+                self.write(mem_gate, 'mem_gate_recall')
+            else:
+                retrieved_memory = torch.zeros(batch_size, self.hidden_dim)
+                mem_gate = 0.0
+                memory_similarity = torch.zeros(batch_size, self.memory_module.capacity)
 
-        if self.use_memory and self.encoding:
-            state = (1 - self.wm_enc_noise_prop) * state + self.wm_enc_noise_prop * torch.randn_like(state) * torch.std(state)
+            for i in range(self.step_for_each_timestep):
+                state = self.gru(inp, state, mem_gate, retrieved_memory)
+            self.write(state, 'state')
 
-        # compute forward pass
-        for i in range(self.step_for_each_timestep):
-            state = self.gru(inp, state, mem_gate, retrieved_memory)
-        
-        # store memory
-        if self.use_memory and self.encoding:
-            self.memory_module.encode(state)
-            self.last_encoding = True
-            self.current_timestep += 1
-            if self.current_timestep == self.start_recall_with_ith_item_init:
-                self.ith_item_state = state.detach().clone()
-
-        self.write(state, 'state')
-
-        beta = self.softmax_beta if beta is None else beta
-        decisions, values = [], []
-        for i in range(len(self.decoders)):
-            decision, value = self.decoders[i](state)
-            decision = softmax(decision, beta)
-            decisions.append(decision)
-            values.append(value)
-            self.write(decision, 'decision{}'.format(i+1))
-            self.write(value, 'value{}'.format(i+1))
+            beta = self.softmax_beta if beta is None else beta
+            decisions, values = [], []
+            for i in range(len(self.decoders)):
+                decision, value = self.decoders[i](state)
+                decision = softmax(decision, beta)
+                decisions.append(decision)
+                values.append(value)
+                self.write(decision, 'decision{}'.format(i+1))
+                self.write(value, 'value{}'.format(i+1))
 
         self.write(self.use_memory, 'use_memory')
+
         info = {
             "memory_similarity": memory_similarity
         }

@@ -28,7 +28,7 @@
     "training": [{
         "env": [{
             "vector_env": {
-                "mode": "sync",
+                "mode": "async",
                 "batch_size": 64
             },
             "class": "ConditionalQuestionAnswer",
@@ -42,15 +42,14 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": true,
-            "no_early_stop": false
+            "include_question_during_encode": false
         }],
         "trainer": {
             "training_function": "train",
-            "num_iter": 1e6,
+            "num_iter": 5e5,
             "test_iter": 1000,
             "save_iter": 10000,
-            "stop_test_accu": 0.999,
+            "stop_test_accu": 0.99,
             "use_memory": true,
             "used_output_index": [0],
             "criterion": {
@@ -60,7 +59,7 @@
                         "class": "A2CLoss",
                         "use_V": true,
                         "eta": 0.01,
-                        "gamma": 1.0
+                        "gamma": 0.99
                     }
                 ]
             },
@@ -69,7 +68,7 @@
                 "lr": 1e-3,
                 "weight_decay": 1e-5,
                 "lr_decay_factor": 0.1,
-                "lr_decay_patience": 100,
+                "lr_decay_patience": 20,
                 "lr_decay_threshold": 1e-4,
                 "min_lr": 1e-7
             }

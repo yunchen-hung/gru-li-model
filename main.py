@@ -98,24 +98,24 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             print("run_name: {}".format(run_name_with_num))
 
             # unpack model_instance
-            model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, ax_criterions, training_setups, setup = model_instance
+            model, model_for_record, envs, single_env, optimizers, schedulers, criterions, sl_criterions, ax_criterions, training_setups, setups = model_instance
 
             # set up save model path
-            model_save_path = exp_path/setup["model_name"]/run_name_with_num
+            model_save_path = exp_path/setups[0]["model_name"]/run_name_with_num
             model_save_path.mkdir(parents=True, exist_ok=True)
 
             # load trained model when not specified to train again
             # if load_model_path in setup is specified, may load from a different model (different experiment setup)
-            if setup.get("load_model_name", None) is not None:
-                load_run_name = setup["load_model_name"]
+            if setups[0].get("load_model_name", None) is not None:
+                load_run_name = setups[0]["load_model_name"]
                 load_run_name_with_path = load_run_name + "-{}".format(i)
             else:
                 load_run_name_with_path = run_name_with_num
             # set up load model path
                 
-            model_load_path = exp_path/setup["model_name"]/load_run_name_with_path
-            if (not train or setup.get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
-                if setup.get("load_saved_model", False):
+            model_load_path = exp_path/setups[0]["model_name"]/load_run_name_with_path
+            if (not train or setups[0].get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
+                if setups[0].get("load_saved_model", False):
                     print("load saved model from {}".format(load_run_name_with_path))
                 model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu')))
             # print(exp_path, setup["model_name"], load_run_name_with_path)
@@ -125,8 +125,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             # train the model with each training setup
             if train or not os.path.exists(model_load_path/"model.pt"):
                 training_session = 1
-                for env, optimizer, scheduler, criterion, sl_criterion, ax_criterion, training_setup in \
-                        zip(envs, optimizers, schedulers, criterions, sl_criterions, ax_criterions, training_setups):
+                for env, optimizer, scheduler, criterion, sl_criterion, ax_criterion, training_setup, setup in \
+                        zip(envs, optimizers, schedulers, criterions, sl_criterions, ax_criterions, training_setups, setups):
                     if env and optimizer and scheduler and (criterion or sl_criterion):
                         print("\ntraining session {}".format(training_session))
                         training_func = training_setup["trainer"].pop("training_function", "train")
@@ -137,8 +137,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
 
                         # accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, setup, criterion, sl_criterion,
                         #     device=device, model_save_path=model_save_path, **training_setup["trainer"])
-                        accuracies, errors = import_attr("train.{}".format(training_func))(model, env, optimizer, scheduler, criterion, sl_criterion,
-                            ax_criterion, device=device, model_save_path=model_save_path, **training_setup["trainer"])
+                        accuracies, errors = import_attr("train.{}".format(training_func))(setup, model, env, optimizer, scheduler, criterion, sl_criterion,
+                            ax_criterion, device=device, model_save_path=model_save_path, session_num=training_session, **training_setup["trainer"])
                         # save accuracy and error to file
                         np.save(model_save_path/"accuracy_{}.npy".format(training_session), np.array(accuracies))
                         np.save(model_save_path/"error_{}.npy".format(training_session), np.array(errors))
@@ -153,8 +153,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 print("reset memory during recording")
             else:
                 print("not reset memory during recording")
-            record_env = setup.get("record_env", [0])
-            used_output = setup.get("used_output_index", [0])
+            record_env = setups[-1].get("record_env", [0])
+            used_output = setups[-1].get("used_output_index", [0])
             print("used_output:", used_output)
             assert len(record_env) == len(used_output)
             if env:
@@ -166,7 +166,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 for i in record_env:
                     data = record(model, env[i], used_output=used_output[i], 
                                         reset_memory=training_setup.get("reset_memory", True), 
-                                        device=device, context_num=setup.get("context_num", 20))
+                                        device=device, context_num=setups[-1].get("context_num", 20))
                     data_all_env.append(data)
 
                 model_all[run_name_with_num] = model

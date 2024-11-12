@@ -70,25 +70,44 @@ def run(data_all, model_all, env, paths, exp_name):
         # print()
 
 
-
-        """ compute accuracy """
-        model_answers_all = []
+        """ distribution of number of timesteps taken in recall phase """
+        num_timesteps = np.zeros(timestep_each_phase)
+        model_answers = []
+        answer_timesteps = []       # the number of timesteps taken to answer for each trial
+        actions_mask = np.ones((context_num, timestep_each_phase), dtype=bool)
         for i in range(context_num):
             answered = False
             for j in range(timestep_each_phase):
                 if actions[i][timestep_each_phase+j] != 2:
                     answered = True
-                    model_answers_all.append(actions[i][timestep_each_phase+j])
+                    num_timesteps[j] += 1
+                    answer_timesteps.append(j+1)
+                    model_answers.append(actions[i][timestep_each_phase+j])
+                    if j != timestep_each_phase-1:
+                        actions_mask[i, j+1:] = False
                     break
             if not answered:
-                model_answers_all.append(actions[i][-1])
-        model_answers_all = np.array(model_answers_all)
+                model_answers.append(actions[i][-1])
+                # answer_timesteps[j] += 1
+                answer_timesteps.append(timestep_each_phase)
+        answer_timesteps = np.array(answer_timesteps)
+        prop_timesteps = num_timesteps / context_num
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), prop_timesteps)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("time in recall phase")
+        plt.ylabel("proportion of trials\nanswered")
+        plt.tight_layout()
+        savefig(fig_path, "answer_timesteps")
 
-        print("model_answers_all: ", model_answers_all.shape)
 
+
+        """ compute accuracy """
         correct_num = 0
         for i in range(context_num):
-            if model_answers_all[i] == data["trial_data"][i]["correct_answer"]:
+            if model_answers[i] == data["trial_data"][i]["correct_answer"]:
                 correct_num += 1
         accuracy = correct_num / context_num
         print("accuracy: ", accuracy)
@@ -98,32 +117,39 @@ def run(data_all, model_all, env, paths, exp_name):
         
 
 
+        """ em gate at each timestep """
+        em_gates = []
+        if "mem_gate_recall" in readouts[0]:
+            for i in range(context_num):
+                em_gate = np.zeros((timestep_each_phase))
+                em_gate_len = readouts[i]['mem_gate_recall'].shape[0]
+                em_gate[:em_gate_len] = readouts[i]['mem_gate_recall'].squeeze()
+                em_gates.append(em_gate)
+            em_gates = np.stack(em_gates, axis=0).squeeze()
+
+
+        retrieved_memories = np.zeros((context_num, timestep_each_phase, timestep_each_phase))
+        for i in range(context_num):
+            retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
+            retrieved_memories[i, :retrieved_memory.shape[0], :] = retrieved_memory
+        # print("retrieved_memories:", retrieved_memories.shape)
+        # print(np.argmax(retrieved_memories, axis=2)[:10])
+
+
         """ gather data from correct trials """
+        sum_features = []
         matched_mask = []
         unmatched_mask = []
-
-        sum_features = []
         c_memorizing = []
         c_recalling = []
-
         memory_sequences = []
         correct_trials = []
-
-        memory_similarities = []
-        retrieved_memory_indexes = []
         retrieved_memories = []
-        em_gates = []
-
-        num_timesteps = np.zeros(timestep_each_phase)
-        model_answers = []
-        answer_timesteps = []
-        actions_mask = []
-
         # retrieved_memories = []
         # answers = []   
         # answers = model_answers
         for i in range(context_num):
-            if data["trial_data"][i]["correct_answer"] != model_answers_all[i]:
+            if data["trial_data"][i]["correct_answer"] != model_answers[i]:
                 continue
             retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
             if len(retrieved_memory.shape) == 0:
@@ -131,95 +157,59 @@ def run(data_all, model_all, env, paths, exp_name):
 
             correct_trials.append(i)
 
-            # sum feature (feature related to the question)
             sum_feature_index = data["trial_data"][i]["sum_feature"]
             memory_sequence = data["trial_data"][i]["memory_sequence"]
             sum_feature = memory_sequence[:, sum_feature_index]
             sum_features.append(sum_feature)
 
-            # masks for matched and unmatched stimuli to the question
             matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
             unmatched_stimuli = [j for j in range(timestep_each_phase) if j not in matched_stimuli]
             matched_mask.append(np.array([1 if j in matched_stimuli else 0 for j in np.arange(timestep_each_phase)]))
             unmatched_mask.append(np.array([1 if j in unmatched_stimuli else 0 for j in np.arange(timestep_each_phase)]))
             
-            # states in encoding and recall phase
             c_memorizing.append(readouts[i]['state'][:timestep_each_phase].squeeze())
+            # c_recalling.append(readouts[i]['state'][-timestep_each_phase:].squeeze())
             c_rec = np.zeros((timestep_each_phase, readouts[i]['state'].shape[-1]))
             c_rec_len = readouts[i]['state'].shape[0] - timestep_each_phase - 1
             c_rec[:c_rec_len] = readouts[i]['state'][-c_rec_len:].squeeze()
             c_recalling.append(c_rec)
 
-            # ground truthmemory sequence, items in integer
             memory_sequences.append(data["trial_data"][i]["memory_sequence_int"])
 
-            # index of the most similar memory for each timestep
-            retrieved_memory_index = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
-            ms = np.ones((timestep_each_phase)) * -1
-            ms[:retrieved_memory_index.shape[0]] = retrieved_memory_index
-            retrieved_memory_indexes.append(ms)
-
-            # memory similarity
-            memory_similarity = np.zeros((timestep_each_phase, timestep_each_phase))
-            memory_similarity_len = readouts[i]["ValueMemory"]["similarity"].shape[0]
-            memory_similarity[:memory_similarity_len, :] = readouts[i]["ValueMemory"]["similarity"].squeeze()
-            memory_similarities.append(memory_similarity)
-
-            # retrieved memory, after possible weighted sum
-            retrieved_memory = readouts[i]["retrieved_memory"].squeeze()
-            rm = np.zeros((timestep_each_phase, retrieved_memory.shape[-1]))
+            retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
+            rm = np.ones((timestep_each_phase)) * -1
             rm[:retrieved_memory.shape[0]] = retrieved_memory
             retrieved_memories.append(rm)
 
-            # em gate
-            em_gate = np.zeros((timestep_each_phase))
-            em_gate_len = readouts[i]['mem_gate_recall'].shape[0]
-            em_gate[:em_gate_len] = readouts[i]['mem_gate_recall'].squeeze()
-            em_gates.append(em_gate)
-
-            # compute number of timesteps taken to answer
-            answered = False
-            action_mask = np.ones(timestep_each_phase, dtype=bool)
-            for j in range(timestep_each_phase):
-                if actions[i][timestep_each_phase+j] != 2:
-                    answered = True
-                    num_timesteps[j] += 1
-                    answer_timesteps.append(j+1)
-                    model_answers.append(actions[i][timestep_each_phase+j])
-                    if j != timestep_each_phase-1:
-                        action_mask[j+1:] = False
-                    break
-            if not answered:
-                model_answers.append(actions[i][-1])
-                answer_timesteps.append(timestep_each_phase)
-            actions_mask.append(action_mask)
-
-            if i < 5:
-                print("memory similarity sample:")
-                print(readouts[i]["ValueMemory"]["similarity"].squeeze())
+            # answers.append(actions[i][-1])
 
         correct_trials = np.array(correct_trials)
-        correct_trials_num = correct_trials.shape[0]
-
         sum_features = np.stack(sum_features, axis=0)
-
         matched_mask = np.stack(matched_mask, axis=0)
         unmatched_mask = np.stack(unmatched_mask, axis=0)
-
         c_memorizing = np.stack(c_memorizing, axis=0)
         c_recalling = np.stack(c_recalling, axis=0)
         memory_sequences = np.stack(memory_sequences, axis=0)
+        answers = np.array(model_answers)[correct_trials]
+        answer_timesteps = answer_timesteps[correct_trials]
 
-        em_gates = np.stack(em_gates, axis=0)
-        memory_similarities = np.stack(memory_similarities, axis=0)
-        retrieved_memory_indexes = np.stack(retrieved_memory_indexes, axis=0)
         retrieved_memories = np.stack(retrieved_memories, axis=0)
+        # print(sum_features.shape, matched_mask.shape, unmatched_mask.shape)
 
-        answers = np.array(model_answers)
-        answer_timesteps = np.array(answer_timesteps)
-        actions_mask = np.stack(actions_mask, axis=0)
+        # retrieved_memories = np.zeros((c_memorizing.shape[0], timestep_each_phase))
+        # cnt = 0
+        # for i in range(context_num):
+        #     if data["trial_data"][i]["correct_answer"] != model_answers[i]:
+        #         continue
+        #     retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
+        #     if len(retrieved_memory.shape) == 0:
+        #         continue
+        #     retrieved_memories[cnt, :retrieved_memory.shape[0]] = retrieved_memory
+        #     cnt += 1
 
-        print("correct_trials_num: ", correct_trials_num)
+        # c_memorizing = np.stack([readouts[i]['state'][:timestep_each_phase].squeeze() for i in range(context_num)])   # context_num * time * state_dim
+        # c_recalling = np.stack([readouts[i]['state'][-timestep_each_phase:].squeeze() for i in range(context_num)])
+        # print(c_memorizing.shape, c_recalling.shape)
 
 
 
@@ -251,18 +241,6 @@ def run(data_all, model_all, env, paths, exp_name):
         # print("ratio after gate:", np.round(answer_memory_after_gate/matched_stimuli_num/nonanswer_memory_after_gate*unmatched_stimuli_num, 4))
 
 
-        """ plot the proportion of trials answered at each timestep """
-        prop_timesteps = num_timesteps / correct_trials_num
-        plt.figure(figsize=(4, 3), dpi=180)
-        plt.bar(np.arange(1, timestep_each_phase+1), prop_timesteps)
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.xlabel("time in recall phase")
-        plt.ylabel("proportion of trials\nanswered")
-        plt.tight_layout()
-        savefig(fig_path, "answer_timesteps")
-
 
         """ plot em gate """
         def plot_em_gate(trials, fig_name):
@@ -279,7 +257,6 @@ def run(data_all, model_all, env, paths, exp_name):
 
         def plot_em_gate_mean(trials, fig_name):
             mask = actions_mask[trials]
-            # mask = actions_mask
             gate = em_gates[trials]
             mask_sum = np.sum(mask, axis=0)
             mask_sum[mask_sum==0] = 1
@@ -297,13 +274,11 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.tight_layout()
             savefig(fig_path/"em_gate", fig_name)
 
-        plot_em_gate(np.arange(correct_trials_num), "all")
-        plot_em_gate_mean(np.arange(correct_trials_num), "mean_all")
+        plot_em_gate(correct_trials, "all")
+        plot_em_gate_mean(correct_trials, "mean_all")
 
         for j in range(1, timestep_each_phase+1):
             chosen_trials = np.where(answer_timesteps == j)[0]
-            if len(chosen_trials) < 1:
-                continue
             # print("chosen trials for timestep {}".format(j), chosen_trials)
             plot_em_gate(chosen_trials, "timestep_{}".format(j))
             plot_em_gate_mean(chosen_trials, "mean_timestep_{}".format(j))
@@ -345,7 +320,7 @@ def run(data_all, model_all, env, paths, exp_name):
             plt.tight_layout()
             savefig(fig_path/"actions_distribution", fig_name)
 
-        plot_actions(np.arange(correct_trials_num), timestep_each_phase, "all")
+        plot_actions(correct_trials, timestep_each_phase, "all")
 
         # actions for trials taking diffrent numbers of time steps
         for j in range(1, timestep_each_phase+1):
@@ -355,9 +330,10 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
         """ plot memories retrieved at each timestep """
+        # print(retrieved_memories.shape, retrieved_memories[5:])
         recall_probability = RecallProbabilityInTime()
-        recall_probability.fit(np.repeat(np.arange(4).reshape(1,-1), retrieved_memory_indexes.shape[0], axis=0), 
-                               retrieved_memory_indexes, mask=actions_mask)
+        recall_probability.fit(np.repeat(np.arange(4).reshape(1,-1), retrieved_memories.shape[0], axis=0), 
+                               retrieved_memories, mask=actions_mask)
         recall_probability.visualize(fig_path, timesteps=[0, 1, 2, 3])
         recall_probability.visualize_in_time(fig_path/"recall_prob_in_time", save_name="all")
 
@@ -366,7 +342,7 @@ def run(data_all, model_all, env, paths, exp_name):
             if len(chosen_trials) < 1:
                 continue
             recall_probability.fit(np.repeat(np.arange(4).reshape(1,-1), chosen_trials.shape[0], axis=0),
-                                      retrieved_memory_indexes[chosen_trials], mask=actions_mask[chosen_trials])
+                                      retrieved_memories[chosen_trials], mask=actions_mask[chosen_trials])
             recall_probability.visualize_in_time(fig_path/"recall_prob_in_time", time=i, save_name="timestep_{}".format(i))
 
 
@@ -374,6 +350,7 @@ def run(data_all, model_all, env, paths, exp_name):
         """ decoding answer """
         ridge_decoder = RidgeClassifier()
         decoder = DMAnswerDecoder(decoder=ridge_decoder)
+        # print(c_recalling.shape, len(answers))
         decoder.fit(c_recalling.transpose(1, 0, 2), answers)
         decoder.visualize(save_path=fig_path/"decode_answer", save_name="all_rec", xlabel="time in recall phase", figsize=(4, 3.3))
 
@@ -393,7 +370,7 @@ def run(data_all, model_all, env, paths, exp_name):
         # compute all possible answers
         num_features = env.unwrapped.num_features
         num_questions = num_features * (num_features - 1)
-        all_possible_answers = np.zeros((correct_trials_num, num_questions))
+        all_possible_answers = np.zeros((correct_trials.shape[0], num_questions))
         cnt_trial = 0
         for k in correct_trials:
             mem_seq = data["trial_data"][k]["memory_sequence"]
@@ -428,19 +405,16 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge = ItemIdentityDecoder(decoder=ridge_decoder)
         os.makedirs(fig_path/"decode_data", exist_ok=True)
 
-        # decode item identity from encoding phase, by time step
         ridge_encoding_item, _ = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_item", colormap_label="item position\nin study order",
                                 xlabel="time in encoding phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_encoding_item.npy", ridge_encoding_item)
 
-        # decode related feature from encoding phase, by time step
         ridge_encoding_sum_feature, _ = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf", colormap_label="item position\nin study order",
                                 xlabel="time in encoding phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
 
-        # decode item identity and related feature from encoding phase, all time step together
         ridge_classifier = RidgeClassifier()
         classifier = Classifier(decoder=ridge_classifier)
         _, identity_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
@@ -452,24 +426,32 @@ def run(data_all, model_all, env, paths, exp_name):
             writer.writerow([identity_acc, sum_feature_acc])
 
 
-        # decode item identity from recall phase, by time step, all trials
+        # ridge_encoding_sum_feature_matched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_mat", colormap_label="item position\nin study order",
+        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
+        # np.save(fig_path/"ridge_encoding_sum_feature_matched.npy", ridge_encoding_sum_feature_matched)
+
+        # ridge_encoding_sum_feature_unmatched = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=unmatched_mask.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf_unmat", colormap_label="item position\nin study order",
+        #                         xlabel="time in encoding phase", figsize=(4, 3.3))
+        # np.save(fig_path/"ridge_encoding_sum_feature_unmatched.npy", ridge_encoding_sum_feature_unmatched)
+
         ridge_recall_item, _ = ridge.fit(c_recalling.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item", colormap_label="item position\nin study order",
                                 xlabel="time in recall phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_decoding_item.npy", ridge_recall_item)
 
-        # decode related feature from recall phase, by time step, all trials
         ridge_recall_sum_feature, _ = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
                                 xlabel="time in recall phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
 
-        # decode item identity and related feature from recall phase, by time step, separate for trials with different answer timesteps
         for j in range(1, timestep_each_phase+1):
             chosen_trials = np.where(answer_timesteps == j)[0]
             if len(chosen_trials) < 10:
                 continue
 
+            # print(c_recalling.shape, memory_sequences.shape, sum_features.shape)
             ridge_recall_item, _ = ridge.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), memory_sequences[chosen_trials].transpose(1, 0))
             ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_item_timestep_{}".format(j), colormap_label="item position\nin study order",
                                     xlabel="time in recall phase", figsize=(4, 3.3))
@@ -480,10 +462,19 @@ def run(data_all, model_all, env, paths, exp_name):
                                     xlabel="time in recall phase", figsize=(4, 3.3))
             np.save(fig_path/"decode_data"/"ridge_decoding_sum_feature_timestep_{}.npy".format(j), ridge_recall_sum_feature)
 
-        
-        # compute CRP curve
+        # ridge_recall_sum_feature_matched = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=matched_mask.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_mat", colormap_label="item position\nin study order",
+        #                         xlabel="time in recall phase", figsize=(4, 3.3))
+        # np.save(fig_path/"ridge_decoding_sum_feature_matched.npy", ridge_recall_sum_feature_matched)
+
+        # ridge_recall_sum_feature_unmatched = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0), mask=unmatched_mask.transpose(1, 0))
+        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_unmat", colormap_label="item position\nin study order",
+        #                         xlabel="time in recall phase", figsize=(4, 3.3))
+        # np.save(fig_path/"ridge_decoding_sum_feature_unmatched.npy", ridge_recall_sum_feature_unmatched)
+
+
         recall_probability = RecallProbability()
-        recall_probability.fit(np.repeat(np.arange(4).reshape(1,-1), retrieved_memory_indexes.shape[0], axis=0), retrieved_memory_indexes)
+        recall_probability.fit(memory_sequences, retrieved_memories)
         # plot CRP curve
         recall_probability.visualize_all_time(fig_path/"recall_prob")
         recall_probability.visualize(fig_path/"recall_prob")

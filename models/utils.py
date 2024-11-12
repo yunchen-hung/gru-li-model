@@ -25,9 +25,11 @@ def entropy(probs, device):
         the entropy of the distribution
 
     """
-    entropys = []
-    for prob in probs:
-        entropys.append(- torch.stack([pi * torch.log2(pi) if pi != 0 else torch.tensor(0, device=device) for pi in prob]).sum())
+    # entropys = []
+    probs = probs + 1e-8
+    entropys = - torch.sum(probs * torch.log2(probs), dim=1)
+    # for prob in probs:
+    #     entropys.append(- torch.stack([pi * torch.log2(pi) if pi != 0 else torch.tensor(0, device=device) for pi in prob]).sum())
     return entropys
 
 def softmax(z, beta=1.0):

@@ -28,7 +28,7 @@
     "training": [{
         "env": [{
             "vector_env": {
-                "mode": "async",
+                "mode": "sync",
                 "batch_size": 64
             },
             "class": "ConditionalQuestionAnswer",

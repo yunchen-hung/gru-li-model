@@ -1,7 +1,7 @@
 {
     "run_num": 3,
     "model": {
-        "class": "DeepValueMemoryGRU",
+        "class": "RawDeepValueMemoryGRU",
         "hidden_dim": 128,
         "input_dim": 22,
         "output_dims": [3],
@@ -9,6 +9,8 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
+        "mem_beta_decay": true,
+        "mem_beta_decay_rate": 0.5,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -42,17 +44,17 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": true,
-            "no_early_stop": false
+            "include_question_during_encode": false
         }],
         "trainer": {
             "training_function": "train",
             "num_iter": 1e6,
             "test_iter": 1000,
             "save_iter": 10000,
-            "stop_test_accu": 0.999,
+            "stop_test_accu": 0.99,
             "use_memory": true,
             "used_output_index": [0],
+            "mem_beta_decay_threshold": 0.8,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
@@ -60,7 +62,15 @@
                         "class": "A2CLoss",
                         "use_V": true,
                         "eta": 0.01,
-                        "gamma": 1.0
+                        "gamma": 0.99
+                    }
+                ]
+            },
+            "ax_criterion": {
+                "class": "MultiAuxiliaryLoss",
+                "criteria": [
+                    {
+                        "class": "MemoryOneHotRegularization"
                     }
                 ]
             },
@@ -69,7 +79,7 @@
                 "lr": 1e-3,
                 "weight_decay": 1e-5,
                 "lr_decay_factor": 0.1,
-                "lr_decay_patience": 100,
+                "lr_decay_patience": 20,
                 "lr_decay_threshold": 1e-4,
                 "min_lr": 1e-7
             }
