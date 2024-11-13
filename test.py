@@ -8,7 +8,7 @@ import seaborn as sns
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
 from tasks import ConditionalEMRecall , MetaLearningEnv, ConditionalQuestionAnswer, FreeRecallRepeat, \
-    FreeRecall, PlaceHolderWrapper
+    FreeRecall, PlaceHolderWrapper, NonlinearConditionalQuestionAnswer
 
 from utils import load_dict, savefig
 
@@ -71,6 +71,47 @@ def main():
     #     cnts[env.cnt] += 1
     # print(answer)
     # print(cnts)
+
+    """ Nonlinear Conditional Question Answer tests """
+    env = NonlinearConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=4, 
+        include_question_during_encode=True)
+
+    # for i in range(1):
+    #     obs, info = env.reset()
+    #     print(obs)
+    #     terminated = False
+    #     cnt = 0
+    #     while not terminated:
+    #         print("timestep: ", cnt)
+    #         action = env.action_space.sample()
+    #         cnt += 1
+    #         obs, reward, done, _, info = env.step(action)
+    #         terminated = np.logical_or(terminated, info['done'])
+    #         print(action)
+    #         print(obs, reward, terminated, info)
+    #         # if cnt > 20:
+    #         #     break
+    #         print()
+    #     print(obs.shape)
+    #     print()
+    #     print(env.get_trial_data())
+
+    seqlen = 4
+    answer = np.zeros(2)
+    # prev_answer = np.zeros(2)
+    cnts = np.zeros(seqlen+1)
+    for i in range(10000):
+        env.reset()
+        if env.answer is not None:
+            answer[env.answer] += 1
+        # if np.array_equal(env.answer, prev_answer):
+        #     print(env.answer)
+        # prev_answer = env.answer
+        cnts[env.cnt] += 1
+    print(answer)
+    print(cnts)
+
+
 
     """ Vary parameters """
     # seq_len_all = [8,16]
