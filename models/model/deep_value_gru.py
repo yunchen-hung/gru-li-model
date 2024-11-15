@@ -23,6 +23,7 @@ class DeepValueMemoryGRU(BasicModule):
                  wm_noise_prop=0, 
                  em_noise_prop=0, 
                  wm_enc_noise_prop=0,
+                 wm_em_zero_noise=False,              # if true, make the noise for wm/em to be all zero (only cancel the original data but do not add noise)
                  start_recall_with_ith_item_init=0, 
                  reset_param=True, 
                  step_for_each_timestep=1, 
@@ -49,6 +50,7 @@ class DeepValueMemoryGRU(BasicModule):
         self.wm_noise_prop = wm_noise_prop      # noise proportion for working memory
         self.em_noise_prop = em_noise_prop      # noise proportion for episodic memory
         self.wm_enc_noise_prop = wm_enc_noise_prop   # noise proportion for working memory only during encoding phase
+        self.wm_em_zero_noise = 1 - float(wm_em_zero_noise)      # if true, make the noise for wm/em to be all zero (only cancel the original data but do not add noise)
 
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
         if mem_beta_decay:
@@ -196,7 +198,7 @@ class DeepValueMemoryGRU(BasicModule):
             memory_similarity = torch.zeros(batch_size, self.memory_module.capacity)
 
         if self.use_memory and self.encoding:
-            state = (1 - self.wm_enc_noise_prop) * state + self.wm_enc_noise_prop * torch.randn_like(state) * torch.std(state)
+            state = (1 - self.wm_enc_noise_prop) * state + self.wm_enc_noise_prop * torch.randn_like(state) * torch.std(state) * self.wm_em_zero_noise
 
         # compute forward pass
         for i in range(self.step_for_each_timestep):
@@ -245,11 +247,11 @@ class DeepValueMemoryGRU(BasicModule):
         newgate_preact = i_n + resetgate * h_n
         if mem_gate is not None and retrieved_memory is not None:
             retrieved_memory = (1 - self.em_noise_prop) * retrieved_memory + \
-                self.em_noise_prop * torch.randn_like(retrieved_memory) * torch.std(retrieved_memory)
+                self.em_noise_prop * torch.randn_like(retrieved_memory) * torch.std(retrieved_memory) * self.wm_em_zero_noise
             newgate_preact += mem_gate * retrieved_memory
         newgate = torch.tanh(newgate_preact)
         state = newgate + inputgate * (state - newgate)
-        state = (1 - self.wm_noise_prop) * state + self.wm_noise_prop * torch.randn_like(state) * torch.std(state)
+        state = (1 - self.wm_noise_prop) * state + self.wm_noise_prop * torch.randn_like(state) * torch.std(state) * self.wm_em_zero_noise
         return state
 
     def set_encoding(self, status):
