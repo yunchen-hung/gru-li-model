@@ -171,9 +171,9 @@ class DeepValueMemoryGRU(BasicModule):
 
         if self.last_encoding and self.evolve_state_between_phases and self.retrieving:
             for _ in range(self.evolve_steps):
-                inp = torch.zeros_like(inp)
+                inp0 = torch.zeros_like(inp)
                 # do a timestep of forward pass between encoding and retrieval phases
-                state = self.gru(inp, state)
+                state = self.gru(inp0, state)
                 self.last_encoding = False
                 self.write(state, 'state')
 

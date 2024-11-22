@@ -73,8 +73,8 @@ def main():
     # print(cnts)
 
     """ Nonlinear Conditional Question Answer tests """
-    env = NonlinearConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=4, 
-        include_question_during_encode=True)
+    env = NonlinearConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=9, 
+        include_question_during_encode=True, question_type="sum", sum_reference=2)
 
     # for i in range(1):
     #     obs, info = env.reset()
@@ -96,8 +96,8 @@ def main():
     #     print()
     #     print(env.get_trial_data())
 
-    seqlen = 4
-    answer = np.zeros(2)
+    seqlen = 9
+    answer = np.zeros(16)
     # prev_answer = np.zeros(2)
     cnts = np.zeros(seqlen+1)
     for i in range(10000):

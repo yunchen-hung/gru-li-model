@@ -11,7 +11,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
     def __init__(self, num_features=4, feature_dim=2, sequence_len=8, retrieve_time_limit=None, 
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, cumulated_gt=False,
                  include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False,
-                 no_early_stop=True, seed=None):
+                 no_early_stop=True, question_type="xor", sum_reference=1, seed=None):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -48,6 +48,8 @@ class ConditionalQuestionAnswer(BaseEMTask):
         self.one_hot_stimuli = one_hot_stimuli
         self.cumulated_gt = cumulated_gt
         self.no_early_stop = no_early_stop
+        self.question_type = question_type
+        self.sum_reference = sum_reference
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
@@ -98,14 +100,19 @@ class ConditionalQuestionAnswer(BaseEMTask):
         self.answer = 0
         for i in range(self.sequence_len):
             if self.memory_sequence[i, self.question_feature] == self.question_value:
-                if cnt == 0:
-                    self.answer = self.memory_sequence[i, self.sum_feature]
-                else:
+                if self.question_type == "xor":
                     self.answer = np.logical_xor(self.answer, self.memory_sequence[i, self.sum_feature])
+                else:
+                    self.answer += self.memory_sequence[i, self.sum_feature]
                 cnt += 1
             self.gt_by_timestep[i] = self.answer
         if cnt == 0:
             self.answer = 0
+        elif self.question_type == "sum":
+            if self.answer <= self.sum_reference:
+                self.answer = 0
+            else:
+                self.answer = 1
         else:
             self.answer = int(self.answer)
         self.cnt = cnt

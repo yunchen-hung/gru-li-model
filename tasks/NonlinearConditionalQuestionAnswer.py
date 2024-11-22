@@ -11,7 +11,7 @@ class NonlinearConditionalQuestionAnswer(BaseEMTask):
     def __init__(self, num_features=4, feature_dim=2, sequence_len=8, retrieve_time_limit=None, 
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, cumulated_gt=False,
                  include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False,
-                 no_early_stop=True, seed=None):
+                 no_early_stop=True, question_type="xor", sum_reference=1, seed=None):
         """
         During encoding phase, give a sequence of stimuli, each stimuli contains a number of features, 
             each stimuli is different from each other.
@@ -26,9 +26,16 @@ class NonlinearConditionalQuestionAnswer(BaseEMTask):
             sequence_len: length of the sequence (number of stimuli in one trial)
             rewards: correct, wrong, no_action
             retrieve_time_limit: maximum number of steps allowed in the recall phase
+            cumulated_gt: make gt in info to be cumulated result or the actual item/related feature
             reset_state_before_test: whether to reset the state of the network before testing
             include_question_during_encode: whether to give the question during encoding phase
             one_hot_stimuli: whether to convert stimuli to one-hot vector
+            no_early_stop: whether to stop the trial when the answer is correct or wait until retrieve_time_limit
+            question_type: the type of question, possible values: xor, sum
+                xor: compute xor of all related features
+                sum: compute sum of all related features and compare with a specific mean value
+            sum_reference: the reference value for sum question, split by <= this value and > this value
+
         Observation space:
             stimuli: num_features * [feature_dim one-hot vector]
             question: 
@@ -48,6 +55,8 @@ class NonlinearConditionalQuestionAnswer(BaseEMTask):
         self.one_hot_stimuli = one_hot_stimuli
         self.cumulated_gt = cumulated_gt
         self.no_early_stop = no_early_stop
+        self.question_type = question_type
+        self.sum_reference = sum_reference
 
         self.correct_reward = correct_reward
         self.wrong_reward = wrong_reward
@@ -97,17 +106,23 @@ class NonlinearConditionalQuestionAnswer(BaseEMTask):
         self.gt_by_timestep = np.zeros(self.sequence_len)
         cnt = 0
         self.answer = 0
+        
         for i in range(self.sequence_len):
             if self.memory_sequence[i, self.question_feature] == self.question_value:
                 feature_xor = np.logical_xor(self.memory_sequence[i, self.sum_feature1], self.memory_sequence[i, self.sum_feature2])
-                if cnt == 0:
-                    self.answer = feature_xor
-                else:
+                if self.question_type == "xor":
                     self.answer = np.logical_xor(self.answer, feature_xor)
+                elif self.question_type == "sum":
+                    self.answer += feature_xor
                 cnt += 1
             self.gt_by_timestep[i] = self.answer
         if cnt == 0:
             self.answer = 0
+        elif self.question_type == "sum":
+            if self.answer <= self.sum_reference:
+                self.answer = 0
+            else:
+                self.answer = 1
         else:
             self.answer = int(self.answer)
         self.cnt = cnt
