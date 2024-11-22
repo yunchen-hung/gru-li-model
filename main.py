@@ -117,7 +117,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             if (not train or setups[0].get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
                 if setups[0].get("load_saved_model", False):
                     print("load saved model from {}".format(load_run_name_with_path))
-                model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu')))
+                model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu'), weights_only=True))
             # print(exp_path, setup["model_name"], load_run_name_with_path)
 
             model.to(device)

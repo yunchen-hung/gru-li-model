@@ -93,7 +93,6 @@ def train(setup,                            # setup dict, including model and tr
         agent.reset_memory(flush=reset_memory)
 
         # create variables to store data related to outputs and results
-        output_num = len(agent.output_dims)
         seq_len = setup["training"]["env"][0]["sequence_len"]
 
         # outputs = torch.zeros((output_num, seq_len*2, batch_size, agent.output_dims[0]))

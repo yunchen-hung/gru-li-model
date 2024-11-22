@@ -1,10 +1,12 @@
 {
     "run_num": 3,
     "model": {
-        "class": "DeepValueMemoryGRU",
+        "class": "DecisionMemValueGRU",
         "hidden_dim": 128,
-        "input_dim": 22,
-        "output_dims": [3],
+        "mem_input_dim": 22,
+        "decision_input_dim": 0,
+        "decision_output_dims": [3],
+        "mem_output_dims": [],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
@@ -14,7 +16,7 @@
         "wm_enc_noise_prop": 0.999,
         "wm_em_zero_noise": true,
         "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.96,
+        "mem_beta_decay_rate": 0.95,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -35,7 +37,7 @@
         "env": [{
             "vector_env": {
                 "mode": "sync",
-                "batch_size": 128
+                "batch_size": 64
             },
             "class": "ConditionalQuestionAnswer",
             "wrapper": [{
@@ -48,18 +50,17 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": false,
-            "no_early_stop": false
+            "include_question_during_encode": false
         }],
         "trainer": {
             "training_function": "train",
             "num_iter": 1e6,
             "test_iter": 1000,
             "save_iter": 10000,
-            "mem_beta_decay_iter": 10000,
-            "stop_test_accu": 0.999,
+            "stop_test_accu": 0.99,
             "use_memory": true,
             "used_output_index": [0],
+            "mem_beta_decay_iter": 10000,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
@@ -84,7 +85,7 @@
                 "lr": 1e-3,
                 "weight_decay": 1e-5,
                 "lr_decay_factor": 0.1,
-                "lr_decay_patience": 100,
+                "lr_decay_patience": 20,
                 "lr_decay_threshold": 1e-4,
                 "min_lr": 1e-7
             }
