@@ -33,6 +33,7 @@ class DeepValueMemoryGRU(BasicModule):
                  use_memory=True, 
                  mem_beta_decay=False,             # whether to decay softmax beta for computing memory similarity loss
                  mem_beta_decay_rate=0.5,          # decay rate for softmax beta
+                 mem_beta_min=1e-8,                # minimum value for softmax beta
                  device: str = 'cpu'):
         super().__init__()
         self.device = device
@@ -60,6 +61,7 @@ class DeepValueMemoryGRU(BasicModule):
             self.mem_beta = None
         self.mem_beta_decay = mem_beta_decay
         self.mem_beta_decay_rate = mem_beta_decay_rate
+        self.mem_beta_min = mem_beta_min
         
         self.flush_noise = flush_noise
         self.random_init_noise = random_init_noise
@@ -138,7 +140,7 @@ class DeepValueMemoryGRU(BasicModule):
             elif self.init_state_type == 'zeros':
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == 'noise' or self.init_state_type == 'noise_all':
-                state = (1 - self.flush_noise) * prev_state + self.flush_noise * torch.randn_like(prev_state) * torch.std(prev_state)
+                state = math.sqrt(1 - self.flush_noise) * prev_state + math.sqrt(self.flush_noise) * torch.randn_like(prev_state) * torch.std(prev_state)
             elif self.init_state_type == 'random':
                 state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             elif self.init_state_type == 'train':
@@ -159,7 +161,7 @@ class DeepValueMemoryGRU(BasicModule):
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
         
-        if self.mem_beta_decay and decay_mem_beta:
+        if self.mem_beta_decay and decay_mem_beta and self.mem_beta > self.mem_beta_min:
             self.mem_beta = self.mem_beta * self.mem_beta_decay_rate
             print("mem_beta decayed to {}".format(self.mem_beta))
         
@@ -198,7 +200,7 @@ class DeepValueMemoryGRU(BasicModule):
             memory_similarity = torch.zeros(batch_size, self.memory_module.capacity)
 
         if self.use_memory and self.encoding:
-            state = (1 - self.wm_enc_noise_prop) * state + self.wm_enc_noise_prop * torch.randn_like(state) * torch.std(state) * self.wm_em_zero_noise
+            state = math.sqrt(1 - self.wm_enc_noise_prop) * state + math.sqrt(self.wm_enc_noise_prop) * torch.randn_like(state) * torch.std(state) * self.wm_em_zero_noise
 
         # compute forward pass
         for i in range(self.step_for_each_timestep):
@@ -246,12 +248,12 @@ class DeepValueMemoryGRU(BasicModule):
         inputgate = torch.sigmoid(i_i + h_i)
         newgate_preact = i_n + resetgate * h_n
         if mem_gate is not None and retrieved_memory is not None:
-            retrieved_memory = (1 - self.em_noise_prop) * retrieved_memory + \
-                self.em_noise_prop * torch.randn_like(retrieved_memory) * torch.std(retrieved_memory) * self.wm_em_zero_noise
+            retrieved_memory = math.sqrt(1 - self.em_noise_prop) * retrieved_memory + \
+                math.sqrt(self.em_noise_prop) * torch.randn_like(retrieved_memory) * torch.std(retrieved_memory) * self.wm_em_zero_noise
             newgate_preact += mem_gate * retrieved_memory
         newgate = torch.tanh(newgate_preact)
         state = newgate + inputgate * (state - newgate)
-        state = (1 - self.wm_noise_prop) * state + self.wm_noise_prop * torch.randn_like(state) * torch.std(state) * self.wm_em_zero_noise
+        state = math.sqrt(1 - self.wm_noise_prop) * state + math.sqrt(self.wm_noise_prop) * torch.randn_like(state) * torch.std(state) * self.wm_em_zero_noise
         return state
 
     def set_encoding(self, status):

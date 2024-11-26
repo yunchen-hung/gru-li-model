@@ -95,6 +95,35 @@ def run(data_all, model_all, env, paths, exp_name):
         with open(fig_path/"accuracy.csv", "w") as f:
             writer = csv.writer(f)
             writer.writerow([accuracy])
+
+
+        
+        """ count the proportion of memories retrieved for items matched and unmatched with the query """
+        matched_stimuli_num = 0.0
+        unmatched_stimuli_num = 0.0
+        answer_memory = 0.0
+        nonanswer_memory = 0.0
+        answer_memory_after_gate = 0.0
+        nonanswer_memory_after_gate = 0.0
+        for i in range(correct_trials.shape[0]):
+            matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
+            unmatched_stimuli = [j for j in range(timestep_each_phase) if j not in matched_stimuli]
+            matched_stimuli_num += len(matched_stimuli)
+            unmatched_stimuli_num += len(unmatched_stimuli)
+            if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
+                continue
+            answer_memory += np.sum(retrieved_memories[i, :, matched_stimuli] * actions_mask[i, :]) # / len(matched_stimuli)
+            nonanswer_memory += np.sum(retrieved_memories[i, :, unmatched_stimuli] * actions_mask[i, :]) # / len(unmatched_stimuli)
+            answer_memory_after_gate += np.sum(retrieved_memories[i, :, matched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(matched_stimuli)
+            nonanswer_memory_after_gate += np.sum(retrieved_memories[i, :, unmatched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(unmatched_stimuli)
+        print("answer_memory: ", answer_memory)
+        print("nonanswer_memory: ", nonanswer_memory)
+        print("answer_memory_after_gate: ", answer_memory_after_gate)
+        print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
+        print("matched_stimuli_num: ", matched_stimuli_num)
+        print("unmatched_stimuli_num: ", unmatched_stimuli_num)
+        print("ratio:", np.round(answer_memory/matched_stimuli_num/nonanswer_memory*unmatched_stimuli_num, 4))
+        print("ratio after gate:", np.round(answer_memory_after_gate/matched_stimuli_num/nonanswer_memory_after_gate*unmatched_stimuli_num, 4))
         
 
 
@@ -221,34 +250,6 @@ def run(data_all, model_all, env, paths, exp_name):
 
         print("correct_trials_num: ", correct_trials_num)
 
-
-
-        """ count the proportion of memories retrieved for items matched and unmatched with the query """
-        # matched_stimuli_num = 0.0
-        # unmatched_stimuli_num = 0.0
-        # answer_memory = 0.0
-        # nonanswer_memory = 0.0
-        # answer_memory_after_gate = 0.0
-        # nonanswer_memory_after_gate = 0.0
-        # for i in range(correct_trials.shape[0]):
-        #     matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
-        #     unmatched_stimuli = [j for j in range(timestep_each_phase) if j not in matched_stimuli]
-        #     matched_stimuli_num += len(matched_stimuli)
-        #     unmatched_stimuli_num += len(unmatched_stimuli)
-        #     if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
-        #         continue
-        #     answer_memory += np.sum(retrieved_memories[i, :, matched_stimuli] * actions_mask[i, :]) # / len(matched_stimuli)
-        #     nonanswer_memory += np.sum(retrieved_memories[i, :, unmatched_stimuli] * actions_mask[i, :]) # / len(unmatched_stimuli)
-        #     answer_memory_after_gate += np.sum(retrieved_memories[i, :, matched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(matched_stimuli)
-        #     nonanswer_memory_after_gate += np.sum(retrieved_memories[i, :, unmatched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(unmatched_stimuli)
-        # print("answer_memory: ", answer_memory)
-        # print("nonanswer_memory: ", nonanswer_memory)
-        # print("answer_memory_after_gate: ", answer_memory_after_gate)
-        # print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
-        # print("matched_stimuli_num: ", matched_stimuli_num)
-        # print("unmatched_stimuli_num: ", unmatched_stimuli_num)
-        # print("ratio:", np.round(answer_memory/matched_stimuli_num/nonanswer_memory*unmatched_stimuli_num, 4))
-        # print("ratio after gate:", np.round(answer_memory_after_gate/matched_stimuli_num/nonanswer_memory_after_gate*unmatched_stimuli_num, 4))
 
 
         """ plot the proportion of trials answered at each timestep """

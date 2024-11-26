@@ -102,7 +102,8 @@ def run(data_all, model_all, env, paths, exp_name):
         matched_mask = []
         unmatched_mask = []
 
-        sum_features = []
+        sum_features1 = []
+        sum_features2 = []
         c_memorizing = []
         c_recalling = []
 
@@ -132,10 +133,13 @@ def run(data_all, model_all, env, paths, exp_name):
             correct_trials.append(i)
 
             # sum feature (feature related to the question)
-            sum_feature_index = data["trial_data"][i]["sum_feature"]
+            sum_feature_index1 = data["trial_data"][i]["sum_feature1"]
+            sum_feature_index2 = data["trial_data"][i]["sum_feature2"]
             memory_sequence = data["trial_data"][i]["memory_sequence"]
-            sum_feature = memory_sequence[:, sum_feature_index]
-            sum_features.append(sum_feature)
+            sum_feature1 = memory_sequence[:, sum_feature_index1]
+            sum_feature2 = memory_sequence[:, sum_feature_index2]
+            sum_features1.append(sum_feature1)
+            sum_features2.append(sum_feature2)
 
             # masks for matched and unmatched stimuli to the question
             matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
@@ -161,6 +165,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
             # memory similarity
             memory_similarity = np.zeros((timestep_each_phase, timestep_each_phase))
+            print(readouts[i]["ValueMemory"]["similarity"].shape)
             memory_similarity_len = readouts[i]["ValueMemory"]["similarity"].shape[0]
             memory_similarity[:memory_similarity_len, :] = readouts[i]["ValueMemory"]["similarity"].squeeze()
             memory_similarities.append(memory_similarity)
@@ -201,7 +206,8 @@ def run(data_all, model_all, env, paths, exp_name):
         correct_trials = np.array(correct_trials)
         correct_trials_num = correct_trials.shape[0]
 
-        sum_features = np.stack(sum_features, axis=0)
+        sum_features1 = np.stack(sum_features1, axis=0)
+        sum_features2 = np.stack(sum_features2, axis=0)
 
         matched_mask = np.stack(matched_mask, axis=0)
         unmatched_mask = np.stack(unmatched_mask, axis=0)
@@ -471,7 +477,7 @@ def run(data_all, model_all, env, paths, exp_name):
         np.save(fig_path/"decode_data"/"ridge_encoding_item.npy", ridge_encoding_item)
 
         # decode related feature from encoding phase, by time step
-        ridge_encoding_sum_feature, _ = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        ridge_encoding_sum_feature, _ = ridge.fit(c_memorizing.transpose(1, 0, 2), sum_features1.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc_sumf", colormap_label="item position\nin study order",
                                 xlabel="time in encoding phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
@@ -480,7 +486,7 @@ def run(data_all, model_all, env, paths, exp_name):
         ridge_classifier = RidgeClassifier()
         classifier = Classifier(decoder=ridge_classifier)
         _, identity_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
-        _, sum_feature_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        _, sum_feature_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), sum_features1.transpose(1, 0))
         print("identity_acc: ", identity_acc)
         print("sum_feature_acc: ", sum_feature_acc)
         with open(fig_path/"enc_ridge.csv", "w") as f:
@@ -495,7 +501,7 @@ def run(data_all, model_all, env, paths, exp_name):
         np.save(fig_path/"decode_data"/"ridge_decoding_item.npy", ridge_recall_item)
 
         # decode related feature from recall phase, by time step, all trials
-        ridge_recall_sum_feature, _ = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        ridge_recall_sum_feature, _ = ridge.fit(c_recalling.transpose(1, 0, 2), sum_features1.transpose(1, 0))
         ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf", colormap_label="item position\nin study order",
                                 xlabel="time in recall phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_decoding_sum_feature.npy", ridge_recall_sum_feature)
@@ -511,7 +517,7 @@ def run(data_all, model_all, env, paths, exp_name):
                                     xlabel="time in recall phase", figsize=(4, 3.3))
             np.save(fig_path/"decode_data"/"ridge_decoding_item_timestep_{}.npy".format(j), ridge_recall_item)
 
-            ridge_recall_sum_feature, _ = ridge.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), sum_features[chosen_trials].transpose(1, 0))
+            ridge_recall_sum_feature, _ = ridge.fit(c_recalling[chosen_trials, :j].transpose(1, 0, 2), sum_features1[chosen_trials].transpose(1, 0))
             ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec_sumf_timestep_{}".format(j), colormap_label="item position\nin study order",
                                     xlabel="time in recall phase", figsize=(4, 3.3))
             np.save(fig_path/"decode_data"/"ridge_decoding_sum_feature_timestep_{}.npy".format(j), ridge_recall_sum_feature)

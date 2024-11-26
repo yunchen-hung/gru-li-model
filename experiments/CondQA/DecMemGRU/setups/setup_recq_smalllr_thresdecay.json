@@ -1,23 +1,27 @@
 {
     "run_num": 3,
     "model": {
-        "class": "DeepValueMemoryGRU",
+        "class": "DecisionMemValueGRU",
         "hidden_dim": 128,
-        "input_dim": 26,
-        "output_dims": [3],
+        "mem_input_dim": 22,
+        "decision_input_dim": 0,
+        "decision_output_dims": [3],
+        "mem_output_dims": [],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
-        "wm_enc_noise_prop": 0.999,
-        "wm_em_zero_noise": true,
         "init_state_type": "noise",
         "random_init_noise": 0.1,
+        "wm_enc_noise_prop": 0.999,
+        "wm_em_zero_noise": true,
+        "mem_beta_decay": true,
+        "mem_beta_decay_rate": 0.5,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 5,
+            "capacity": 4,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -35,30 +39,29 @@
                 "mode": "sync",
                 "batch_size": 128
             },
-            "class": "NonlinearConditionalQuestionAnswer",
+            "class": "ConditionalQuestionAnswer",
             "wrapper": [{
                 "class": "MetaLearningEnv"
             }],
             "num_features": 4,
             "feature_dim": 2,
-            "sequence_len": 5,
-            "question_type": "sum",
-            "sum_reference": 1,
+            "sequence_len": 4,
             "reset_state_before_test": true,
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": false,
-            "no_early_stop": false
+            "include_question_during_encode": false
         }],
         "trainer": {
             "training_function": "train",
             "num_iter": 1e6,
             "test_iter": 1000,
             "save_iter": 10000,
-            "stop_test_accu": 0.999,
+            "mem_beta_decay_threshold": 0.8,
+            "stop_test_accu": 0.99,
             "use_memory": true,
             "used_output_index": [0],
+            "mem_beta_decay_iter": 10000,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
@@ -80,10 +83,10 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
+                "lr": 3e-4,
                 "weight_decay": 1e-5,
                 "lr_decay_factor": 0.1,
-                "lr_decay_patience": 100,
+                "lr_decay_patience": 20,
                 "lr_decay_threshold": 1e-4,
                 "min_lr": 1e-7
             }
