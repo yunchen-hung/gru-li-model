@@ -7,3 +7,4 @@ from .FreeRecall import FreeRecall
 from .FreeRecallRepeat import FreeRecallRepeat
 from .ConditionalEMRecall import ConditionalEMRecall
 from .ConditionalQuestionAnswer import ConditionalQuestionAnswer
+from .NonlinearConditionalQuestionAnswer import NonlinearConditionalQuestionAnswer

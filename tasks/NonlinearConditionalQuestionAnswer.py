@@ -7,7 +7,7 @@ from gymnasium import spaces
 from .base import BaseEMTask
 
 
-class ConditionalQuestionAnswer(BaseEMTask):
+class NonlinearConditionalQuestionAnswer(BaseEMTask):
     def __init__(self, num_features=4, feature_dim=2, sequence_len=8, retrieve_time_limit=None, 
                  correct_reward=1.0, wrong_reward=-1.0, no_action_reward=0.0, cumulated_gt=False,
                  include_question_during_encode=False, reset_state_before_test=True, one_hot_stimuli=False,
@@ -26,9 +26,16 @@ class ConditionalQuestionAnswer(BaseEMTask):
             sequence_len: length of the sequence (number of stimuli in one trial)
             rewards: correct, wrong, no_action
             retrieve_time_limit: maximum number of steps allowed in the recall phase
+            cumulated_gt: make gt in info to be cumulated result or the actual item/related feature
             reset_state_before_test: whether to reset the state of the network before testing
             include_question_during_encode: whether to give the question during encoding phase
             one_hot_stimuli: whether to convert stimuli to one-hot vector
+            no_early_stop: whether to stop the trial when the answer is correct or wait until retrieve_time_limit
+            question_type: the type of question, possible values: xor, sum
+                xor: compute xor of all related features
+                sum: compute sum of all related features and compare with a specific mean value
+            sum_reference: the reference value for sum question, split by <= this value and > this value
+
         Observation space:
             stimuli: num_features * [feature_dim one-hot vector]
             question: 
@@ -57,53 +64,56 @@ class ConditionalQuestionAnswer(BaseEMTask):
 
         self.question_space_dim = num_features
 
+        # observation space: item, question_feature, question_value, sum_feature1, sum_feature2
         if self.one_hot_stimuli:
             # self.observation_space = spaces.MultiDiscrete([self.feature_dim ** self.num_features, 
             #                                                self.question_space_dim, 
             #                                                feature_dim, 
             #                                                self.question_space_dim])
             self.obs_shape = np.sum([self.feature_dim ** self.num_features, 
-                                self.question_space_dim, feature_dim, self.question_space_dim])
+                                self.question_space_dim, feature_dim, self.question_space_dim*2])
         else:
             # self.observation_space = spaces.MultiDiscrete([feature_dim for _ in range(num_features)]
             #                                             + [self.question_space_dim, 
             #                                                feature_dim, 
             #                                                self.question_space_dim])
             self.obs_shape = np.sum([feature_dim for _ in range(num_features)]
-                            + [self.question_space_dim, feature_dim, self.question_space_dim])
+                            + [self.question_space_dim, feature_dim, self.question_space_dim, self.question_space_dim])
         self.observation_space = spaces.Box(low=0, high=1, shape=(self.obs_shape,), dtype=np.float32)
         # self.action_space = spaces.Discrete((feature_dim-1) * sequence_len + 2)
         self.action_space = spaces.Discrete(3)
         
         self.all_stimuli = self._generate_all_stimuli()
 
-    def reset(self, batch_size=1):
+    def reset(self):
         """
         question_during_encode: whether to give the question during encoding phase, default: False
         """
         # generate a random sequence of stimuli from all_stimuli without replacement
-        # memory_sequence: sequence_len * num_features, features represented as int
-        # self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)]
         self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=True)]
         iter_num = 0
         while True:
-            feature = np.random.choice(self.num_features, 2, replace=False)
+            feature = np.random.choice(self.num_features, 3, replace=False)
             # the feature in the condition, the feature to be summed up
-            self.question_feature, self.sum_feature = feature[0], feature[1]
+            self.question_feature, self.sum_feature1, self.sum_feature2 = feature[0], feature[1], feature[2]
             self.question_value = np.random.choice(self.feature_dim)
             iter_num += 1
-            if np.sum(self.memory_sequence[:, self.question_feature] == self.question_value) > 0 or iter_num>10:
+            if np.sum(self.memory_sequence[:, self.question_feature] == self.question_value) > 0:
                 break
+            if iter_num > 20:
+                raise ValueError("Cannot find a valid question feature and value pair")
 
         self.gt_by_timestep = np.zeros(self.sequence_len)
         cnt = 0
         self.answer = 0
+        
         for i in range(self.sequence_len):
             if self.memory_sequence[i, self.question_feature] == self.question_value:
+                feature_xor = np.logical_xor(self.memory_sequence[i, self.sum_feature1], self.memory_sequence[i, self.sum_feature2])
                 if self.question_type == "xor":
-                    self.answer = np.logical_xor(self.answer, self.memory_sequence[i, self.sum_feature])
-                else:
-                    self.answer += self.memory_sequence[i, self.sum_feature]
+                    self.answer = np.logical_xor(self.answer, feature_xor)
+                elif self.question_type == "sum":
+                    self.answer += feature_xor
                 cnt += 1
             self.gt_by_timestep[i] = self.answer
         if cnt == 0:
@@ -127,7 +137,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
 
         # convert the first observation to concatenated one-hot vectors
         obs = self._generate_observation(self.memory_sequence[0], self.question_feature, self.question_value, 
-                                         self.sum_feature, include_question=self.include_question_during_encode)
+                                         self.sum_feature1, self.sum_feature2, include_question=self.include_question_during_encode)
         info = {"phase": "encoding"}
         return obs, info
 
@@ -151,17 +161,17 @@ class ConditionalQuestionAnswer(BaseEMTask):
                 # first timestep of recall phase
                 self.phase = "recall"
                 self.timestep = 0
-                obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
+                obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature1, self.sum_feature2, 
                                                  include_question=True)
                 info["phase"] = "recall"
                 info["reset_state"] = self.reset_state_before_test
             else:
                 # encoding phase
                 obs = self._generate_observation(self.memory_sequence[self.timestep], self.question_feature, self.question_value,
-                                                self.sum_feature, include_question=self.include_question_during_encode)
+                                                self.sum_feature1, self.sum_feature2, include_question=self.include_question_during_encode)
             return obs, 0.0, False, False, info
         elif self.phase == "recall":
-            obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature, 
+            obs = self._generate_observation(None, self.question_feature, self.question_value, self.sum_feature1, self.sum_feature2, 
                                              include_question=True)
             info = {"phase": "recall",
                     "gt": 2, "gt_mask": False, 
@@ -272,7 +282,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
         """
         num_matched_stimuli, correct_answers_index = self.get_matched_stimuli()
         return {"memory_sequence": self.memory_sequence, "question_feature": self.question_feature, 
-                "question_value": self.question_value, "sum_feature": self.sum_feature,
+                "question_value": self.question_value, "sum_feature1": self.sum_feature1, "sum_feature2": self.sum_feature2,
                 "correct_answer": self.answer,
                 "num_matched_stimuli": num_matched_stimuli, "matched_stimuli_index": correct_answers_index,
                 "memory_sequence_int": np.array([self.convert_stimuli_to_int(m) for m in self.memory_sequence])}
@@ -299,7 +309,7 @@ class ConditionalQuestionAnswer(BaseEMTask):
         all_stimuli = np.array([np.array(stimuli) for stimuli in all_stimuli])
         return all_stimuli
 
-    def _generate_observation(self, stimuli, question_feature, question_value, sum_feature, include_question=False):
+    def _generate_observation(self, stimuli, question_feature, question_value, sum_feature1, sum_feature2, include_question=False):
         """
         convert observation vector to concatenated one-hot vector
         stimuli: a list of numbers with length num_features, the value of each number is within [0, feature_dim)
@@ -324,5 +334,6 @@ class ConditionalQuestionAnswer(BaseEMTask):
         if include_question:
             observation[question_offset+question_feature] = 1
             observation[question_offset+self.question_space_dim+question_value] = 1
-            observation[question_offset+self.question_space_dim+self.feature_dim+sum_feature] = 1
+            observation[question_offset+self.question_space_dim+self.feature_dim+sum_feature1] = 1
+            observation[question_offset+self.question_space_dim*2+self.feature_dim+sum_feature2] = 1
         return observation

@@ -58,6 +58,8 @@ class MultiRLLoss(nn.Module):
         # pi_ent = torch.tensor(0.0).to(device)
         loss, policy_gradient, value_loss, pi_ent = None, None, None, None
         for i in range(len(self.criteria)):
+            # print(i, len(probs[self.output_index[i]]), len(values[self.output_index[i]]), 
+            #       len(rewards), len(entropys[self.output_index[i]]))
             l, p, v, ent = self.criteria[i](probs[self.output_index[i]], values[self.output_index[i]], 
                                      rewards, entropys[self.output_index[i]], loss_masks,
                                      print_info, device=device)
