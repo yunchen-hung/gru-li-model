@@ -95,7 +95,7 @@ def run(data_all, model_all, env, paths, exp_name):
         with open(fig_path/"accuracy.csv", "w") as f:
             writer = csv.writer(f)
             writer.writerow([accuracy])
-        
+    
 
 
         """ gather data from correct trials """
@@ -124,13 +124,12 @@ def run(data_all, model_all, env, paths, exp_name):
         # answers = []   
         # answers = model_answers
         for i in range(context_num):
-            if data["trial_data"][i]["correct_answer"] != model_answers_all[i]:
-                continue
-            retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
+            if data["trial_data"][i]["correct_answer"] == model_answers_all[i]:
+                correct_trials.append(i)
+            retrieved_memory = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(1), axis=-1)
             if len(retrieved_memory.shape) == 0:
-                continue
+                raise ValueError("trial {}, retrieved_memory shape is 0".format(i))
 
-            correct_trials.append(i)
 
             # sum feature (feature related to the question)
             sum_feature_index1 = data["trial_data"][i]["sum_feature1"]
@@ -158,14 +157,14 @@ def run(data_all, model_all, env, paths, exp_name):
             memory_sequences.append(data["trial_data"][i]["memory_sequence_int"])
 
             # index of the most similar memory for each timestep
-            retrieved_memory_index = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=-1)
+            retrieved_memory_index = np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(1), axis=-1)
             ms = np.ones((timestep_each_phase)) * -1
             ms[:retrieved_memory_index.shape[0]] = retrieved_memory_index
             retrieved_memory_indexes.append(ms)
 
             # memory similarity
             memory_similarity = np.zeros((timestep_each_phase, timestep_each_phase))
-            print(readouts[i]["ValueMemory"]["similarity"].shape)
+            # print(readouts[i]["ValueMemory"]["similarity"].shape)
             memory_similarity_len = readouts[i]["ValueMemory"]["similarity"].shape[0]
             memory_similarity[:memory_similarity_len, :] = readouts[i]["ValueMemory"]["similarity"].squeeze()
             memory_similarities.append(memory_similarity)
@@ -229,32 +228,98 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
 
+        ################# analysis on all trials #################
+        """ count a number of data """
+        # for each trial
+        # correct or not
+        # how many timesteps taken to answer
+        # how many memories retrieved (argmax or based on weights)
+        # how many memories matching the condition retrieved (argmax or based on weights)
+        # how many memories not matching the condition retrieved (argmax or based on weights)
+        # how many memories matching the condition retrieved after gate (argmax or based on weights)
+        # how many memories not matching the condition retrieved after gate (argmax or based on weights)
+        answer_memories_weighted_by_timestep = np.zeros(timestep_each_phase)
+        nonanswer_memories_weighted_by_timestep = np.zeros(timestep_each_phase)
+        answer_memories_weighted_after_gate_by_timestep = np.zeros(timestep_each_phase)
+        nonanswer_memories_weighted_by_timestep_after_gate = np.zeros(timestep_each_phase)
+        for i in range(context_num):
+            matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
+            unmatched_stimuli = [j for j in range(timestep_each_phase) if j not in matched_stimuli]
+            if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
+                continue
+            answer_memory_weighted = np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :])
+            nonanswer_memory_weighted = np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :])
+            answer_memory_weighted_after_gate = np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :] * em_gates[i])
+            nonanswer_memory_weighted_after_gate = np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :] * em_gates[i])
+
+
+            
+        """ whether trials with more time steps have higher accuracy """
+        accuracy_by_timestep = np.zeros(timestep_each_phase)
+        for i in correct_trials:
+            accuracy_by_timestep[answer_timesteps[i]-1] += 1
+        num_timesteps_nozero = num_timesteps.copy()
+        num_timesteps_nozero[num_timesteps_nozero==0] = 1
+        accuracy_by_timestep = accuracy_by_timestep / num_timesteps_nozero
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), accuracy_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("time in recall phase")
+        plt.ylabel("accuracy")
+        plt.tight_layout()
+        savefig(fig_path, "accuracy_timesteps")
+
+
+
         """ count the proportion of memories retrieved for items matched and unmatched with the query """
-        # matched_stimuli_num = 0.0
-        # unmatched_stimuli_num = 0.0
-        # answer_memory = 0.0
-        # nonanswer_memory = 0.0
-        # answer_memory_after_gate = 0.0
-        # nonanswer_memory_after_gate = 0.0
-        # for i in range(correct_trials.shape[0]):
-        #     matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
-        #     unmatched_stimuli = [j for j in range(timestep_each_phase) if j not in matched_stimuli]
-        #     matched_stimuli_num += len(matched_stimuli)
-        #     unmatched_stimuli_num += len(unmatched_stimuli)
-        #     if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
-        #         continue
-        #     answer_memory += np.sum(retrieved_memories[i, :, matched_stimuli] * actions_mask[i, :]) # / len(matched_stimuli)
-        #     nonanswer_memory += np.sum(retrieved_memories[i, :, unmatched_stimuli] * actions_mask[i, :]) # / len(unmatched_stimuli)
-        #     answer_memory_after_gate += np.sum(retrieved_memories[i, :, matched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(matched_stimuli)
-        #     nonanswer_memory_after_gate += np.sum(retrieved_memories[i, :, unmatched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(unmatched_stimuli)
-        # print("answer_memory: ", answer_memory)
-        # print("nonanswer_memory: ", nonanswer_memory)
-        # print("answer_memory_after_gate: ", answer_memory_after_gate)
-        # print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
-        # print("matched_stimuli_num: ", matched_stimuli_num)
-        # print("unmatched_stimuli_num: ", unmatched_stimuli_num)
-        # print("ratio:", np.round(answer_memory/matched_stimuli_num/nonanswer_memory*unmatched_stimuli_num, 4))
-        # print("ratio after gate:", np.round(answer_memory_after_gate/matched_stimuli_num/nonanswer_memory_after_gate*unmatched_stimuli_num, 4))
+        matched_stimuli_num = 0.0
+        unmatched_stimuli_num = 0.0
+        answer_memory = 0.0
+        nonanswer_memory = 0.0
+        answer_memory_after_gate = 0.0
+        nonanswer_memory_after_gate = 0.0
+        for i in range(correct_trials.shape[0]):
+            matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
+            unmatched_stimuli = [j for j in range(timestep_each_phase) if j not in matched_stimuli]
+            matched_stimuli_num += len(matched_stimuli)
+            unmatched_stimuli_num += len(unmatched_stimuli)
+            if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
+                continue
+            answer_memory += np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :]) # / len(matched_stimuli)
+            nonanswer_memory += np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :]) # / len(unmatched_stimuli)
+            answer_memory_after_gate += np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(matched_stimuli)
+            nonanswer_memory_after_gate += np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(unmatched_stimuli)
+        print("answer_memory: ", answer_memory)
+        print("nonanswer_memory: ", nonanswer_memory)
+        print("answer_memory_after_gate: ", answer_memory_after_gate)
+        print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
+        print("matched_stimuli_num: ", matched_stimuli_num)
+        print("unmatched_stimuli_num: ", unmatched_stimuli_num)
+        print("ratio:", np.round(answer_memory/matched_stimuli_num/nonanswer_memory*unmatched_stimuli_num, 4))
+        print("ratio after gate:", np.round(answer_memory_after_gate/matched_stimuli_num/nonanswer_memory_after_gate*unmatched_stimuli_num, 4))
+
+
+
+        ################# analysis on correct trials #################
+        """ get data from correct trials """
+        sum_features1 = sum_features1[correct_trials]
+        sum_features2 = sum_features2[correct_trials]
+        matched_mask = matched_mask[correct_trials]
+        unmatched_mask = unmatched_mask[correct_trials]
+        c_memorizing = c_memorizing[correct_trials]
+        c_recalling = c_recalling[correct_trials]
+        memory_sequences = memory_sequences[correct_trials]
+        em_gates = em_gates[correct_trials]
+        memory_similarities = memory_similarities[correct_trials]
+        retrieved_memory_indexes = retrieved_memory_indexes[correct_trials]
+        retrieved_memories = retrieved_memories[correct_trials]
+        answers = answers[correct_trials]
+        answer_timesteps = answer_timesteps[correct_trials]
+        actions_mask = actions_mask[correct_trials]
+        print("correct_trials_num: ", correct_trials_num)
 
 
         """ plot the proportion of trials answered at each timestep """
@@ -323,7 +388,7 @@ def run(data_all, model_all, env, paths, exp_name):
                 ms = memory_similarities[i]
                 plt.figure(figsize=(4, 3), dpi=180)
                 for j in range(ms.shape[1]):
-                    plt.plot(ms[:, j], label="memory {}".format(j))
+                    plt.plot(ms[:, j], label="memory {}".format(j), alpha=0.7)
                 plt.legend()
                 plt.xlabel("time of recall phase")
                 plt.ylabel("memory similarity")
