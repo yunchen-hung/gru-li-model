@@ -15,6 +15,8 @@ class DeepValueMemoryGRU(BasicModule):
                  hidden_dim: int, 
                  input_dim: int, 
                  output_dims: list, 
+                 input_encoder_dims: list = [],
+                 output_encoder_dims: list = [],
                  em_gate_type='constant',
                  init_state_type="zeros", 
                  evolve_state_between_phases=False, 
@@ -73,13 +75,13 @@ class DeepValueMemoryGRU(BasicModule):
             output_dims = [output_dims]
         self.output_dims = output_dims          # there could be mutliple output decisions
 
-        fc_hidden_dim = int(hidden_dim/4)
+        # fc_hidden_dim = int(hidden_dim/4)
 
-        self.encoder = MLPEncoder(input_dim, 3 * hidden_dim, hidden_dims=[fc_hidden_dim, hidden_dim])
+        self.encoder = MLPEncoder(input_dim, 3 * hidden_dim, hidden_dims=input_encoder_dims)
         self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
         self.decoders = nn.ModuleList()
         for output_dim in output_dims:
-            self.decoders.append(ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=[fc_hidden_dim]))
+            self.decoders.append(ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=output_encoder_dims))
 
         self.ln_i2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
         self.ln_h2h = torch.nn.LayerNorm(2*hidden_dim, elementwise_affine=False)
