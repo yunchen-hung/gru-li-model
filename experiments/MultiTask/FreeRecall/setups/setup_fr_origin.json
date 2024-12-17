@@ -3,17 +3,14 @@
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 52,
-        "output_dims": [21],
-        "input_encoder_dims": [64],
+        "input_dim": 103,
+        "output_dims": [51],
+        "input_encoder_dims": [],
         "output_encoder_dims": [],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
-        "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.5,
-        "random_init_noise": 0.1,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -33,47 +30,40 @@
     "training": [{
         "env": [{
             "vector_env": {
-                "mode": "sync",
+                "mode": "async",
                 "batch_size": 32
             },
-            "class": "ConditionalEMRecall",
-            "wrapper": [{
-                "class": "MetaLearningEnv"
-            }],
-            "num_features": 2,
-            "feature_dim": 2,
+            "class": "FreeRecall",
+            "vocabulary_num": 50,
             "sequence_len": 8,
-            "vocabulary_num": 20,
-            "value_dim": 2,
+            "retrieve_time_limit": 8,
+            "return_action": true,
+            "return_reward": true,
             "reset_state_before_test": true,
-            "correct_reward": 1.0,
-            "no_action_reward": -0.0,
-            "wrong_reward": -1.0,
-            "include_question_during_encode": false,
-            "no_condition": true
+            "false_reward": -0.75,
+            "repeat_penalty": -0.75,
+            "not_know_reward": -0.75
         }],
         "trainer": {
-            "num_iter": 2000,
-            "test_iter": 1000,
-            "save_iter": 2000,
-            "stop_test_accu": 0.99,
+            "num_iter": 200,
+            "test_iter": 100,
+            "save_iter": 200,
             "use_memory": true,
+            "stop_test_accu": 0.99,
             "sl_criterion": {
                 "class": "MultiSupervisedLoss",
                 "criteria": [
                     {
                         "class": "EncodingCrossEntropyLoss",
-                        "class_num": 21,
-                        "no_action_weight": 0.5
+                        "class_num": 51
                     }
                 ]
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 5e-4,
-                "weight_decay": 2e-5,
-                "lr_decay_factor": 0.5,
-                "lr_decay_patience": 10,
+                "lr": 3e-3,
+                "lr_decay_factor": 0.1,
+                "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,
                 "min_lr": 1e-7
             }
@@ -82,33 +72,25 @@
         "env": [{
             "vector_env": {
                 "mode": "sync",
-                "batch_size": 32
+                "batch_size": 16
             },
-            "class": "ConditionalEMRecall",
-            "wrapper": [{
-                "class": "MetaLearningEnv"
-            }],
-            "num_features": 2,
-            "feature_dim": 2,
+            "class": "FreeRecall",
+            "vocabulary_num": 50,
             "sequence_len": 8,
-            "vocabulary_num": 20,
-            "value_dim": 2,
+            "retrieve_time_limit": 8,
+            "return_action": true,
+            "return_reward": true,
             "reset_state_before_test": true,
-            "correct_reward": 1.0,
-            "no_action_reward": -0.0,
-            "wrong_reward": -1.0,
-            "include_question_during_encode": false,
-            "no_condition": true
+            "false_reward": -0.75,
+            "repeat_penalty": -0.75,
+            "not_know_reward": -0.75
         }],
         "trainer": {
-            "training_function": "train",
             "num_iter": 1e5,
-            "test_iter": 1000,
-            "save_iter": 10000,
-            "stop_test_accu": 0.99,
+            "test_iter": 100,
+            "save_iter": 5000,
             "use_memory": true,
-            "used_output_index": [0],
-            "mem_beta_decay_threshold": 0.85,
+            "stop_test_accu": 0.99,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
@@ -130,11 +112,10 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
-                "weight_decay": 1e-5,
+                "lr": 3e-3,
                 "lr_decay_factor": 0.1,
-                "lr_decay_patience": 20,
-                "lr_decay_threshold": 1e-4,
+                "lr_decay_patience": 30,
+                "lr_decay_threshold": 1e-3,
                 "min_lr": 1e-7
             }
         }

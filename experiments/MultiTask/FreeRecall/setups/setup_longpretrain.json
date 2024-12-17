@@ -1,5 +1,5 @@
 {
-    "run_num": 1,
+    "run_num": 3,
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
@@ -31,6 +31,54 @@
         }]
     },
     "training": [{
+        "env": [{
+            "vector_env": {
+                "mode": "sync",
+                "batch_size": 32
+            },
+            "class": "ConditionalEMRecall",
+            "wrapper": [{
+                "class": "MetaLearningEnv"
+            }],
+            "num_features": 2,
+            "feature_dim": 2,
+            "sequence_len": 8,
+            "vocabulary_num": 20,
+            "value_dim": 2,
+            "reset_state_before_test": true,
+            "correct_reward": 1.0,
+            "no_action_reward": -0.0,
+            "wrong_reward": -1.0,
+            "include_question_during_encode": false,
+            "no_condition": true
+        }],
+        "trainer": {
+            "num_iter": 5000,
+            "test_iter": 1000,
+            "save_iter": 2000,
+            "stop_test_accu": 0.99,
+            "use_memory": true,
+            "sl_criterion": {
+                "class": "MultiSupervisedLoss",
+                "criteria": [
+                    {
+                        "class": "EncodingCrossEntropyLoss",
+                        "class_num": 21,
+                        "no_action_weight": 0.5
+                    }
+                ]
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 5e-4,
+                "weight_decay": 2e-5,
+                "lr_decay_factor": 0.5,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-7
+            }
+        }
+    }, {
         "env": [{
             "vector_env": {
                 "mode": "sync",

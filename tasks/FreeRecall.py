@@ -6,24 +6,25 @@ from .base import BaseEMTask
 
 
 class FreeRecall(BaseEMTask):
-    def __init__(self, vocabulary_num=20, memory_num=5, memory_var=0, retrieve_time_limit=None, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
+    def __init__(self, vocabulary_num=20, sequence_len=5, memory_var=0, retrieve_time_limit=None, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
     not_know_reward=-0.1, reset_state_before_test=False, start_recall_cue=False, encode_reward_weight=0.0, return_action=False, return_reward=False, 
     #forward_smooth=0, backward_smooth=0, 
     seed=None,
     dt=10, tau=10):
         super().__init__(reset_state_before_test=reset_state_before_test, seed=seed)
         self.vocabulary_num = vocabulary_num        # dimension of items
-        self.memory_num = memory_num                # sequence length
+        self.memory_num = sequence_len                # sequence length
         self.memory_var = memory_var                # variance of memory sequence length
-        assert memory_num > memory_var
-        self.current_memory_num = memory_num        # current memory sequence length
+        assert sequence_len > memory_var
+        self.current_memory_num = sequence_len        # current memory sequence length
+        self.sequence_len = sequence_len
         # rewards and penalties
         self.true_reward = true_reward
         self.false_reward = false_reward
         self.not_know_reward = not_know_reward
         self.repeat_penalty = repeat_penalty
 
-        self.retrieve_time_limit = retrieve_time_limit if retrieve_time_limit is not None else memory_num
+        self.retrieve_time_limit = retrieve_time_limit if retrieve_time_limit is not None else sequence_len
         self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
         self.start_recall_cue = start_recall_cue                            # add a cue at the beginning of recall
         self.encode_reward_weight = encode_reward_weight                    # weight of reward during encoding
