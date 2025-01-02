@@ -164,7 +164,11 @@ def run(data_all, model_all, env, paths, exp_name):
         # weights_activity_data["h_n_weights_std"] = np.std(h_n_weights)
 
 
-        
+        # states = []
+        # for i in range(context_num):
+        #     states.append(readouts[i]['state'])
+        # states = np.stack(states).squeeze()
+        # print(states.shape)
 
         # activity_mean_timestep = np.mean(states, axis=(0,2))
         # activity_std_timestep = np.std(states, axis=(0,2))
@@ -182,17 +186,9 @@ def run(data_all, model_all, env, paths, exp_name):
         # print(weights_activity_data)
         
 
-        states = []
-        for i in range(context_num):
-            states.append(readouts[i]['state'])
-        states = np.stack(states).squeeze()
-        print(states.shape)
-
-
         """ PCA """
         pca = PCA()
-
-        pca.fit(states[:10])
+        pca.fit(states)
         pca.visualize_state_space(save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
                                 file_name="encoding", format="svg")
         pca.visualize_state_space(save_path=fig_path/"pca_state_space", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
@@ -208,7 +204,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
         c_memorizing = np.stack([readouts[i]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)])   # context_num * time * state_dim
         c_recalling = np.stack([readouts[i]['state'][-timestep_each_phase:].squeeze() for i in range(all_context_num)])
-        memory_sequence = np.stack([memory_contexts[i] for i in range(all_context_num)])    # context_num * time
+        memory_sequence = np.stack([memory_contexts[i] for i in range(all_context_num)]) - 1    # context_num * time
 
         # # Ridge
         ridge_decoder = RidgeClassifier()

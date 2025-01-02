@@ -224,6 +224,20 @@ def run(data_all, model_all, env, paths, exp_name):
         print("correct_trials_num: ", correct_trials_num)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         ################# analysis on all trials #################
 
 
@@ -270,6 +284,111 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
 
+        """ whether trials recalling more memories have higher accuracy """
+        """ also: whether trials recalling more matched memories have higher accuracy """
+        os.makedirs(fig_path/"retrieved_memory_num", exist_ok=True)
+
+        num_retrieved_memories = []
+        num_matched_memories_retrieved = []
+        proportion_matched_memories_retrieved = []
+        for i in range(context_num):
+            mem_retrieved = np.zeros(timestep_each_phase)
+            matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
+            for j in range(timestep_each_phase):
+                if int(retrieved_memory_indexes[i, j]) != -1:
+                    mem_retrieved[int(retrieved_memory_indexes[i, j])] = 1
+            num_retrieved_memories.append(np.sum(mem_retrieved))
+            num_matched_memories_retrieved.append(np.sum(mem_retrieved[matched_stimuli]))
+            proportion_matched_memories_retrieved.append(np.sum(mem_retrieved[matched_stimuli]) / len(matched_stimuli))
+        num_retrieved_memories = np.array(num_retrieved_memories)
+        num_matched_memories_retrieved = np.array(num_matched_memories_retrieved)
+        proportion_matched_memories_retrieved = np.array(proportion_matched_memories_retrieved)
+
+        # number of retrieved memories for trials with different number of timesteps
+        num_retrieved_memories_mean_by_timestep = np.zeros(timestep_each_phase)
+        num_matched_memories_retrieved_mean_by_timestep = np.zeros(timestep_each_phase)
+        proportion_matched_memories_retrieved_mean_by_timestep = np.zeros(timestep_each_phase)
+
+        for i in range(timestep_each_phase):
+            num_retrieved_memories_mean_by_timestep[i] = np.mean(num_retrieved_memories[answer_timesteps == i+1])
+            num_matched_memories_retrieved_mean_by_timestep[i] = np.mean(num_matched_memories_retrieved[answer_timesteps == i+1])
+            proportion_matched_memories_retrieved_mean_by_timestep[i] = np.mean(proportion_matched_memories_retrieved[answer_timesteps == i+1])
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), num_retrieved_memories_mean_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("time in recall phase")
+        plt.ylabel("number of\nretrieved memories")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "num_retrieved_memories")
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), num_matched_memories_retrieved_mean_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("time in recall phase")
+        plt.ylabel("number of matched\nmemories retrieved")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "num_matched_memories_retrieved")
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), proportion_matched_memories_retrieved_mean_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("time in recall phase")
+        plt.ylabel("proportion of matched\nmemories retrieved")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "proportion_matched_memories_retrieved")
+
+        # accuracy for trials with different number of retrieved memories
+        accuracy_by_num_retrieved_memories = np.zeros(timestep_each_phase)
+        num_trials_by_num_retrieved_memories = np.zeros(timestep_each_phase)
+        accuracy_by_matched_proportion = np.zeros(6)
+        num_trials_by_matched_proportion = np.zeros(6)
+        for i in correct_trials:
+            accuracy_by_num_retrieved_memories[int(num_retrieved_memories[i]-1)] += 1
+            accuracy_by_matched_proportion[int(proportion_matched_memories_retrieved[i]*5)] += 1
+        for i in range(context_num):
+            num_trials_by_matched_proportion[int(proportion_matched_memories_retrieved[i]*5)] += 1
+            num_trials_by_num_retrieved_memories[int(num_retrieved_memories[i]-1)] += 1
+        num_trials_by_num_retrieved_memories[num_trials_by_num_retrieved_memories==0] = 1
+        accuracy_by_num_retrieved_memories = accuracy_by_num_retrieved_memories / num_trials_by_num_retrieved_memories
+        num_trials_by_matched_proportion[num_trials_by_matched_proportion==0] = 1
+        accuracy_by_matched_proportion = accuracy_by_matched_proportion / num_trials_by_matched_proportion
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), accuracy_by_num_retrieved_memories)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("number of retrieved memories")
+        plt.ylabel("accuracy")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "accuracy_by_num_retrieved_memories")
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(0, 1.2, 0.2), accuracy_by_matched_proportion, width=0.12)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("proportion of matched\nmemories retrieved")
+        plt.ylabel("accuracy")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "accuracy_by_matched_proportion")
+
+
+
+
+
+
+
+
+
+
         ################# analysis on correct trials #################
         """ get data from correct trials """
         sum_features = sum_features[correct_trials]
@@ -289,32 +408,96 @@ def run(data_all, model_all, env, paths, exp_name):
 
 
         """ count the proportion of memories retrieved for items matched and unmatched with the query """
+        """ and count separately for trials using different number of timesteps """
         matched_stimuli_num = 0.0
         unmatched_stimuli_num = 0.0
         answer_memory = 0.0
         nonanswer_memory = 0.0
         answer_memory_after_gate = 0.0
         nonanswer_memory_after_gate = 0.0
+
+        answer_memory_by_timestep = np.zeros(timestep_each_phase)
+        nonanswer_memory_by_timestep = np.zeros(timestep_each_phase)
+        answer_memory_after_gate_by_timestep = np.zeros(timestep_each_phase)
+        nonanswer_memory_after_gate_by_timestep = np.zeros(timestep_each_phase)
+        matched_stimuli_num_by_timestep = np.zeros(timestep_each_phase)
+        unmatched_stimuli_num_by_timestep = np.zeros(timestep_each_phase)
+
         for i in range(correct_trials.shape[0]):
-            matched_stimuli = data["trial_data"][i]["matched_stimuli_index"]
+            matched_stimuli = data["trial_data"][correct_trials[i]]["matched_stimuli_index"]
             unmatched_stimuli = [j for j in range(timestep_each_phase) if j not in matched_stimuli]
             matched_stimuli_num += len(matched_stimuli)
             unmatched_stimuli_num += len(unmatched_stimuli)
             if len(matched_stimuli) == 0 or len(unmatched_stimuli) == 0:
                 continue
-            answer_memory += np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :]) # / len(matched_stimuli)
-            nonanswer_memory += np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :]) # / len(unmatched_stimuli)
-            answer_memory_after_gate += np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(matched_stimuli)
-            nonanswer_memory_after_gate += np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(unmatched_stimuli)
-        print("answer_memory: ", answer_memory)
-        print("nonanswer_memory: ", nonanswer_memory)
-        print("answer_memory_after_gate: ", answer_memory_after_gate)
-        print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
-        print("matched_stimuli_num: ", matched_stimuli_num)
-        print("unmatched_stimuli_num: ", unmatched_stimuli_num)
+
+            matched_stimuli_num_by_timestep[int(answer_timesteps[i]-1)] += len(matched_stimuli)
+            unmatched_stimuli_num_by_timestep[int(answer_timesteps[i]-1)] += len(unmatched_stimuli)
+
+            am = np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :]) # / len(matched_stimuli)
+            answer_memory += am
+            answer_memory_by_timestep[int(answer_timesteps[i]-1)] += am
+
+            nam = np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :]) # / len(unmatched_stimuli)
+            nonanswer_memory += nam
+            nonanswer_memory_by_timestep[int(answer_timesteps[i]-1)] += nam
+
+            amag = np.sum(memory_similarities[i, :, matched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(matched_stimuli)
+            answer_memory_after_gate += amag
+            answer_memory_after_gate_by_timestep[int(answer_timesteps[i]-1)] += amag
+
+            namag = np.sum(memory_similarities[i, :, unmatched_stimuli] * actions_mask[i, :] * em_gates[i]) # / len(unmatched_stimuli)
+            nonanswer_memory_after_gate += namag
+            nonanswer_memory_after_gate_by_timestep[int(answer_timesteps[i]-1)] += namag
+
+        # print("answer_memory: ", answer_memory)
+        # print("nonanswer_memory: ", nonanswer_memory)
+        # print("answer_memory_after_gate: ", answer_memory_after_gate)
+        # print("nonanswer_memory_after_gate: ", nonanswer_memory_after_gate)
+        # print("matched_stimuli_num: ", matched_stimuli_num)
+        # print("unmatched_stimuli_num: ", unmatched_stimuli_num)
         print("ratio:", np.round(answer_memory/matched_stimuli_num/nonanswer_memory*unmatched_stimuli_num, 4))
         print("ratio after gate:", np.round(answer_memory_after_gate/matched_stimuli_num/nonanswer_memory_after_gate*unmatched_stimuli_num, 4))
 
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), answer_memory_by_timestep/matched_stimuli_num_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("number of timesteps")
+        plt.ylabel("matched stimuli\nby weight")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "matched_stimuli_by_weight")
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), nonanswer_memory_by_timestep/unmatched_stimuli_num_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("number of timesteps")
+        plt.ylabel("unmatched stimuli\nby weight")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "unmatched_stimuli_by_weight")
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), answer_memory_after_gate_by_timestep/matched_stimuli_num_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("number of timesteps")
+        plt.ylabel("matched stimuli\nafter gate")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "matched_stimuli_after_gate_by_weight")
+
+        plt.figure(figsize=(4, 3), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), nonanswer_memory_after_gate_by_timestep/unmatched_stimuli_num_by_timestep)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("number of timesteps")
+        plt.ylabel("unmatched stimuli\nafter gate")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "unmatched_stimuli_after_gate_by_weight")
 
 
         """ plot the proportion of trials answered at each timestep """

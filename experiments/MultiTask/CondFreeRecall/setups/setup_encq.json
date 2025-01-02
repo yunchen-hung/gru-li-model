@@ -49,12 +49,11 @@
             "correct_reward": 1.0,
             "no_action_reward": -1.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": false,
-            "no_condition": true
+            "include_question_during_encode": true
         }],
         "trainer": {
             "training_function": "train",
-            "num_iter": 1e5,
+            "num_iter": 5e5,
             "test_iter": 1000,
             "save_iter": 10000,
             "stop_test_accu": 0.99,

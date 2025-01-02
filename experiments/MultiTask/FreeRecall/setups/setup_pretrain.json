@@ -3,9 +3,9 @@
     "model": {
         "class": "DeepValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 52,
-        "output_dims": [21],
-        "input_encoder_dims": [64],
+        "input_dim": 112,
+        "output_dims": [51],
+        "input_encoder_dims": [],
         "output_encoder_dims": [],
         "use_memory": true,
         "softmax_beta": 1.0,
@@ -34,7 +34,7 @@
         "env": [{
             "vector_env": {
                 "mode": "sync",
-                "batch_size": 32
+                "batch_size": 16
             },
             "class": "ConditionalEMRecall",
             "wrapper": [{
@@ -43,17 +43,17 @@
             "num_features": 2,
             "feature_dim": 2,
             "sequence_len": 8,
-            "vocabulary_num": 20,
+            "vocabulary_num": 50,
             "value_dim": 2,
             "reset_state_before_test": true,
             "correct_reward": 1.0,
-            "no_action_reward": -0.0,
-            "wrong_reward": -1.0,
+            "no_action_reward": -0.8,
+            "wrong_reward": -0.8,
             "include_question_during_encode": false,
             "no_condition": true
         }],
         "trainer": {
-            "num_iter": 2000,
+            "num_iter": 5000,
             "test_iter": 1000,
             "save_iter": 2000,
             "stop_test_accu": 0.99,
@@ -63,7 +63,7 @@
                 "criteria": [
                     {
                         "class": "EncodingCrossEntropyLoss",
-                        "class_num": 21,
+                        "class_num": 51,
                         "no_action_weight": 0.5
                     }
                 ]
@@ -82,7 +82,7 @@
         "env": [{
             "vector_env": {
                 "mode": "sync",
-                "batch_size": 32
+                "batch_size": 16
             },
             "class": "ConditionalEMRecall",
             "wrapper": [{
@@ -91,12 +91,12 @@
             "num_features": 2,
             "feature_dim": 2,
             "sequence_len": 8,
-            "vocabulary_num": 20,
+            "vocabulary_num": 50,
             "value_dim": 2,
             "reset_state_before_test": true,
             "correct_reward": 1.0,
-            "no_action_reward": -0.0,
-            "wrong_reward": -1.0,
+            "no_action_reward": -0.8,
+            "wrong_reward": -0.8,
             "include_question_during_encode": false,
             "no_condition": true
         }],
@@ -108,14 +108,14 @@
             "stop_test_accu": 0.99,
             "use_memory": true,
             "used_output_index": [0],
-            "mem_beta_decay_threshold": 0.85,
+            "mem_beta_decay_threshold": 1.05,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.01,
+                        "eta": 0.005,
                         "gamma": 0.99
                     }
                 ]

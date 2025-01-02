@@ -47,7 +47,7 @@
             "value_dim": 2,
             "reset_state_before_test": true,
             "correct_reward": 1.0,
-            "no_action_reward": -0.2,
+            "no_action_reward": -1.0,
             "wrong_reward": -1.0,
             "include_question_during_encode": false
         }],
@@ -59,7 +59,7 @@
             "stop_test_accu": 0.99,
             "use_memory": true,
             "used_output_index": [0],
-            "mem_beta_decay_threshold": 0.85,
+            "mem_beta_decay_threshold": 1.05,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
