@@ -122,5 +122,5 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 1000
+    "context_num": 10000
 }

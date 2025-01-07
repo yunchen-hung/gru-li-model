@@ -161,7 +161,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 if model_for_record is not None:
                     print("use record model setup")
                     model = model_for_record
-                    model.load_state_dict(torch.load(model_load_path/"model.pt"))
+                    model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu'), weights_only=True))
                 data_all_env = []
                 for i in record_env:
                     data = record(model, env[i], used_output=used_output[i], 
