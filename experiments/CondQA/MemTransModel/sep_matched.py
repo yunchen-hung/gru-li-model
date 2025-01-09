@@ -215,7 +215,8 @@ def run(data_all, model_all, env, paths, exp_name):
 
         ################# analysis on all trials #################
         """ whether trials with more time steps have higher accuracy """
-        plt.figure(figsize=(5, 3), dpi=180)
+        accuracy_by_timestep_all = []
+        plt.figure(figsize=(4.7, 3), dpi=180)
         for i in range(1, timestep_each_phase+1):
             accuracy_by_timestep = np.zeros(timestep_each_phase)
             trials_by_timestep = np.zeros(timestep_each_phase)
@@ -225,15 +226,20 @@ def run(data_all, model_all, env, paths, exp_name):
                 trials_by_timestep[answer_timesteps[j]-1] += 1
             trials_by_timestep[trials_by_timestep == 0] = 1
             accuracy_by_timestep = accuracy_by_timestep / trials_by_timestep
-            plt.plot(np.arange(1, timestep_each_phase+1), accuracy_by_timestep, label="{} matched items".format(i), marker="o")
+            plt.plot(np.arange(1, timestep_each_phase+1), accuracy_by_timestep, label="{} matched".format(i), marker="o")
+            accuracy_by_timestep_all.append(accuracy_by_timestep)
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         plt.xlabel("time in recall phase")
         plt.ylabel("accuracy")
-        plt.legend(fontsize=12, bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.legend(fontsize=10, bbox_to_anchor=(1.05, 1.0), loc='upper left')
         plt.tight_layout()
         savefig(fig_path, "accuracy_timesteps")
+
+        accuracy_by_timestep_all = np.array(accuracy_by_timestep_all)
+        os.makedirs(fig_path/ "data", exist_ok=True)
+        np.save(fig_path/ "data" / "accuracy_by_timestep_all.npy", accuracy_by_timestep_all)
 
 
         """ whether trials recalling more memories have higher accuracy """
@@ -269,29 +275,32 @@ def run(data_all, model_all, env, paths, exp_name):
                 num_retrieved_memories_mean_by_timestep[j, i] = np.mean(num_retrieved_memories[trials_by_matched_num[j]][answer_timesteps_j == i+1])
                 num_matched_memories_retrieved_mean_by_timestep[j, i] = np.mean(num_matched_memories_retrieved[trials_by_matched_num[j]][answer_timesteps_j == i+1])
 
-        plt.figure(figsize=(5, 3), dpi=180)
+        plt.figure(figsize=(4.7, 3), dpi=180)
         for i in range(1, timestep_each_phase+1):
-            plt.plot(np.arange(1, timestep_each_phase+1), num_retrieved_memories_mean_by_timestep[i], label="{} matched items".format(i), marker="o")
+            plt.plot(np.arange(1, timestep_each_phase+1), num_retrieved_memories_mean_by_timestep[i], label="{} matched".format(i), marker="o")
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         plt.xlabel("time in recall phase")
         plt.ylabel("number of\nretrieved memories")
-        plt.legend(fontsize=12, bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.legend(fontsize=10, bbox_to_anchor=(1.05, 1.0), loc='upper left')
         plt.tight_layout()
         savefig(fig_path/"retrieved_memory_num", "mean_by_timestep")
+        np.save(fig_path/ "data" / "num_retrieved_memories_mean_by_timestep.npy", num_retrieved_memories_mean_by_timestep)
 
-        plt.figure(figsize=(5, 3), dpi=180)
+        plt.figure(figsize=(4.7, 3), dpi=180)
         for i in range(1, timestep_each_phase+1):
-            plt.plot(np.arange(1, timestep_each_phase+1), num_matched_memories_retrieved_mean_by_timestep[i], label="{} matched items".format(i), marker="o")
+            plt.plot(np.arange(1, timestep_each_phase+1), num_matched_memories_retrieved_mean_by_timestep[i], label="{} matched".format(i), marker="o")
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         plt.xlabel("time in recall phase")
         plt.ylabel("number of matched\nmemories retrieved")
-        plt.legend(fontsize=12, bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.legend(fontsize=10, bbox_to_anchor=(1.05, 1.0), loc='upper left')
         plt.tight_layout()
         savefig(fig_path/"retrieved_memory_num", "mean_by_timestep_matched")
+        np.save(fig_path/ "data" / "num_matched_memories_retrieved_mean_by_timestep.npy", num_matched_memories_retrieved_mean_by_timestep)
+
 
         # accuracy for trials with different number of retrieved memories
         accuracy_by_num_retrieved_memories = np.zeros((timestep_each_phase+1, timestep_each_phase))
@@ -304,16 +313,17 @@ def run(data_all, model_all, env, paths, exp_name):
         num_trials_by_num_retrieved_memories[num_trials_by_num_retrieved_memories == 0] = 1
         accuracy_by_num_retrieved_memories = accuracy_by_num_retrieved_memories / num_trials_by_num_retrieved_memories
 
-        plt.figure(figsize=(5, 3), dpi=180)
+        plt.figure(figsize=(4.7, 3), dpi=180)
         for i in range(1, timestep_each_phase+1):
-            plt.plot(np.arange(1, timestep_each_phase+1), accuracy_by_num_retrieved_memories[i], label="{} matched items".format(i), marker="o")
+            plt.plot(np.arange(1, timestep_each_phase+1), accuracy_by_num_retrieved_memories[i], label="{} matched".format(i), marker="o")
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         plt.xlabel("number of retrieved memories")
         plt.ylabel("accuracy")
-        plt.legend(fontsize=12, bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.legend(fontsize=10, bbox_to_anchor=(1.05, 1.0), loc='upper left')
         plt.tight_layout()
         savefig(fig_path/"retrieved_memory_num", "accuracy_by_num_retrieved_memories")
+        np.save(fig_path/ "data" / "accuracy_by_num_retrieved_memories.npy", accuracy_by_num_retrieved_memories)
 
 
