@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import csv
 
 from sklearn.linear_model import RidgeClassifier
@@ -85,7 +86,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
         memory_sequences = []
         correct_trials = []
-        valid_trials = []
+        num_matched_items = []
 
         memory_similarities = []
         retrieved_memory_indexes = []
@@ -125,6 +126,7 @@ def run(data_all, model_all, env, paths, exp_name):
             unmatched_mask.append(np.array([1 if j in unmatched_stimuli else 0 for j in np.arange(timestep_each_phase)]))
 
             trials_by_matched_num[len(matched_stimuli)].append(i)
+            num_matched_items.append(len(matched_stimuli))
             if data["trial_data"][i]["correct_answer"] == model_answers_all[i]:
                 correct_trials_by_matched_num[len(matched_stimuli)].append(i)
             
@@ -190,6 +192,7 @@ def run(data_all, model_all, env, paths, exp_name):
 
         matched_mask = np.stack(matched_mask, axis=0)
         unmatched_mask = np.stack(unmatched_mask, axis=0)
+        num_matched_items = np.array(num_matched_items)
 
         c_memorizing = np.stack(c_memorizing, axis=0)
         c_recalling = np.stack(c_recalling, axis=0)
@@ -240,6 +243,7 @@ def run(data_all, model_all, env, paths, exp_name):
         accuracy_by_timestep_all = np.array(accuracy_by_timestep_all)
         os.makedirs(fig_path/ "data", exist_ok=True)
         np.save(fig_path/ "data" / "accuracy_by_timestep_all.npy", accuracy_by_timestep_all)
+
 
 
         """ whether trials recalling more memories have higher accuracy """
@@ -327,3 +331,54 @@ def run(data_all, model_all, env, paths, exp_name):
         np.save(fig_path/ "data" / "accuracy_by_num_retrieved_memories.npy", accuracy_by_num_retrieved_memories)
 
 
+
+
+        """ performance before recalling all related memories and after recalling all related memories """
+        plt.figure(figsize=(2.5, 3), dpi=180)
+        trials_num_sep_by_recall = np.zeros(2)
+        correct_trials_num_sep_by_recall = np.zeros(2)
+        for i in range(context_num):
+            if num_matched_items[i] == num_matched_memories_retrieved[i]:
+                trials_num_sep_by_recall[1] += 1
+                if data["trial_data"][i]["correct_answer"] == model_answers_all[i]:
+                    correct_trials_num_sep_by_recall[1] += 1
+            else:
+                trials_num_sep_by_recall[0] += 1
+                if data["trial_data"][i]["correct_answer"] == model_answers_all[i]:
+                    correct_trials_num_sep_by_recall[0] += 1
+        print(trials_num_sep_by_recall, correct_trials_num_sep_by_recall)
+        colors = [sns.color_palette()[0], sns.color_palette()[1]]
+        plt.bar(["partial", "full"], correct_trials_num_sep_by_recall / trials_num_sep_by_recall, color=colors)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xticks(rotation=45, fontsize=12)
+        plt.ylabel("accuracy")
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "accuracy_sep_by_recall_all_matched")
+        np.save(fig_path/ "data" / "performance_sep_by_recall_all_matched.npy", correct_trials_num_sep_by_recall / trials_num_sep_by_recall)
+
+
+
+        """ distribution of timesteps taken for trials with different number of matched memories """
+        plt.figure(figsize=(4.7, 3), dpi=180)
+        answer_timesteps_num = np.zeros((timestep_each_phase, timestep_each_phase))
+        for i in range(1, timestep_each_phase+1):
+            answer_timesteps_i = answer_timesteps[trials_by_matched_num[i]]
+            answer_timesteps_i_num = np.zeros(timestep_each_phase)
+            for j in range(timestep_each_phase):
+                answer_timesteps_i_num[j] = np.sum(answer_timesteps_i == j+1)
+            num_trials_by_matched_num = len(trials_by_matched_num[i])
+            if num_trials_by_matched_num == 0:
+                num_trials_by_matched_num = 1
+            answer_timesteps_num[i-1] = answer_timesteps_i_num / num_trials_by_matched_num
+            plt.plot(np.arange(1, timestep_each_phase+1), answer_timesteps_num[i-1], label="{} matched".format(i), marker="o")
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("time in recall phase")
+        plt.ylabel("proportion of trials")
+        plt.legend(fontsize=10, bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "timesteps_by_num_matched_memories")
+        np.save(fig_path/ "data" / "answer_timesteps_num_by_num_matched_memories.npy", answer_timesteps_num)
