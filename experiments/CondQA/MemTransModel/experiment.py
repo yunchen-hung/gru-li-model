@@ -106,7 +106,8 @@ def run(data_all, model_all, env, paths, exp_name):
         c_memorizing = []
         c_recalling = []
 
-        memory_sequences = []
+        memory_sequences = []       # memory sequences in integer
+        memory_sequences_raw = []   # memory sequences in raw format (concatenated features)
         correct_trials = []
         valid_trials = []
 
@@ -135,6 +136,7 @@ def run(data_all, model_all, env, paths, exp_name):
             # sum feature (feature related to the question)
             sum_feature_index = data["trial_data"][i]["sum_feature"]
             memory_sequence = data["trial_data"][i]["memory_sequence"]
+            memory_sequences_raw.append(memory_sequence)
             sum_feature = memory_sequence[:, sum_feature_index]
             sum_features.append(sum_feature)
 
@@ -203,6 +205,7 @@ def run(data_all, model_all, env, paths, exp_name):
         correct_trials_num = correct_trials.shape[0]
 
         sum_features = np.stack(sum_features, axis=0)
+        memory_sequences_raw = np.stack(memory_sequences_raw, axis=0)
 
         matched_mask = np.stack(matched_mask, axis=0)
         unmatched_mask = np.stack(unmatched_mask, axis=0)
@@ -392,6 +395,7 @@ def run(data_all, model_all, env, paths, exp_name):
         ################# analysis on correct trials #################
         """ get data from correct trials """
         sum_features = sum_features[correct_trials]
+        memory_sequences_raw = memory_sequences_raw[correct_trials]
         matched_mask = matched_mask[correct_trials]
         unmatched_mask = unmatched_mask[correct_trials]
         c_memorizing = c_memorizing[correct_trials]
@@ -725,16 +729,37 @@ def run(data_all, model_all, env, paths, exp_name):
                                 xlabel="time in encoding phase", figsize=(4, 3.3))
         np.save(fig_path/"decode_data"/"ridge_encoding_sum_feature.npy", ridge_encoding_sum_feature)
 
+
         # decode item identity and related feature from encoding phase, all time step together
         ridge_classifier = RidgeClassifier()
         classifier = Classifier(decoder=ridge_classifier)
         _, identity_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), memory_sequences.transpose(1, 0))
         _, sum_feature_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), sum_features.transpose(1, 0))
+        # choose random features from memory sequences
+        random_features = []
+        for i in range(memory_sequences_raw.shape[0]):
+            rand_index = np.random.randint(0, num_features, size=(num_features))
+            random_features.append(memory_sequences_raw[i, np.arange(num_features), rand_index])
+        random_features = np.array(random_features)
+        # print(c_memorizing.shape, sum_features.shape, random_features.shape)
+        _, random_feature_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), random_features.transpose(1, 0))
         print("identity_acc: ", identity_acc)
         print("sum_feature_acc: ", sum_feature_acc)
+        print("random_feature_acc: ", random_feature_acc)
         with open(fig_path/"enc_ridge.csv", "w") as f:
             writer = csv.writer(f)
-            writer.writerow([identity_acc, sum_feature_acc])
+            writer.writerow([identity_acc, sum_feature_acc, random_feature_acc])
+
+        # decode each feature from encoding phase
+        feature_accs = []
+        for i in range(num_features):
+            _, feature_acc = classifier.fit(c_memorizing.transpose(1, 0, 2), memory_sequences_raw[:, :, i].transpose(1, 0))
+            feature_accs.append(feature_acc)
+        print("feature_accs: ", feature_accs)
+        with open(fig_path/"enc_ridge_feature.csv", "w") as f:
+            writer = csv.writer(f)
+            writer.writerow(feature_accs)
+
 
 
         # # decode item identity from recall phase, by time step, all trials

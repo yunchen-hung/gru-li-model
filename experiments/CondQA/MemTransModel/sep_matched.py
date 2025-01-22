@@ -330,7 +330,29 @@ def run(data_all, model_all, env, paths, exp_name):
         savefig(fig_path/"retrieved_memory_num", "accuracy_by_num_retrieved_memories")
         np.save(fig_path/ "data" / "accuracy_by_num_retrieved_memories.npy", accuracy_by_num_retrieved_memories)
 
+        # accuracy for trials with different number of matched memories
+        accuracy_by_num_matched_memories = np.zeros((timestep_each_phase+1, timestep_each_phase))
+        num_trials_by_num_matched_memories = np.zeros((timestep_each_phase+1, timestep_each_phase))
+        for i in range(1, timestep_each_phase+1):
+            for j in trials_by_matched_num[i]:
+                if data["trial_data"][j]["correct_answer"] == model_answers_all[j]:
+                    accuracy_by_num_matched_memories[i, int(num_matched_memories_retrieved[j]-1)] += 1
+                num_trials_by_num_matched_memories[i, int(num_matched_memories_retrieved[j]-1)] += 1
+        # num_trials_by_num_matched_memories[num_trials_by_num_matched_memories == 0] = 1
+        accuracy_by_num_matched_memories = accuracy_by_num_matched_memories / num_trials_by_num_matched_memories
 
+        plt.figure(figsize=(4.7, 3), dpi=180)
+        for i in range(1, timestep_each_phase+1):
+            plt.plot(np.arange(1, timestep_each_phase+1), accuracy_by_num_matched_memories[i], label="{} matched".format(i), marker="o")
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.xlabel("number of matched memories")
+        plt.ylabel("accuracy")
+        plt.legend(fontsize=10, bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.tight_layout()
+        savefig(fig_path/"retrieved_memory_num", "accuracy_by_num_matched_memories")
+        np.save(fig_path/ "data" / "accuracy_by_num_matched_memories.npy", accuracy_by_num_matched_memories)
 
 
         """ performance before recalling all related memories and after recalling all related memories """
