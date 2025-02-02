@@ -14,6 +14,7 @@ from utils import load_dict, savefig
 
 
 def main():
+    """ Vector Environment tests """
     # def make_env(seed):
     #     env = FreeRecall()
     #     env.seed(seed)
@@ -73,8 +74,8 @@ def main():
     # print(cnts)
 
     """ Nonlinear Conditional Question Answer tests """
-    env = NonlinearConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=9, 
-        include_question_during_encode=True, question_type="sum", sum_reference=2)
+    # env = NonlinearConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=9, 
+    #     include_question_during_encode=True, question_type="sum", sum_reference=2)
 
     # for i in range(1):
     #     obs, info = env.reset()
@@ -96,21 +97,38 @@ def main():
     #     print()
     #     print(env.get_trial_data())
 
-    seqlen = 9
-    answer = np.zeros(16)
-    # prev_answer = np.zeros(2)
-    cnts = np.zeros(seqlen+1)
-    for i in range(10000):
-        env.reset()
-        if env.answer is not None:
-            answer[env.answer] += 1
-        # if np.array_equal(env.answer, prev_answer):
-        #     print(env.answer)
-        # prev_answer = env.answer
-        cnts[env.cnt] += 1
-    print(answer)
-    print(cnts)
+    # seqlen = 9
+    # answer = np.zeros(16)
+    # # prev_answer = np.zeros(2)
+    # cnts = np.zeros(seqlen+1)
+    # for i in range(10000):
+    #     env.reset()
+    #     if env.answer is not None:
+    #         answer[env.answer] += 1
+    #     # if np.array_equal(env.answer, prev_answer):
+    #     #     print(env.answer)
+    #     # prev_answer = env.answer
+    #     cnts[env.cnt] += 1
+    # print(answer)
+    # print(cnts)
 
+
+    """ Conditional EM Recall tests """
+    env = ConditionalEMRecall(num_features=2, feature_dim=2, sequence_len=4, vocabulary_num=8, value_dim=2, 
+        include_question_during_encode=False, no_condition=True)
+    obs, info = env.reset()
+    env.render()
+    print()
+    print(obs)
+    print(info)
+    terminated = False
+    while not terminated:
+        action = env.action_space.sample()
+        obs, reward, _, _, info = env.step(action)
+        terminated = np.logical_or(terminated, info['done'])
+        print(action)
+        print(obs, reward, terminated, info)
+        print()
 
 
     """ Vary parameters """

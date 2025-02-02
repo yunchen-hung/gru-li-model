@@ -281,10 +281,7 @@ def train(setup,                            # setup dict, including model and tr
 
         total_time += time.time() - t_start
 
-        # decide whether to decay mem_beta based on decay iter
         decay_mem_beta = False
-        if mem_beta_decay_threshold is None and (i+1) % mem_beta_decay_iter == 0:
-            decay_mem_beta = True
 
         """ print training information and save model """
         if (i+1) % test_iter == 0:
@@ -315,9 +312,15 @@ def train(setup,                            # setup dict, including model and tr
                     print("lr changed from {} to {}".format(current_lr, lr))
                     current_lr = lr
 
-            # decide whether to decay mem_beta based on decay threshold of performance
-            if mem_beta_decay_threshold is not None and accuracy >= mem_beta_decay_threshold:
-                decay_mem_beta = True
+            # decide whether to decay mem_beta based on decay iter and decay threshold of performance
+            if (i+1) % mem_beta_decay_iter == 0:
+                if mem_beta_decay_threshold is not None:
+                    if accuracy >= mem_beta_decay_threshold:
+                        decay_mem_beta = True
+                    else:
+                        decay_mem_beta = False
+                else:
+                    decay_mem_beta = True
 
             # save model
             # if error - accuracy <= min_test_loss:

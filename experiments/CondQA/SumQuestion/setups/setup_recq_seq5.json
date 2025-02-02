@@ -1,5 +1,5 @@
 {
-    "run_num": 1,
+    "run_num": 3,
     "model": {
         "class": "DeepValueMemoryTransformGRU",
         "hidden_dim": 128,
@@ -19,7 +19,7 @@
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 4,
+            "capacity": 5,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -50,7 +50,7 @@
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
-            "capacity": 4,
+            "capacity": 5,
             "recall_method": "argmax",
             "subclasses": [
                 {
@@ -74,7 +74,9 @@
             }],
             "num_features": 4,
             "feature_dim": 2,
-            "sequence_len": 4,
+            "sequence_len": 5,
+            "question_type": "sum",
+            "sum_reference": 1,
             "reset_state_before_test": true,
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
@@ -122,5 +124,5 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 10000
+    "context_num": 20000
 }

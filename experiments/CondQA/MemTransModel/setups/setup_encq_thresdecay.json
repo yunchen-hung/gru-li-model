@@ -1,5 +1,5 @@
 {
-    "run_num": 1,
+    "run_num": 10,
     "model": {
         "class": "DeepValueMemoryTransformGRU",
         "hidden_dim": 128,
@@ -79,7 +79,7 @@
             "correct_reward": 1.0,
             "no_action_reward": -0.0,
             "wrong_reward": -1.0,
-            "include_question_during_encode": false,
+            "include_question_during_encode": true,
             "no_early_stop": false
         }],
         "trainer": {
@@ -122,5 +122,5 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 10000
+    "context_num": 20000
 }
