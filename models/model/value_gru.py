@@ -8,9 +8,26 @@ from ..memory import ValueMemory
 
 
 class ValueMemoryGRU(BasicModule):
-    def __init__(self, memory_module: ValueMemory, hidden_dim: int, input_dim: int, output_dims: list, em_gate_type='constant',
-    init_state_type="zeros", evolve_state_between_phases=False, evolve_steps=1, noise_std=0, softmax_beta=1.0, use_memory=True,
-    start_recall_with_ith_item_init=0, reset_param=True, step_for_each_timestep=1, flush_noise=0.1, random_init_noise=0.1, 
+    def __init__(self, 
+                 memory_module: ValueMemory, 
+                 hidden_dim: int, 
+                 input_dim: int, 
+                 output_dims: list, 
+                 em_gate_type='constant',
+                 init_state_type="zeros", 
+                 evolve_state_between_phases=False, 
+                 evolve_steps=1, 
+                 noise_std=0, 
+                 softmax_beta=1.0, 
+                 use_memory=True,
+                 start_recall_with_ith_item_init=0, 
+                 reset_param=True, 
+                 step_for_each_timestep=1, 
+                 flush_noise=0.1, 
+                 random_init_noise=0.1, 
+                 mem_beta_decay=False,             # whether to decay softmax beta for computing memory similarity loss
+                 mem_beta_decay_rate=0.5,          # decay rate for softmax beta
+                 mem_beta_min=1e-8,                # minimum value for softmax beta
     layer_norm=False, device: str = 'cpu'):
         super().__init__()
         self.device = device
@@ -26,14 +43,18 @@ class ValueMemoryGRU(BasicModule):
 
         self.noise_std = noise_std
         self.softmax_beta = softmax_beta        # 1/temperature for softmax function for computing final output decision
-        # try:
-        #     # self.mem_beta = self.memory_module.similarity_measure.softmax_temperature   # TODO: make it more flexible with other kinds of memory
-        #     self.mem_beta = torch.nn.Parameter(torch.tensor(self.memory_module.similarity_measure.softmax_temperature), requires_grad=False)
-        # except:
-        self.mem_beta = None
         self.flush_noise = flush_noise
         self.random_init_noise = random_init_noise
         self.layer_norm = layer_norm
+
+        self.mem_beta_decay = mem_beta_decay
+        self.mem_beta_decay_rate = mem_beta_decay_rate
+        self.mem_beta_min = mem_beta_min
+        if mem_beta_decay:
+            self.mem_beta = self.memory_module.similarity_measure.softmax_temperature
+            print("mem_beta initialized to {}".format(self.mem_beta))
+        else:
+            self.mem_beta = None
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
@@ -104,7 +125,7 @@ class ValueMemoryGRU(BasicModule):
             if w.requires_grad:
                 w.data.normal_(0.0, std)
 
-    def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
+    def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None, decay_mem_beta=False):
         if recall:
             # initialize hidden state for recall phase
             if self.start_recall_with_ith_item_init != 0:
@@ -132,7 +153,11 @@ class ValueMemoryGRU(BasicModule):
                 state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
-        
+
+        if self.mem_beta_decay and decay_mem_beta and self.mem_beta > self.mem_beta_min:
+            self.mem_beta = self.mem_beta * self.mem_beta_decay_rate
+            print("mem_beta decayed to {}".format(self.mem_beta))
+
         self.write(state, 'init_state')
         return state
 

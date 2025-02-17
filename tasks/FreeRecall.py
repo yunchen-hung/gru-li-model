@@ -58,7 +58,7 @@ class FreeRecall(BaseEMTask):
         self.observation_space = gym.spaces.Box(low=0, high=1, shape=(obs_shape,), dtype=np.float32)
         self.action_space = gym.spaces.Discrete(self.vocabulary_num+1)
 
-    def reset(self):
+    def reset(self, **kwargs):
         """
         reset the trial, return the first observation
         """
