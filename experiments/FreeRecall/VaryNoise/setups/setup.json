@@ -11,6 +11,9 @@
         "em_gate_type": "scalar_sigmoid",
         "init_state_type": "noise_all",
         "flush_noise": 1.0,
+        "mem_beta_decay": true,
+        "mem_beta_decay_rate": 0.5,
+        "mem_beta_min": 1e-6,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -91,6 +94,8 @@
             "save_iter": 5000,
             "use_memory": true,
             "stop_test_accu": 0.99,
+            "mem_beta_decay_threshold": 0.85,
+            "mem_beta_decay_iter": 2000,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [

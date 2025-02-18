@@ -29,7 +29,7 @@
 
 # for g in "${gamma[@]}"
 # do
-#     python run_cluster.py --exp FreeRecall.VaryGamma --cpus_per_task 1 --setup setup_gamma${g}.json --time 2
+#     python run_cluster.py --exp FreeRecall.VaryGamma --cpus_per_task 8 --setup setup_gamma${g}.json --time 20 -train
 # done
 
 
@@ -41,7 +41,7 @@ for s in "${seqlen[@]}"
 do
     for n in "${noise[@]}"
     do
-        python run_cluster.py --exp FreeRecall.VaryNoise --cpus_per_task 8 --setup setup_seq${s}_noise${n}.json --time 12 -train
+        python run_cluster.py --exp FreeRecall.VaryNoise --cpus_per_task 8 --setup setup_seq${s}_noise${n}.json --time 20 -train
     done
 done
 

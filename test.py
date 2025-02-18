@@ -114,46 +114,47 @@ def main():
 
 
     """ Conditional EM Recall tests """
-    env = ConditionalEMRecall(num_features=2, feature_dim=2, sequence_len=4, vocabulary_num=8, value_dim=2, 
-        include_question_during_encode=False, no_condition=True)
-    obs, info = env.reset()
-    env.render()
-    print()
-    print(obs)
-    print(info)
-    terminated = False
-    while not terminated:
-        action = env.action_space.sample()
-        obs, reward, _, _, info = env.step(action)
-        terminated = np.logical_or(terminated, info['done'])
-        print(action)
-        print(obs, reward, terminated, info)
-        print()
+    # env = ConditionalEMRecall(num_features=2, feature_dim=2, sequence_len=4, vocabulary_num=8, value_dim=2, 
+    #     include_question_during_encode=False, no_condition=True)
+    # obs, info = env.reset()
+    # env.render()
+    # print()
+    # print(obs)
+    # print(info)
+    # terminated = False
+    # while not terminated:
+    #     action = env.action_space.sample()
+    #     obs, reward, _, _, info = env.step(action)
+    #     terminated = np.logical_or(terminated, info['done'])
+    #     print(action)
+    #     print(obs, reward, terminated, info)
+    #     print()
 
 
     """ Vary parameters """
-    # seq_len_all = [8,16]
-    # noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
-    # gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    seq_len_all = [8,16]
+    noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
+    gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
 
-    # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
-    # setup_file = setup_dir / "setup.json"
-    # setup = load_dict(setup_file)
+    setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
+    # setup_dir = Path("./experiments/FreeRecall/VaryGamma/setups")
+    setup_file = setup_dir / "setup.json"
+    setup = load_dict(setup_file)
 
-    # # for gamma in gamma_all:
-    # #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
-    # #     with open(setup_dir / "setup_gamma{}.json".format(str(gamma).replace(".", "")), "w") as f:
-    # #         json.dump(setup, f, indent=4)
+    # for gamma in gamma_all:
+    #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
+    #     with open(setup_dir / "setup_gamma{}.json".format(str(gamma).replace(".", "")), "w") as f:
+    #         json.dump(setup, f, indent=4)
 
-    # for seq_len in seq_len_all:
-    #     for noise in noise_all:
-    #         setup["model"]["flush_noise"] = noise
-    #         setup["model"]["subclasses"][0]["capacity"] = seq_len
-    #         for i in range(len(setup["training"])):
-    #             setup["training"][i]["env"][0]["memory_num"] = seq_len
-    #             setup["training"][i]["env"][0]["retrieve_time_limit"] = seq_len
-    #         with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
-    #             json.dump(setup, f, indent=4)
+    for seq_len in seq_len_all:
+        for noise in noise_all:
+            setup["model"]["flush_noise"] = noise
+            setup["model"]["subclasses"][0]["capacity"] = seq_len
+            for i in range(len(setup["training"])):
+                setup["training"][i]["env"][0]["memory_num"] = seq_len
+                setup["training"][i]["env"][0]["retrieve_time_limit"] = seq_len
+            with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
+                json.dump(setup, f, indent=4)
 
 
 

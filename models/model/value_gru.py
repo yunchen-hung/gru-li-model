@@ -133,7 +133,7 @@ class ValueMemoryGRU(BasicModule):
             elif self.init_state_type == 'zeros':
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == 'noise' or self.init_state_type == 'noise_all':
-                state = (1 - self.flush_noise) * prev_state + self.flush_noise * torch.randn_like(prev_state) * torch.std(prev_state)
+                state = math.sqrt(1 - self.flush_noise) * prev_state + math.sqrt(self.flush_noise) * torch.randn_like(prev_state) * torch.std(prev_state)
             elif self.init_state_type == 'random':
                 state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
             elif self.init_state_type == 'train':
