@@ -44,14 +44,15 @@
                     },
                     "class": "FreeRecall",
                     "vocabulary_num": 50,
-                    "memory_num": 8,
+                    "sequence_len": 8,
                     "retrieve_time_limit": 8,
                     "return_action": true,
                     "return_reward": true,
                     "reset_state_before_test": true,
                     "false_reward": -0.75,
                     "repeat_penalty": -0.75,
-                    "not_know_reward": -0.75
+                    "not_know_reward": -0.75,
+                    "memory_num": 8
                 }
             ],
             "trainer": {
@@ -88,14 +89,15 @@
                     },
                     "class": "FreeRecall",
                     "vocabulary_num": 50,
-                    "memory_num": 8,
+                    "sequence_len": 8,
                     "retrieve_time_limit": 8,
                     "return_action": true,
                     "return_reward": true,
                     "reset_state_before_test": true,
                     "false_reward": -0.75,
                     "repeat_penalty": -0.75,
-                    "not_know_reward": -0.75
+                    "not_know_reward": -0.75,
+                    "memory_num": 8
                 }
             ],
             "trainer": {

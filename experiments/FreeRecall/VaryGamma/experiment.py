@@ -102,6 +102,15 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.tight_layout()
         savefig(fig_path/"state_similarity", "encode_encode")
 
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, timestep_each_phase:timestep_each_phase*2], cmap="Blues")
+        plt.colorbar(label="cosine similarity\nbetween hidden states")
+        plt.xlabel("time in recall phase")
+        plt.ylabel("time in recall phase")
+        # plt.title("recall state similarity")
+        plt.tight_layout()
+        savefig(fig_path/"state_similarity", "recall_recall")
+        
         np.save(fig_path/"state_similarity"/"state_similarity.npy", similarity)
 
         """ memory gate """
