@@ -153,6 +153,69 @@ def run(data_all, model_all, env, paths, exp_name):
         recall_probability_in_time.visualize(fig_path)
 
 
+
+        retrieved_memories = []
+        memory_gates = []
+        for i in range(all_context_num):
+            retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
+            retrieved_memory = np.argmax(retrieved_memory, axis=-1)
+            retrieved_memories.append(retrieved_memory)
+            memory_gates.append(readouts[i]['mem_gate_recall'].squeeze())
+        retrieved_memories = np.stack(retrieved_memories)
+        memory_gates = np.stack(memory_gates)
+        print("retrieved_memories shape: ", retrieved_memories.shape)
+        print("memory_gates shape: ", memory_gates.shape)
+        """ recall probability (retrieved memory) """
+        recall_probability = RecallProbability()
+        recall_probability.fit(np.repeat(np.arange(timestep_each_phase).reshape(1,-1), retrieved_memories.shape[0], axis=0), retrieved_memories)
+        recall_probability.visualize(fig_path/"recall_prob_memory", format="png")
+        recall_probability.visualize_all_time(fig_path/"recall_prob_memory", format="png")
+
+        """ number of unique memories retrieved and probability of retrieving each memory """
+        num_unique_memories = []
+        num_retrieve_memory = np.zeros(timestep_each_phase)
+        num_retrieve_memory_by_time = np.zeros(timestep_each_phase)
+        for i in range(all_context_num):
+            num_unique_memory = 0
+            retrieved = np.zeros(timestep_each_phase, dtype=bool)
+            for t in range(timestep_each_phase):
+                if not retrieved[retrieved_memories[i][t]]:
+                    retrieved[retrieved_memories[i][t]] = True
+                    num_unique_memory += 1
+                    num_retrieve_memory[retrieved_memories[i][t]] += 1
+                    num_retrieve_memory_by_time[t] += memory_gates[i][t]
+            num_unique_memories.append(num_unique_memory)
+        num_unique_memories = np.array(num_unique_memories)
+        prob_retrieve_memory = num_retrieve_memory / all_context_num
+        prob_retrieve_memory_by_time = num_retrieve_memory_by_time / all_context_num
+
+        # plot the distribution
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.hist(num_unique_memories, bins=np.arange(0, timestep_each_phase+1, 1), edgecolor="black")
+        plt.xlabel("number of unique\nmemories retrieved")
+        plt.ylabel("proportion of trials")
+        plt.tight_layout()
+        savefig(fig_path/"num_retrieve_memory", "num_unique_memories")
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), prob_retrieve_memory)
+        plt.xlabel("memory index")
+        plt.ylabel("probability of\nretrieving memory")
+        plt.tight_layout()
+        savefig(fig_path/"num_retrieve_memory", "prob_retrieve_each_memory")
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), prob_retrieve_memory_by_time)
+        plt.xlabel("time step in recall phase")
+        plt.ylabel("probability of\nretrieving memory")
+        plt.tight_layout()
+        savefig(fig_path/"num_retrieve_memory", "prob_retrieve_each_timestep")
+
+
+
+        
+
+
         """ compute statistics of weights and activity """
         weights_activity_data = {}
         
@@ -208,75 +271,75 @@ def run(data_all, model_all, env, paths, exp_name):
                                 colormap_label="time in recall phase", file_name="recall", format="svg")
 
         """ decode item identity """
-        # retrieved_memories = []
-        # for i in range(all_context_num):
-        #     retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
-        #     retrieved_memory = np.argmax(retrieved_memory, axis=-1)
-        #     retrieved_memories.append(retrieved_memory)
-        # retrieved_memories = np.stack(retrieved_memories)
+        retrieved_memories = []
+        for i in range(all_context_num):
+            retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
+            retrieved_memory = np.argmax(retrieved_memory, axis=-1)
+            retrieved_memories.append(retrieved_memory)
+        retrieved_memories = np.stack(retrieved_memories)
 
-        # c_memorizing = np.stack([readouts[i]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)])   # context_num * time * state_dim
-        # c_recalling = np.stack([readouts[i]['state'][-timestep_each_phase:].squeeze() for i in range(all_context_num)])
-        # memory_sequence = np.stack([memory_contexts[i] for i in range(all_context_num)]) - 1    # context_num * time
+        c_memorizing = np.stack([readouts[i]['state'][:timestep_each_phase].squeeze() for i in range(all_context_num)])   # context_num * time * state_dim
+        c_recalling = np.stack([readouts[i]['state'][-timestep_each_phase:].squeeze() for i in range(all_context_num)])
+        memory_sequence = np.stack([memory_contexts[i] for i in range(all_context_num)]) - 1    # context_num * time
 
-        # # Ridge
-        # ridge_decoder = RidgeClassifier()
-        # ridge = ItemIdentityDecoder(decoder=ridge_decoder)
-        # ridge_encoding_res, ridge_encoding_stat_res = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequence.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc", colormap_label="item position\nin study order",
-        #                         xlabel="time in encoding phase")
-        # np.save(fig_path/"ridge_encoding.npy", ridge_encoding_res)
-        # # np.save(fig_path/"ridge_encoding_stat.npy", list(ridge_encoding_stat_res.values()))
+        # Ridge
+        ridge_decoder = RidgeClassifier()
+        ridge = ItemIdentityDecoder(decoder=ridge_decoder)
+        ridge_encoding_res, ridge_encoding_stat_res = ridge.fit(c_memorizing.transpose(1, 0, 2), memory_sequence.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_enc", colormap_label="item position\nin study order",
+                                xlabel="time in encoding phase")
+        np.save(fig_path/"ridge_encoding.npy", ridge_encoding_res)
+        # np.save(fig_path/"ridge_encoding_stat.npy", list(ridge_encoding_stat_res.values()))
 
-        # ridge_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
-        # for i in range(all_context_num):
-        #     for t in range(env.memory_num):
-        #         if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
-        #             ridge_mask[i][t] = 1
-        # ridge_recall_res, ridge_recall_stat_res = ridge.fit(c_recalling.transpose(1, 0, 2), actions[:, -timestep_each_phase:].transpose(1, 0), ridge_mask.transpose(1, 0))
-        # ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec", colormap_label="item position\nin recall order",
-        #                         xlabel="time in recall phase")
-        # np.save(fig_path/"ridge_recall.npy", ridge_recall_res)
+        ridge_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
+        for i in range(all_context_num):
+            for t in range(env.memory_num):
+                if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
+                    ridge_mask[i][t] = 1
+        ridge_recall_res, ridge_recall_stat_res = ridge.fit(c_recalling.transpose(1, 0, 2), actions[:, -timestep_each_phase:].transpose(1, 0), ridge_mask.transpose(1, 0))
+        ridge.visualize_by_memory(save_path=fig_path/"ridge", save_name="c_rec", colormap_label="item position\nin recall order",
+                                xlabel="time in recall phase")
+        np.save(fig_path/"ridge_recall.npy", ridge_recall_res)
 
 
-        # """ decode item index """
-        # encoding_index = np.repeat(np.arange(env.memory_num).reshape(1, -1), all_context_num, axis=0)
+        """ decode item index """
+        encoding_index = np.repeat(np.arange(env.memory_num).reshape(1, -1), all_context_num, axis=0)
 
-        # recall_index = np.zeros_like(actions[:, -timestep_each_phase:])
-        # index_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
-        # for i in range(all_context_num):
-        #     for t in range(env.memory_num):
-        #         if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
-        #             index_mask[i][t] = 1
-        #             recall_index[i][t] = np.where(memory_contexts[i] == actions[i][-timestep_each_phase+t])[0][0]
+        recall_index = np.zeros_like(actions[:, -timestep_each_phase:])
+        index_mask = np.zeros_like(actions[:, -timestep_each_phase:], dtype=bool)
+        for i in range(all_context_num):
+            for t in range(env.memory_num):
+                if actions[i][-timestep_each_phase+t] in memory_contexts[i]:
+                    index_mask[i][t] = 1
+                    recall_index[i][t] = np.where(memory_contexts[i] == actions[i][-timestep_each_phase+t])[0][0]
 
-        # # Ridge
-        # ridge_decoder = RidgeClassifier()
-        # ridge = ItemIndexDecoder(decoder=ridge_decoder)
-        # ridge_encoding_res, index_encoding_acc, index_encoding_r2 = ridge.fit(c_memorizing, encoding_index)
-        # ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_enc", xlabel="time in encoding phase")
-        # np.save(fig_path/"ridge_encoding_index.npy", ridge_encoding_res)
+        # Ridge
+        ridge_decoder = RidgeClassifier()
+        ridge = ItemIndexDecoder(decoder=ridge_decoder)
+        ridge_encoding_res, index_encoding_acc, index_encoding_r2 = ridge.fit(c_memorizing, encoding_index)
+        ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_enc", xlabel="time in encoding phase")
+        np.save(fig_path/"ridge_encoding_index.npy", ridge_encoding_res)
 
-        # ridge_recall_res, index_recall_acc, index_recall_r2 = ridge.fit(c_recalling, recall_index, index_mask)
-        # ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_rec", xlabel="time in recall phase")
-        # np.save(fig_path/"ridge_recall_index.npy", ridge_recall_res)
+        ridge_recall_res, index_recall_acc, index_recall_r2 = ridge.fit(c_recalling, recall_index, index_mask)
+        ridge.visualize(save_path=fig_path/"ridge_index", save_name="c_rec", xlabel="time in recall phase")
+        np.save(fig_path/"ridge_recall_index.npy", ridge_recall_res)
 
-        # ridge_classifier_stat = {
-        #     "item_enc_acc": ridge_encoding_stat_res["acc"],
-        #     "item_enc_r2": ridge_encoding_stat_res["r2"],
-        #     "item_enc_acc_last": ridge_encoding_stat_res["acc_last"],
-        #     "item_enc_r2_last": ridge_encoding_stat_res["r2_last"],
-        #     "item_rec_acc": ridge_recall_stat_res["acc"],
-        #     "item_rec_r2": ridge_recall_stat_res["r2"],
-        #     "item_rec_acc_last": ridge_recall_stat_res["acc_last"],
-        #     "item_rec_r2_last": ridge_recall_stat_res["r2_last"],
-        #     "index_enc_acc": index_encoding_acc,
-        #     "index_enc_r2": index_encoding_r2,
-        #     "index_rec_acc": index_recall_acc,
-        #     "index_rec_r2": index_recall_r2
-        # }
-        # with open(fig_path/"ridge_classifier_stat.pkl", "wb") as f:
-        #     pickle.dump(ridge_classifier_stat, f)
+        ridge_classifier_stat = {
+            "item_enc_acc": ridge_encoding_stat_res["acc"],
+            "item_enc_r2": ridge_encoding_stat_res["r2"],
+            "item_enc_acc_last": ridge_encoding_stat_res["acc_last"],
+            "item_enc_r2_last": ridge_encoding_stat_res["r2_last"],
+            "item_rec_acc": ridge_recall_stat_res["acc"],
+            "item_rec_r2": ridge_recall_stat_res["r2"],
+            "item_rec_acc_last": ridge_recall_stat_res["acc_last"],
+            "item_rec_r2_last": ridge_recall_stat_res["r2_last"],
+            "index_enc_acc": index_encoding_acc,
+            "index_enc_r2": index_encoding_r2,
+            "index_rec_acc": index_recall_acc,
+            "index_rec_r2": index_recall_r2
+        }
+        with open(fig_path/"ridge_classifier_stat.pkl", "wb") as f:
+            pickle.dump(ridge_classifier_stat, f)
 
 
         """ PC selectivity """
