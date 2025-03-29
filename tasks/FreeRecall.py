@@ -1,410 +1,330 @@
-import math
+import itertools
 import numpy as np
 import gymnasium as gym
+from gymnasium import spaces
 
-from .base import BaseEMTask
 
+class FreeRecall(gym.Env):
+    def __init__(self,
+                 num_features=4,
+                 feature_dim=2,
+                 sequence_len=4,
+                 retrieve_time_limit=None,
+                 reset_state_before_test=True,
 
-class FreeRecall(BaseEMTask):
-    def __init__(self, vocabulary_num=20, sequence_len=5, memory_var=0, retrieve_time_limit=None, true_reward=1.0, false_reward=-0.1, repeat_penalty=-0.1, 
-    not_know_reward=-0.1, reset_state_before_test=False, start_recall_cue=False, encode_reward_weight=0.0, return_action=False, return_reward=False, 
-    #forward_smooth=0, backward_smooth=0, 
-    seed=None,
-    dt=10, tau=10):
-        super().__init__(reset_state_before_test=reset_state_before_test, seed=seed)
-        self.vocabulary_num = vocabulary_num        # dimension of items
-        self.memory_num = sequence_len                # sequence length
-        self.memory_var = memory_var                # variance of memory sequence length
-        assert sequence_len > memory_var
-        self.current_memory_num = sequence_len        # current memory sequence length
+                 correct_reward=1.0,
+                 wrong_reward=-1.0,
+                 no_action_reward=-1.0,
+                 
+                 one_hot_stimuli=True,              # whether to use one-hot encoding for the stimuli, otherwise use feature-wise encoding
+                 one_hot_action=True,               # whether to use one-hot encoding for the action, otherwise use feature-wise encoding
+
+                 seed=None,
+                 **kwargs):
+                 
+        np.random.seed(None)
+
+        self.num_features = num_features
+        self.feature_dim = feature_dim 
+        self.vocabulary_size = feature_dim ** num_features
         self.sequence_len = sequence_len
-        # rewards and penalties
-        self.true_reward = true_reward
-        self.false_reward = false_reward
-        self.not_know_reward = not_know_reward
-        self.repeat_penalty = repeat_penalty
-
         self.retrieve_time_limit = retrieve_time_limit if retrieve_time_limit is not None else sequence_len
-        self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
-        self.start_recall_cue = start_recall_cue                            # add a cue at the beginning of recall
-        self.encode_reward_weight = encode_reward_weight                    # weight of reward during encoding
-        self.return_action = return_action                                  # return last action as part of observation
-        self.return_reward = return_reward                                  # return last reward as part of observation
 
-        self.steps_each_item = int(tau / dt)            # for CTRNN, show multiple steps for each item
-        self.batch_size = 1
+        self.reset_state_before_test = reset_state_before_test
+        
+        self.include_question_during_encode = include_question_during_encode
 
-        # self.forward_smooth = forward_smooth            # add weighted last item to current item
-        # self.backward_smooth = backward_smooth          # add weighted next item to current item
-        # assert self.forward_smooth >= 0 and self.forward_smooth <= 1
-        # assert self.backward_smooth >= 0 and self.backward_smooth <= 1
-        # self.smooth_matrix = self.generate_smooth_matrix()  # generate smooth matrix
+        self.correct_reward = correct_reward
+        self.wrong_reward = wrong_reward
+        self.no_action_reward = no_action_reward
 
-        self.memory_sequence = self.generate_sequence()     # generate memory sequence
-        self.stimuli = self.generate_stimuli()              # generate stimuli according to memory sequence
-        self.current_timestep = 0                           # reset current timestep
-        self.current_step_within_item = 0                   # for CTRNN, when there's multiple steps for each item
-        self.testing = False                                # false: encoding phase, true: recall phase
-        self.not_retrieved = np.ones((self.vocabulary_num+1), dtype=bool)   # flag for each item, 0 for retrieved, 1 for not retrieved
-        self.reported_memory = 0
+        self.action_space_type = action_space_type
 
-        obs_shape = self.vocabulary_num+1
-        if self.start_recall_cue:
-            obs_shape += 1
-        if self.return_action:
-            obs_shape += self.vocabulary_num+1
-        if self.return_reward:
-            obs_shape += 1
-        self.observation_space = gym.spaces.Box(low=0, high=1, shape=(obs_shape,), dtype=np.float32)
-        self.action_space = gym.spaces.Discrete(self.vocabulary_num+1)
+        self.one_hot_stimuli = one_hot_stimuli
+        if self.one_hot_stimuli:
+            obs_space_dim = self.feature_dim ** self.num_features + self.num_features + self.feature_dim + self.num_features
+        else:
+            obs_space_dim = self.num_features * self.feature_dim + self.num_features + self.feature_dim + self.num_features
+        self.obs_shape = obs_space_dim
+        self.observation_space = spaces.Box(low=-0.1, high=1.1, shape=(obs_space_dim,), dtype=float)
 
-    def reset(self, **kwargs):
-        """
-        reset the trial, return the first observation
-        """
-        self.current_memory_num = np.random.randint(self.memory_num - self.memory_var, self.memory_num + self.memory_var + 1)
-        self.memory_sequence = self.generate_sequence()
-        self.stimuli = self.generate_stimuli()
-        self.current_retrieve_time_limit = max(self.retrieve_time_limit, self.current_memory_num)
+        self.one_hot_action = one_hot_action
+        if self.one_hot_action:
+            action_space_dim = [self.vocabulary_size + 1]
+        else:
+            action_space_dim = [self.feature_dim] * self.num_features + [2]     # the final [2] is for deciding whether to task "no action"
 
-        self.current_timestep = 0
-        self.current_step_within_item = 0
-        self.testing = False
-        self.not_retrieved = np.ones((self.vocabulary_num+1), dtype=bool)
-        self.reported_memory = 0
+        if self.action_space_type == "feature_wise":
+            action_space_dim = [self.feature_dim] * self.num_features + [self.answer_dim] + [2]
+        elif self.action_space_type == "task_wise":
+            action_space_dim = [self.feature_dim ** self.num_features + 1] + [self.feature_dim + 1] + [self.answer_dim + 1]
+        else:
+            raise ValueError("Invalid action space type")
+        self.action_shape = np.sum(action_space_dim)
+        self.action_space = spaces.MultiDiscrete(action_space_dim)
+
+        self.action_space_mask = np.ones(len(self.action_space.nvec), dtype=bool)
+        self.encoding_action_space_mask = np.zeros(len(self.action_space.nvec), dtype=bool)
+        if self.action_space_type == "feature_wise":
+            self.encoding_action_space_mask[:self.num_features] = True
+        elif self.action_space_type == "task_wise":
+            self.encoding_action_space_mask[0] = True
+
+        self.all_stimuli = self._generate_all_stimuli()
+
+
+    def reset(self, memory_sequence_index=None, **kwargs):
+        if memory_sequence_index is None:
+            self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)]
+        else:
+            self.memory_sequence = self.all_stimuli[memory_sequence_index]
+        self.memory_sequence_int = self._convert_item_to_int(self.memory_sequence)
+        self._generate_condition_features() # will use different method for different tasks
+
+        self.phase = "encoding"     # encoding, recall
+        self.timestep = 0
+        self.answered = False       # whether all matched items are recalled/the question is answered
+
+        # convert the first observation to concatenated one-hot vectors
+        obs = self._generate_observation(self.memory_sequence[0], self.condition_feature, self.condition_value, 
+                                         self.query_feature, include_question=self.include_question_during_encode)
         info = {"phase": "encoding"}
-        observations = self.stimuli[self.current_timestep, :]
-        if self.start_recall_cue:
-            observations = np.concatenate((observations, np.zeros(1)), axis=0)
-        if self.return_action:
-            observations = np.concatenate((observations, np.zeros((self.vocabulary_num+1))), axis=0)
-        if self.return_reward:
-            observations = np.concatenate((observations, np.zeros(1)), axis=0)
-        # observations = observations.reshape(1, -1)
+        return obs, info
 
-        # print(self.memory_sequence)
-        return observations, info
 
     def step(self, action):
-        """
-        for reinforcement learning
-        """
-        # actions = np.array([action.cpu().detach().numpy() for action in actions])
-        # action = action.cpu().detach().numpy()
-
-        start_recall = 0
-        # compute returned action, if needed
-        if self.return_action:
-            returned_action = self.get_returned_action(action)
-        # recall phase, compute rewards
-        if self.testing:
-            reward = self.compute_reward(action)
-            observations = np.zeros((self.vocabulary_num+1))
-            correct, wrong, not_know = 0, 0, 0
-            if reward == self.true_reward:
-                correct = 1
-            elif action == 0:
-                not_know = 1
-            else:
-                wrong = 1
-            info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep], "gt_mask": False, 
-                    "correct": correct, "wrong": wrong, "not_know": not_know, "loss_mask": True}
-            self.increase_timestep()
-            # done = self.check_done()
-            info["done"] = self.check_done()
-            done = False
-        else:
-            reward = 0.0
-            done = False
-            if self.encode_reward_weight > 0:
-                # during encoding, train the model to output the just inputed item
-                eq = action == self.memory_sequence[self.current_timestep]
-                    # np.equal(actions, self.memory_sequence[:, self.current_timestep]).astype(int)
-                reward = eq * self.true_reward * self.encode_reward_weight + (1 - eq) * self.false_reward * self.encode_reward_weight
-                # if action == self.memory_sequence[self.current_timestep]:
-                #     rewards = self.true_reward * self.encode_reward_weight
-                # else:
-                #     rewards = self.false_reward * self.encode_reward_weight
-            self.increase_timestep()
-            if self.current_timestep == self.current_memory_num:
-                # before the first timestep of the recall phase
-                self.testing = True
-                observations = np.zeros((self.vocabulary_num+1))
-                self.increase_timestep(set_zero=True)
-                info = {"phase": "recall", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True,
-                        "correct": 0, "wrong": 0, "not_know": 0, "done": False, "loss_mask": True}
+        self.timestep += 1
+        if self.phase == "encoding":
+            info = {"phase": "encoding", 
+                    "gt": self._compute_gt(), "gt_mask": True, 
+                    "loss_mask": True, 
+                    "correct": 0, "wrong": 0, "not_know": 0,
+                    "done": False,
+                    "action_space_mask": self.encoding_action_space_mask}
+            if self.timestep >= self.sequence_len:
+                self.phase = "recall"
+                self.timestep = 0
+                info["phase"] = "recall"
                 if self.reset_state_before_test:    # send signal for the agent to reset its state
                     info["reset_state"] = True
-                start_recall = 1
+                obs = self._generate_observation(None, self.condition_feature, self.condition_value,
+                                                    self.query_feature, include_question=True)
+                return obs, 0.0, False, False, info
             else:
-                observations = self.stimuli[self.current_timestep, :]
-                info = {"phase": "encoding", "gt": self.memory_sequence[self.current_timestep-1], "gt_mask": True,
-                        "correct": 0, "wrong": 0, "not_know": 0, "done": False, "loss_mask": True}
-        if self.start_recall_cue:
-            observations = np.concatenate((observations, np.ones(1) * start_recall), axis=0)
-        if self.return_action:
-            if self.testing and self.current_timestep > 0:
-                observations = np.concatenate((observations, returned_action), axis=0)
-            else:
-                observations = np.concatenate((observations, np.zeros((self.vocabulary_num+1))), axis=0)
-        if self.return_reward:
-            observations = np.concatenate((observations, np.array([reward])), axis=0)
-        # observations = observations.reshape(1, -1)
-        return observations, reward, done, False, info
+                obs = self._generate_observation(self.memory_sequence[self.timestep], self.condition_feature, self.condition_value,
+                                                self.query_feature, include_question=self.include_question_during_encode)
+                return obs, 0.0, False, False, info
+        elif self.phase == "recall":
+            obs = self._generate_observation(None, self.condition_feature, self.condition_value, self.query_feature, include_question=True)
+            info = {"phase": "recall",
+                    "gt_mask": False,
+                    "loss_mask": True,
+                    "correct": 0, "wrong": 0, "not_know": 0,
+                    "done": False,
+                    "action_space_mask": self.action_space_mask}
+            
+            # for different task
+            # compute the reward and the ground truth
+            # update number of correct, wrong, and not_know
+            # check if the trial is done
+            reward, correct, wrong, not_know = self._compute_reward_and_metrics(action)
+            info["correct"] = correct
+            info["wrong"] = wrong
+            info["not_know"] = not_know
 
-    # def generate_smooth_matrix(self):
-    #     """
-    #     compute smooth matrix
-        
-    #     when generating stimuli, multiply smooth matrix with one-hot encoding of memory sequence
+            # default ground truth is the memory sequence (same in free recall task)
+            # different tasks have a different _compute_gt method
+            info["gt"] = self._compute_gt()
 
-    #     dim of smooth matrix: memory_num * memory_num
-    #     """
-    #     smooth_matrix = np.eye(self.current_memory_num)
-    #     for i in range(self.current_memory_num - 1):
-    #         for j in range(self.current_memory_num - i - 1):
-    #             smooth_matrix[j+i+1][j] = math.pow(self.forward_smooth, i+1)
-    #             smooth_matrix[j][j+i+1] = math.pow(self.backward_smooth, i+1)
-    #     return smooth_matrix
-
-    def generate_sequence(self):
-        """
-        generate memory sequence, each item is a number from 1 to vocabulary_num
-
-        output: batch_size * memory_num
-        """
-        memory_sequence = np.zeros((self.current_memory_num), dtype=int)
-        memory_sequence = np.random.choice(self.vocabulary_num, self.current_memory_num, replace=False) + 1
-        return memory_sequence      # axis 0: batch size, axis 1: length of sequence
-
-    def generate_stimuli(self):
-        """
-        generate stimuli according to memory sequence
-
-        when there's no smoothing, turn memory sequence into one-hot encoding
-
-        output: memory_num * (vocabulary_num+1)
-        """
-        data = np.eye(self.vocabulary_num+1)[self.memory_sequence]
-        # self.smooth_matrix = self.generate_smooth_matrix()
-        # data = (self.smooth_matrix @ data).T
-        # data = data / np.linalg.norm(data, axis=0)
-        # data = data.T
-        return data
-
-    def increase_timestep(self, set_zero=False):
-        """
-        decide whether to increase timestep
-
-        for CTRNN, first add to current_step_within_item, until it reaches steps_each_item, then increase current_timestep
-        when set_zero is True, reset current_timestep to 0
-        """
-        self.current_step_within_item += 1
-        if self.current_step_within_item == self.steps_each_item:
-            self.current_step_within_item = 0
-            if set_zero:
-                self.current_timestep = 0
-            else:
-                self.current_timestep += 1
-
-    def get_returned_action(self, action):
-        """
-        compute action to return
-
-        for the first timestep, return all zeros
-        for the following timesteps, return one-hot encoding of action
-
-        input: action, int
-        output: returned_actions, shape=vocabulary_num+1
-        """
-
-        if self.current_timestep == 0 and not self.testing:
-            returned_action = np.zeros((self.vocabulary_num+1))
-        else:
-            returned_action = np.eye(self.vocabulary_num+1)[action].reshape(-1)
-        return returned_action
+            if self.timestep >= self.retrieve_time_limit:
+                info["done"] = True
+                
+            return obs, reward, False, False, info
     
-    def compute_reward(self, action):
-        """
-        compute rewards according to actions
 
-        if action is in memory_sequence and hasn't been retrieved, give true reward
-        if action is in memory_sequence but has been retrieved, give repeat penalty
-        if action is not in memory_sequence, give false reward
-        if action is 0, give not_know_reward
-
-        input: action, int
-        output: rewards, float
+    def get_ground_truth(self, phase="recall"):
         """
-        if action in list(self.memory_sequence):
-            if self.not_retrieved[action]:
-                reward = self.true_reward
-                self.not_retrieved[action] = False
-            elif np.sum(self.not_retrieved) == 0:
-                reward = 0.0
-            else:
-                reward = self.repeat_penalty
-            self.reported_memory += 1
-        elif action == 0:
-            reward = self.not_know_reward
-        else:
-            reward = self.false_reward
-            self.reported_memory += 1
-        return reward
+        return the ground truth for the current trial
+        """
+        if phase == "encoding":
+            return self.memory_sequence[self.timestep]
+        elif phase == "recall":
+            return self.memory_sequence[self.timestep]
     
-    def check_done(self):
-        """
-        check whether the trial has completed
-        """
-        if self.current_timestep >= self.current_retrieve_time_limit:
-            return True
-        else:
-            return self.reported_memory >= self.current_memory_num and np.sum(self.not_retrieved) == 0
-                # np.logical_and(self.reported_memory >= self.current_memory_num, np.sum(self.not_retrieved, axis=1) == 0)
-        # if self.current_timestep >= self.current_retrieve_time_limit or (self.reported_memory >= self.current_memory_num).all() \
-        #     or (np.sum(self.not_retrieved, axis=1) == 0).all():
-        #     return True
-        # else:
-        #     return False
 
-    def render(self, mode='human'):
-        pass
-
-    # def get_batch(self):
-    #     """
-    #     for supervised learning, return inputs and ground truth data for all timesteps
-    #     """
-    #     data = np.zeros((self.current_memory_num + self.current_retrieve_time_limit, self.vocabulary_num+1))
-    #     gt = np.zeros((self.current_memory_num + self.current_retrieve_time_limit, self.vocabulary_num+1))
-    #     data[:self.current_memory_num, :] = self.stimuli.transpose(1, 0, 2)
-    #     gt[self.current_memory_num:self.current_memory_num*2, :] = np.eye(self.vocabulary_num+1)[self.memory_sequence]
-    #     if self.steps_each_item > 1:
-    #         data = np.repeat(data, self.steps_each_item, axis=0)
-    #         gt = np.repeat(gt, self.steps_each_item, axis=0)
-    #     if self.start_recall_cue:
-    #         cue = np.zeros((self.current_memory_num + self.current_retrieve_time_limit, 1))
-    #         cue[self.current_memory_num, 0] = 1
-    #         data = np.concatenate((data, cue), axis=1)
-    #     return data, gt
+    def get_trial_data(self):
+        """
+        used when recording data
+        """
+        return {
+            "memory_sequence": self.memory_sequence,
+            "condition_feature": self.condition_feature,
+            "condition_value": self.condition_value,
+            "query_feature": self.query_feature,
+            "answer": self.answer,
+            "memory_sequence_int": self.memory_sequence_int,
+        }
+    
 
     def compute_accuracy(self, actions):
         """
-        compute accuracy for all timesteps
-
-        input: actions, (timesteps, batch_size)
-        outputs: number of three types of results: correct, wrong, not_know, i.e. 3 int
+        given action sequence, compute the accuracy of current trial
         """
-        # actions = np.array(actions).T
-        # print(actions[self.current_memory_num:], self.memory_sequence)
-
-        correct_actions = 0
-        wrong_actions = 0
-        not_know_actions = 0
-
-        not_retrieved = np.ones((self.vocabulary_num+1), dtype=bool)
-        
-        # for action_batch in actions[self.current_memory_num:]:
-        #     for i, action in enumerate(action_batch):
-        #         action = int(action)
-        #         if action in self.memory_sequence[i] and not_retrieved[i, action]:
-        #             correct_actions += 1
-        #             not_retrieved[i, action] = False
-        #         elif action == 0:
-        #             not_know_actions += 1
-        #         else:
-        #             wrong_actions += 1
-
-        for action in actions[self.current_memory_num:]:
-            action = int(action)
-            if action in self.memory_sequence and not_retrieved[action]:
-                correct_actions += 1
-                not_retrieved[action] = False
-            elif action == 0:
-                not_know_actions += 1
-            else:
-                wrong_actions += 1
-
-        return correct_actions, wrong_actions, not_know_actions
-
-    # def compute_rewards(self, actions):
-    #     """
-    #     compute rewards for all timesteps
-        
-    #     input: actions, timesteps
-    #     output: rewards, timesteps
-    #     """
-    #     rewards = []
-    #     not_retrieved = np.ones(self.vocabulary_num+1, dtype=bool)
-    #     for t, action in enumerate(actions):
-    #             if t < self.current_memory_num:
-    #                 rewards.append(0.0)
-    #             else:
-    #                 if action in list(self.memory_sequence):
-    #                     if not_retrieved[action]:
-    #                         rewards.append(self.true_reward)
-    #                         not_retrieved[action] = False
-    #                     else:
-    #                         rewards.append(self.repeat_penalty)
-    #                 elif action == 0:
-    #                     rewards.append(self.not_know_reward)
-    #                 else:
-    #                     rewards.append(self.false_reward)
-    #     return np.array(rewards).transpose(1, 0)
+        raise NotImplementedError
     
-    def get_ground_truth(self, phase="all"):
-        """
-        get ground truth data for all timesteps
 
-        output: ground truth with numbers (not one-hot), memory_num
+    def _generate_condition_features(self):
         """
-        # gt = np.concatenate((self.memory_sequence, self.memory_sequence), axis=1)
-        gt = np.concatenate((self.memory_sequence, self.memory_sequence), axis=0)
+        generate the condition features for the current trial
+        """
+        self.condition_feature = None
+        self.condition_value = None
+        self.query_feature = None
+        self.answer = None 
 
-        if phase == 'encoding':
-            mask = np.concatenate((np.ones(self.memory_num), np.zeros(self.memory_num))).astype(int)
-        elif phase == 'recall':
-            mask = np.concatenate((np.zeros(self.memory_num), np.ones(self.memory_num))).astype(int)
+
+    def _generate_all_stimuli(self):
+        """
+        generate all possible stimuli, in the format of a list of numbers with length num_features, the value of each number is within [0, feature_dim)
+        """
+        all_stimuli = list(itertools.product(range(self.feature_dim), repeat=self.num_features))
+        all_stimuli = np.array([np.array(stimuli) for stimuli in all_stimuli])
+        return all_stimuli
+
+
+    def _generate_observation(self, stimuli, condition_feature, condition_value, query_feature, include_question=False):
+        """
+        generate the observation for the given stimulus
+        """
+        observation = np.zeros(self.obs_shape)
+        if self.one_hot_stimuli:
+            if stimuli is not None:
+                stimuli_int = self._convert_item_to_int(stimuli.reshape(1, -1))
+                observation[stimuli_int] = 1
+            question_offset = self.feature_dim ** self.num_features
         else:
-            mask = np.ones(self.memory_num*2).astype(int)
-
-        return gt, mask
+            if stimuli is not None:
+                for i in range(self.num_features):
+                    observation[i*self.feature_dim+stimuli[i]] = 1
+            question_offset = self.num_features*self.feature_dim
+        if include_question:
+            if self.condition_feature is not None:
+                observation[question_offset+condition_feature] = 1
+            if self.condition_value is not None:
+                observation[question_offset+self.num_features+condition_value] = 1
+            if self.query_feature is not None:
+                observation[question_offset+self.num_features+self.feature_dim+query_feature] = 1
+        return observation
     
-    def get_trial_data(self):
+
+    def _compute_gt(self):
+        gt = np.zeros(len(self.action_space.nvec))
+        if self.action_space_type == "feature_wise":
+            gt[:self.num_features] = self.memory_sequence[self.timestep-1]
+            gt[-1] = 0
+        elif self.action_space_type == "task_wise":
+            item_int = self._convert_item_to_int(self.memory_sequence[self.timestep-1].reshape(1, -1))
+            gt[0] = item_int[0]
+        return gt
+    
+
+    def _convert_item_to_int(self, item):
         """
-        get trial data
+        convert the item with multiple features to an integer
+        item: shape (num_item, num_features)
+        small-endian encoding of the vectorized item ([1,0,0,0] is 1, [0,0,0,1] is 8)
         """
-        return self.memory_sequence
+        return np.sum(item * (self.feature_dim ** np.arange(self.num_features)), axis=1).astype(int)
+    
+
+    def _convert_int_to_item(self, item_int):
+        """
+        convert the integer to the item
+        """
+        return np.array([item_int // (self.feature_dim**i) % self.feature_dim for i in range(self.num_features)])
+
+    
+    def _convert_action_to_item(self, action):
+        """
+        convert the action to the item
+        action: based on the action space type, the action is either a feature-wise action or a task-wise action
+        item: shape (num_features), ignore the answer dimensions
+        """
+        item = np.zeros(self.num_features)
+        if self.action_space_type == "feature_wise":
+            if action[-1] == 1:
+                # considered as no action, item is all -1
+                item = np.ones(self.num_features) * -1
+            else:
+                item = action[:self.num_features]
+        elif self.action_space_type == "task_wise":
+            if action[0] == self.feature_dim**self.num_features:
+                # considered as no action, item is all -1
+                item = np.ones(self.num_features) * -1
+            else:
+                item = self._convert_int_to_item(action[0])
+        return item
+
+    
+    def _convert_action_to_feature(self, action):
+        """
+        convert the action to the query feature value
+        action: based on the action space type, the action is either a feature-wise action or a task-wise action
+        feature: the value of the query feature
+        """
+        if self.action_space_type == "feature_wise":
+            if action[-1] == 1:
+                # considered as no action, value = 2
+                feature = self.feature_dim
+            else:
+                feature = action[self.query_feature]
+        elif self.action_space_type == "task_wise":
+            feature = action[1]
+        return feature
+
+    
+    def _convert_action_to_answer(self, action):
+        """
+        convert the action to the answer
+        action: based on the action space type, the action is either a feature-wise action or a task-wise action
+        answer: the answer
+        """
+        if self.action_space_type == "feature_wise":
+            if action[-1] == 1:
+                # considered as no action, action = 2
+                answer = 2
+            else:
+                # action = 0 or 1
+                answer = action[self.num_features]
+        elif self.action_space_type == "task_wise":
+            answer = action[2]
+        return answer
+    
+
+    def _convert_action_to_observation(self, action):
+        """
+        convert the action to the observation
+        """
+        obs = np.zeros(self.action_shape)
+        if self.action_space_type == "feature_wise":
+            item = self._convert_action_to_item(action)
+            for i in range(self.num_features):
+                obs[int(i*self.feature_dim+item[i])] = 1 * self.action_space_mask[i]
+            obs[int(self.feature_dim*self.num_features+action[-2])] = 1 * self.action_space_mask[-2]
+            obs[int(-2+action[-1])] = 1 * self.action_space_mask[-1]
+        elif self.action_space_type == "task_wise":
+            obs[int(action[0])] = 1 * self.action_space_mask[0]
+            obs[int(self.feature_dim**self.num_features + 1 + action[1])] = 1 * self.action_space_mask[1]
+            obs[int(self.feature_dim**self.num_features + 1 + self.feature_dim + 1 + action[2])] = 1 * self.action_space_mask[2]
+        return obs
 
 
-# def compute_accuracy(actions, gts, gt_masks):
-#     """
-#     compute accuracy for all timesteps
-
-#     input: actions, gts, gt_masks, all with shape (timesteps, batch_size)
-#     outputs: number of three types of results: correct, wrong, not_know, i.e. 3 int
-#     """
-#     correct_actions = 0
-#     wrong_actions = 0
-#     not_know_actions = 0
-
-#     # switch to batch first
-#     actions, gts, gt_masks = np.array(actions).T, np.array(gts).T, np.array(gt_masks).T
-
-#     for action_batch, gt_batch, mask_batch in zip(actions, gts, gt_masks):
-#         for action, mask in zip(action_batch, mask_batch):
-#             if mask:
-#                 if action == gt:
-#                     correct_actions += 1
-#                 elif action == 0:
-#                     not_know_actions += 1
-#                 else:
-#                     wrong_actions += 1
-
-#     return correct_actions, wrong_actions, not_know_actions
-
-
-# test
-if __name__ == "__main__":
-    env = FreeRecall(vocabulary_num=10, memory_num=5, retrieve_time_limit=5)
-
-
+    def _generate_task_condition(self):
+        """
+        generate condition_feature, condition_value, query_feature, answer, num_matched_item
+        a different method for different task
+        """
+        self.condition_feature = None
+        self.condition_value = None
+        self.query_feature = None
+        self.answer = None
