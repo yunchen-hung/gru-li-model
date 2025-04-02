@@ -8,8 +8,13 @@ from ..base_module import BasicModule
 
 
 class ValueMemory(BasicModule):
-    def __init__(self, similarity_measure, value_dim: int, capacity: int, recall_method="argmax", 
-                 batch_size=1, noise_std=0.0, force_false_prob=0.0, device: str = 'cpu') -> None:
+    def __init__(self, similarity_measure, value_dim: int, capacity: int, 
+                 recall_method="argmax", batch_size=1, noise_std=0.0, force_false_prob=0.0, 
+                 transform_memory=False, different_transform=False, device: str = 'cpu') -> None:
+        """
+        transform_memory: if True, the memory is transformed by a linear layer before encoding and retrieval
+        different_transform: if True, the transform is different for encoding and retrieval
+        """
         super().__init__()
         self.device = device
         self.similarity_measure = similarity_measure
@@ -29,6 +34,12 @@ class ValueMemory(BasicModule):
         self.recall_method = recall_method
         self.batch_size = batch_size
 
+        self.transform_memory = transform_memory
+        self.different_transform = different_transform
+
+        self.fc_enc_mem = nn.Linear(value_dim, value_dim)
+        self.fc_rec_mem = nn.Linear(value_dim, value_dim)
+
     def reset_memory(self, flush=True):
         if flush:
             self.flush()
@@ -44,7 +55,10 @@ class ValueMemory(BasicModule):
 
     def encode(self, value):
         if self.encoding:
-            self.write(self.values, "memory_values")
+            if self.transform_memory:
+                value = self.fc_enc_mem(value)
+            self.write(value, "encoded_memory")
+            # self.write(self.values, "memory_values")
             index = F.one_hot(torch.tensor(self.to_be_replaced), self.capacity).repeat(self.batch_size, 1).float().to(self.device)
             self.values = self.values + torch.einsum("ik,ij->ikj", [index, value])
             self.to_be_replaced = (self.to_be_replaced + 1) % self.capacity
@@ -54,6 +68,11 @@ class ValueMemory(BasicModule):
     def retrieve(self, query, input_weight=1.0, beta=None):
         if self.stored_memory == 0 or not self.retrieving:
             return torch.zeros(query.shape[0], self.value_dim).to(self.device)
+        if self.transform_memory:
+            if self.different_transform:
+                query = self.fc_rec_mem(query)
+            else:
+                query = self.fc_enc_mem(query)
         # values = self.values.detach().clone()
         similarity, raw_similarity = self.similarity_measure(query, self.values, input_weight, beta)
         similarity = similarity + torch.randn_like(similarity) * self.noise_std

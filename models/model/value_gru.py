@@ -9,7 +9,7 @@ from ..module.encoders import MLPEncoder
 from ..module.decoders import ActorCriticMLPDecoder
 
 
-class DeepValueMemoryGRU(BasicModule):
+class ValueMemoryGRU(BasicModule):
     def __init__(self, 
                  memory_module: ValueMemory, 
                  hidden_dim: int, 
