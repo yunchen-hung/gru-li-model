@@ -9,6 +9,7 @@ import torch
 
 import consts
 from utils import load_setup, parse_setup, import_attr
+from train.utils import save_model
 from train import plot_accuracy_and_error, record
 
 
@@ -80,6 +81,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         figuire_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER
 
     model_all, data_all = {}, {}
+    checkpoints_all = {}
     for i in run_nums:
         print("run {}".format(i))
         general_setup = deepcopy(setup_origin)
@@ -123,6 +125,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model.to(device)
 
             # train the model with each training setup
+            save_model(model, model_save_path, filename="0.pt")
             if train or not os.path.exists(model_load_path/"model.pt"):
                 training_session = 1
                 for env, optimizer, scheduler, criterion, sl_criterion, ax_criterion, training_setup, setup in \
@@ -172,6 +175,32 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 model_all[run_name_with_num] = model
                 data_all[run_name_with_num] = data_all_env
 
+            # load checkpoints
+            if "load_checkpoints" in setup_origin and setup_origin["load_checkpoints"]:
+                checkpoints = []
+                # get all files in model_load_path with the pattern "*.pt" and not "model.pt"
+                checkpoint_files = list(model_load_path.glob("*.pt"))
+                # Extract checkpoint numbers and sort them
+                checkpoint_numbers = []
+                for file in checkpoint_files:
+                    if file.name != "model.pt":
+                        try:
+                            num = int(file.stem.split('.')[0])  # Get number after last underscore
+                            checkpoint_numbers.append(num)
+                        except ValueError:
+                            continue
+                checkpoint_numbers.sort()
+                
+                # Reorder checkpoint files based on sorted numbers
+                checkpoint_files = [model_load_path/f"{num}.pt" for num in checkpoint_numbers]
+                for checkpoint_file in checkpoint_files:
+                    if checkpoint_file.name != "model.pt":
+                        # print(checkpoint_file.name)
+                        checkpoints.append(torch.load(checkpoint_file, map_location=torch.device('cpu'), weights_only=True))
+                checkpoints_all[run_name_with_num] = checkpoints
+            else:
+                checkpoints_all = None
+
     # run experiment
     run_exp = import_attr("{}.{}.{}.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment, exp_file_name))
     
@@ -195,7 +224,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
 
         exp_name = setup_name.split(".")[0]
-        run_exp(data_all, model_all, env, paths, exp_name)
+        run_exp(data_all, model_all, env, paths, exp_name, checkpoints=checkpoints_all)
 
 
 if __name__ == "__main__":

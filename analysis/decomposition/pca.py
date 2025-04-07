@@ -68,9 +68,15 @@ class PCA:
             savefig(save_path, "pca_temporal", format=format)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, start_step=None, end_step=None, 
+    def visualize_state_space(self, trial_num=None,save_path=None, show_3d=False, start_step=None, end_step=None, 
         display_start_step=None, display_end_step=None, constrain_lim=True, title=None, format="png",
         file_name="pca_state_space", colormap_label="timesteps"):
+
+        if trial_num is not None:
+            proj_act = self.proj_act[:trial_num]
+        else:
+            proj_act = self.proj_act
+
         if start_step is None:
             start_step = 0
         if end_step is None:
@@ -84,8 +90,7 @@ class PCA:
         plt.figure(figsize=(4, 3.3), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
-        proj_act = self.proj_act
-        for i in range(self.n_traj):
+        for i in range(proj_act.shape[0]):
             if not show_3d:
                 ax.plot(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], color="grey", zorder=1, linewidth=0.7)
             else:
@@ -129,6 +134,10 @@ class PCA:
         plt.tight_layout()
         if save_path is not None:
             savefig(save_path, file_name, format=format)
+
+    # def visualize_by_identity(self, trial_num=None,save_path=None, show_3d=False, start_step=None, end_step=None, 
+    #     display_start_step=None, display_end_step=None, constrain_lim=True, title=None, format="png",
+    #     file_name="pca_state_space_by_identity")
 
 
 def plot_capture_var(captured_var, save_path=None, pdf=False):

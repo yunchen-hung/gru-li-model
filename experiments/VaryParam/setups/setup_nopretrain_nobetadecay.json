@@ -9,7 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "scalar_sigmoid",
-        "mem_beta_decay": true,
+        "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.5,
         "mem_beta_min": 5e-4,
         "subclasses": [{
