@@ -18,7 +18,7 @@ class ValueMemoryCTRNN(BasicModule):
                  input_encoder_dims: list = [],
                  output_encoder_dims: list = [],
                  alpha=1.0,
-                 act_fn='tanh',
+                 act_fn='Tanh',
                  em_gate_type='constant',
                  init_state_type="zeros", 
                  evolve_state_between_phases=False, 
@@ -82,8 +82,8 @@ class ValueMemoryCTRNN(BasicModule):
 
         # fc_hidden_dim = int(hidden_dim/4)
 
-        self.encoder = MLPEncoder(input_dim, 3 * hidden_dim, hidden_dims=input_encoder_dims)
-        self.fc_hidden = nn.Linear(hidden_dim, 3 * hidden_dim)
+        self.encoder = MLPEncoder(input_dim, hidden_dim, hidden_dims=input_encoder_dims)
+        self.fc_hidden = nn.Linear(hidden_dim, hidden_dim)
         self.decoders = nn.ModuleList()
         for output_dim in output_dims:
             self.decoders.append(ActorCriticMLPDecoder(hidden_dim, output_dim, hidden_dims=output_encoder_dims))
@@ -94,7 +94,7 @@ class ValueMemoryCTRNN(BasicModule):
         # gate when adding episodic memory to hidden state
         self.em_gate_type = em_gate_type
         if em_gate_type == "constant":
-            self.em_gate = 0.5
+            self.em_gate = 1.0
         elif em_gate_type == "scalar" or em_gate_type == "scalar_sigmoid":
             self.em_gate = nn.Linear(hidden_dim, 1)
         elif em_gate_type == "vector":
@@ -245,9 +245,8 @@ class ValueMemoryCTRNN(BasicModule):
             x = self.ln_i2h(x)
             h = self.ln_h2h(h)
         if mem_gate is not None and retrieved_memory is not None:
-            h = (1 - mem_gate) * h + mem_gate * retrieved_memory
+            h = h + mem_gate * retrieved_memory
 
-        # Continuous time RNN update
         state = self.alpha * self.act_fn(h) + (1 - self.alpha) * state
 
         state = math.sqrt(1 - self.wm_noise_prop) * state + math.sqrt(self.wm_noise_prop) \

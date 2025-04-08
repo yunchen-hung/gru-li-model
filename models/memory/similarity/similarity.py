@@ -18,7 +18,7 @@ class BasicSimilarity(BasicModule):
         self.min_beta = 1e-8
         self.device = device
 
-    def forward(self, query, values, input_weight=1.0, beta=None):
+    def forward(self, query, values, input_weight=1.0, beta=None, similarity_mask=None):
         if self.measure == 'cosine':
             # print(query.shape, values.shape)
             origin_similarities = F.cosine_similarity(query.to(self.device), values.permute(1, 0, 2).to(self.device), dim=-1).permute(1, 0)
@@ -31,6 +31,9 @@ class BasicSimilarity(BasicModule):
         else:
             raise Exception(f'Unrecognizable similarity measure: {self.measure}')
         self.write(origin_similarities, 'raw_similarity')
+
+        if similarity_mask is not None:
+            origin_similarities = origin_similarities * similarity_mask
         
         beta = self.softmax_temperature if beta is None else beta
         beta = max(beta, self.min_beta)

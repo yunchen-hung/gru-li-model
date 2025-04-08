@@ -8,10 +8,11 @@ from ..base_module import BasicModule
 
 
 class ValueMemory(BasicModule):
-    def __init__(self, similarity_measure, value_dim: int, capacity: int, 
+    def __init__(self, similarity_measure, value_dim: int, capacity: int, remove_retrieved=False,
                  recall_method="argmax", batch_size=1, noise_std=0.0, force_false_prob=0.0, 
                  transform_memory=False, different_transform=False, device: str = 'cpu') -> None:
         """
+        remove_retrieved: if True, the previously retrieved memory will not be retrieved again
         transform_memory: if True, the memory is transformed by a linear layer before encoding and retrieval
         different_transform: if True, the transform is different for encoding and retrieval
         """
@@ -22,6 +23,7 @@ class ValueMemory(BasicModule):
         self.capacity = capacity
         self.noise_std = noise_std
         self.force_false_prob = force_false_prob
+        self.remove_retrieved = remove_retrieved
 
         self.values = torch.zeros((batch_size, capacity, value_dim)).to(self.device)
         
@@ -30,6 +32,8 @@ class ValueMemory(BasicModule):
 
         self.encoding = False
         self.retrieving = False
+
+        self.not_retrieved = torch.ones((batch_size, capacity), device=self.device)
 
         self.recall_method = recall_method
         self.batch_size = batch_size
@@ -45,8 +49,9 @@ class ValueMemory(BasicModule):
             self.flush()
         else:
             self.values.detach_()
-        self.encoding = False   
+        self.encoding = False
         self.retrieving = False
+        self.not_retrieved = torch.ones((self.batch_size, self.capacity), device=self.device)
 
     def flush(self):
         self.values = torch.zeros((self.batch_size, self.capacity, self.value_dim)).to(self.device)
@@ -74,7 +79,7 @@ class ValueMemory(BasicModule):
             else:
                 query = self.fc_enc_mem(query)
         # values = self.values.detach().clone()
-        similarity, raw_similarity = self.similarity_measure(query, self.values, input_weight, beta)
+        similarity, raw_similarity = self.similarity_measure(query, self.values, input_weight, beta, similarity_mask=self.not_retrieved)
         similarity = similarity + torch.randn_like(similarity) * self.noise_std
         self.write(raw_similarity, "raw_similarity")
         if self.recall_method == "random":
@@ -84,10 +89,16 @@ class ValueMemory(BasicModule):
             retrieved_idx = torch.argmax(similarity, dim=-1)
             similarity = F.one_hot(retrieved_idx, self.capacity).float()
         elif self.recall_method == "weight_sum":
-            pass
+            retrieved_idx = torch.argmax(similarity, dim=-1)
         else:
             raise NotImplementedError
         # print(similarity.shape)
+
+        if self.remove_retrieved:
+            not_retrieved = torch.ones_like(similarity)
+            not_retrieved[torch.arange(self.batch_size), retrieved_idx] = 0
+            self.not_retrieved = not_retrieved * self.not_retrieved
+
         if self.force_false_prob > 0:
             force_false = np.random.uniform() < self.force_false_prob
             if force_false:

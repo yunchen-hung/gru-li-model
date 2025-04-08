@@ -1,29 +1,28 @@
 {
     "run_num": 3,
     "model": {
-        "class": "ValueMemoryCTRNN",
-        "hidden_dim": 256,
-        "input_dim": 144,
-        "output_dims": [65],
+        "class": "ValueMemoryGRU",
+        "hidden_dim": 128,
+        "input_dim": 44,
+        "output_dims": [17],
         "use_memory": true,
         "softmax_beta": 1.0,
-        "act_fn": "ReLU",
         "evolve_state_between_phases": true,
-        "em_gate_type": "constant",
+        "em_gate_type": "scalar_sigmoid",
         "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.5,
         "mem_beta_min": 5e-4,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
+            "value_dim": 128,
             "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "process_similarity": "softmax",
+                    "process_similarity": "gumbel_softmax",
                     "softmax_temperature": 0.1
                 }
             ]
@@ -39,7 +38,7 @@
                 "class": "MetaLearningEnv"
             }],
             "class": "FreeRecall",
-            "num_features": 6,
+            "num_features": 4,
             "feature_dim": 2,
             "sequence_len": 8,
             "correct_reward": 1.0,
@@ -47,7 +46,7 @@
             "no_action_reward": -0.8
         }],
         "trainer": {
-            "num_iter": 1000,
+            "num_iter": 200,
             "test_iter": 100,
             "save_iter": 200,
             "use_memory": true,
@@ -57,13 +56,13 @@
                 "criteria": [
                     {
                         "class": "EncodingCrossEntropyLoss",
-                        "class_num": 65
+                        "class_num": 17
                     }
                 ]
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 1e-3,
+                "lr": 3e-3,
                 "lr_decay_factor": 0.1,
                 "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,
@@ -80,7 +79,7 @@
                 "class": "MetaLearningEnv"
             }],
             "class": "FreeRecall",
-            "num_features": 6,
+            "num_features": 4,
             "feature_dim": 2,
             "sequence_len": 8,
             "correct_reward": 1.0,
@@ -124,7 +123,7 @@
             }
         }
     }],
-    "load_checkpoints": true,
+    "load_checkpoints": false,
     "load_saved_model": false,
     "context_num": 10000
 }

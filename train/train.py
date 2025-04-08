@@ -294,7 +294,7 @@ def train(setup,                            # setup dict, including model and tr
                                                               mean_entropy))
             actions_trial = torch.stack(actions).cpu().detach().numpy().transpose(0, 2, 1)  # timesteps x batch_size x action_num
             gts_trial = gts.cpu().detach().numpy()  # timesteps x batch_size x action_num
-            print(actions_trial.shape, gts_trial.shape)
+            # print(actions_trial.shape, gts_trial.shape)
             if sl_criterion is not None:
                 print("encoding phase, action:", actions_trial[0:memory_num, 0].reshape(-1), "gt:", gts_trial[0:memory_num, 0].reshape(-1))
             if criterion is not None:
@@ -364,6 +364,6 @@ def train(setup,                            # setup dict, including model and tr
             test_times += 1
         
         if (i+1) % save_iter == 0:
-            save_model(agent, model_save_path, filename="{}.pt".format(i))
+            save_model(agent, model_save_path, filename="{}_{}.pt".format(session_num, i))
     
     return test_accuracies, test_errors

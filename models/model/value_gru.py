@@ -144,7 +144,8 @@ class ValueMemoryGRU(BasicModule):
             elif self.init_state_type == 'noise' or self.init_state_type == 'noise_all':
                 state = math.sqrt(1 - self.flush_noise) * prev_state + math.sqrt(self.flush_noise) * torch.randn_like(prev_state) * torch.std(prev_state)
             elif self.init_state_type == 'random':
-                state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
+                # state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
+                state = self.random_init_state.clone()
             elif self.init_state_type == 'train':
                 state = self.h0.repeat(batch_size, 1)
             elif self.init_state_type == 'train_diff':
@@ -159,7 +160,8 @@ class ValueMemoryGRU(BasicModule):
             elif self.init_state_type == "train" or self.init_state_type == "train_diff":
                 state = torch.tanh(self.h0.repeat(batch_size, 1))
             elif self.init_state_type == "random" or self.init_state_type == "noise_all":
-                state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
+                self.random_init_state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
+                state = self.random_init_state.clone()
             else:
                 raise AttributeError("Invalid init_state_type, should be zeros, train or train_diff")
         
