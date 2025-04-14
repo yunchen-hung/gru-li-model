@@ -32,7 +32,7 @@ class BasicModule(nn.Module):
         """
         if self.analyzing:
             if self.to_numpy and torch.is_tensor(tensor):
-                tensor = tensor.detach().clone().cpu().numpy()
+                tensor = tensor.detach().cpu().numpy()
             if append:
                 # append
                 self.readout_dict[name].append(tensor)

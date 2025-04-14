@@ -2,21 +2,21 @@
     "run_num": 3,
     "model": {
         "class": "ValueMemoryGRU",
-        "hidden_dim": 256,
+        "hidden_dim": 128,
         "input_dim": 144,
         "output_dims": [65],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
-        "em_gate_type": "scalar_sigmoid",
+        "em_gate_type": "constant",
         "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.5,
         "mem_beta_min": 5e-4,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
-            "value_dim": 256,
-            "capacity": 16,
+            "value_dim": 128,
+            "capacity": 8,
             "recall_method": "weight_sum",
             "subclasses": [
                 {
@@ -40,10 +40,10 @@
             "class": "FreeRecall",
             "num_features": 6,
             "feature_dim": 2,
-            "sequence_len": 16,
+            "sequence_len": 8,
             "correct_reward": 1.0,
-            "wrong_reward": -0.8,
-            "no_action_reward": -0.8
+            "wrong_reward": -0.75,
+            "no_action_reward": -0.75
         }],
         "trainer": {
             "num_iter": 200,
@@ -81,13 +81,13 @@
             "class": "FreeRecall",
             "num_features": 6,
             "feature_dim": 2,
-            "sequence_len": 16,
+            "sequence_len": 8,
             "correct_reward": 1.0,
-            "wrong_reward": -0.8,
-            "no_action_reward": -0.8
+            "wrong_reward": -0.75,
+            "no_action_reward": -0.75
         }],
         "trainer": {
-            "num_iter": 5e5,
+            "num_iter": 1e5,
             "test_iter": 500,
             "save_iter": 5000,
             "use_memory": true,
@@ -100,16 +100,8 @@
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.01,
+                        "eta": 0.05,
                         "gamma": 0.99
-                    }
-                ]
-            },
-            "ax_criterion": {
-                "class": "MultiAuxiliaryLoss",
-                "criteria": [
-                    {
-                        "class": "MemoryOneHotRegularization"
                     }
                 ]
             },
@@ -125,5 +117,5 @@
     }],
     "load_checkpoints": false,
     "load_saved_model": false,
-    "context_num": 10000
+    "context_num": 1000
 }

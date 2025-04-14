@@ -1,5 +1,5 @@
 {
-    "run_num": 3,
+    "run_num": 1,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -60,7 +60,7 @@
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.01,
+                        "eta": 0.005,
                         "gamma": 0.99
                     }
                 ]
@@ -84,5 +84,5 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 1000
+    "context_num": 50000
 }

@@ -1,9 +1,9 @@
 {
-    "run_num": 10,
+    "run_num": 20,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 144,
+        "input_dim": 92,
         "output_dims": [65],
         "use_memory": true,
         "softmax_beta": 1.0,
@@ -31,7 +31,7 @@
     "model_for_record": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 144,
+        "input_dim": 92,
         "output_dims": [65],
         "use_memory": true,
         "softmax_beta": 1.0,
@@ -45,13 +45,13 @@
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
-            "recall_method": "argmax",
+            "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.1
+                    "softmax_temperature": 0.05
                 }
             ]
         }]
@@ -70,11 +70,12 @@
             "feature_dim": 2,
             "sequence_len": 8,
             "correct_reward": 1.0,
-            "wrong_reward": -0.8,
-            "no_action_reward": -0.8
+            "wrong_reward": -0.75,
+            "no_action_reward": -0.75,
+            "one_hot_stimuli": false
         }],
         "trainer": {
-            "num_iter": 200,
+            "num_iter": 600,
             "test_iter": 100,
             "save_iter": 200,
             "use_memory": true,
@@ -112,7 +113,8 @@
             "sequence_len": 8,
             "correct_reward": 1.0,
             "wrong_reward": -0.75,
-            "no_action_reward": -0.75
+            "no_action_reward": -0.75,
+            "one_hot_stimuli": false
         }],
         "trainer": {
             "num_iter": 1e5,
@@ -128,8 +130,8 @@
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.01,
-                        "gamma": 0.0
+                        "eta": 0.02,
+                        "gamma": 0.99
                     }
                 ]
             },
@@ -152,5 +154,5 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 1000
+    "context_num": 10000
 }

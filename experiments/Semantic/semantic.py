@@ -1,5 +1,5 @@
-import csv
-import pickle
+
+import os
 import numpy as np
 import sklearn.metrics.pairwise as skp
 import matplotlib.pyplot as plt
@@ -108,6 +108,11 @@ def run(data_all, model_all, env, paths, exp_name, **kwargs):
         # results_gt[results_gt == 0] = 1
         semantic_contiguity.results = results / results_gt
         semantic_contiguity.visualize(fig_path, save_name="semantic_contiguity_norm_ratio", use_normalized=False, title="semantic contiguity", format="png")
+
+        os.makedirs(fig_path/"data", exist_ok=True)
+        np.save(fig_path/"data"/"semantic_contiguity_results.npy", results)
+        np.save(fig_path/"data"/"semantic_contiguity_results_gt.npy", results_gt)
+        np.save(fig_path/"data"/"semantic_contiguity_norm_ratio.npy", semantic_contiguity.results)
 
 
         """ do the hidden state get away from the just recalled item? """

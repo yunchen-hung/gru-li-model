@@ -178,6 +178,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             # load checkpoints
             if "load_checkpoints" in setup_origin and setup_origin["load_checkpoints"]:
                 checkpoints = []
+                checkpoint_epoch_nums = []
+                checkpoint_session_nums = []
                 # get all files in model_load_path with the pattern "*.pt" and not "model.pt"
                 checkpoint_files = list(model_load_path.glob("*.pt"))
                 # Extract checkpoint numbers and sort them
@@ -197,7 +199,10 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                     if checkpoint_file.name != "model.pt":
                         # print(checkpoint_file.name)
                         checkpoints.append(torch.load(checkpoint_file, map_location=torch.device('cpu'), weights_only=True))
-                checkpoints_all[run_name_with_num] = checkpoints
+                        checkpoint_epoch_nums.append(int(checkpoint_file.stem.split('.')[0].split('_')[1]))
+                        checkpoint_session_nums.append(int(checkpoint_file.stem.split('.')[0].split('_')[0]))
+                print(checkpoint_session_nums, checkpoint_epoch_nums)
+                checkpoints_all[run_name_with_num] = [checkpoint_session_nums, checkpoint_epoch_nums, checkpoints]
             else:
                 checkpoints_all = None
 
@@ -223,8 +228,12 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         else:
             paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
 
+        kwargs = {
+            "criterion": criterions[-1]
+        }
+
         exp_name = setup_name.split(".")[0]
-        run_exp(data_all, model_all, env, paths, exp_name, checkpoints=checkpoints_all)
+        run_exp(data_all, model_all, env, paths, exp_name, checkpoints=checkpoints_all, **kwargs)
 
 
 if __name__ == "__main__":

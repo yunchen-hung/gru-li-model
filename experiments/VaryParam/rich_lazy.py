@@ -4,6 +4,43 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 
+from train.criterions.rl import pick_action
+from models.utils import entropy
+
+
+
+def analyze_parameter_change(model, model_checkpoints, save_path):
+    """Analyze whether model is in rich or lazy regime by tracking NTK over training"""
+    
+    # Create save directory
+    save_path = Path(save_path)
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    param_norms = []
+    
+    # Get initial NTK and parameters
+    model.load_state_dict(model_checkpoints[0])
+    init_params = torch.cat([p.data.flatten() for p in model.parameters()])
+    
+    # Track changes during training
+    for i, model_checkpoint in enumerate(model_checkpoints):
+        model.load_state_dict(model_checkpoint)
+        
+        # # Compute current NTK and parameters
+        curr_params = torch.cat([p.data.flatten() for p in model.parameters()])
+        
+        # # Compute relative changes
+        param_diff = torch.norm(curr_params - init_params) / torch.norm(init_params)
+
+        param_norms.append(param_diff.item())
+    
+    # Save numerical results
+    np.save(save_path / 'param_changes.npy', np.array(param_norms))
+    
+    return param_norms
+
+
+
 def generate_data(env, num_trials):
     """
     randomly generate the memory sequence index for a bunch of trials
@@ -15,11 +52,9 @@ def generate_data(env, num_trials):
     return data
 
 
-def compute_ntk(model, env, data):
+def compute_ntk(model, env, criterion, data):
     """Compute Neural Tangent Kernel"""
-    # Generate random data
-    data = generate_data(env, 10)  # Use 10 trials for NTK computation
-    
+
     # Get parameters
     params = []
     for p in model.parameters():
@@ -30,48 +65,62 @@ def compute_ntk(model, env, data):
     ntk = None
     
     # Compute gradients for each data point
+    grads = []
     for sequence in data:
         # Reset environment and model state
-        env.reset()
-        model.reset_states()
+        obs_, info =env.reset(memory_sequence_index=sequence)
+        obs = torch.Tensor(obs_).reshape(1, -1)
+        done = False
+        model.reset_memory()
+        state = model.init_state(1)
+
+        loss_masks, outputs, values, rewards, probs, entropys = [], [], [], [], [], []
+        memory_num = 0
+        while not done:
+            # set up the phase of the model 
+            if info["phase"] == "encoding":
+                model.set_encoding(True)
+                model.set_retrieval(False)
+                memory_num += 1
+            elif info["phase"] == "recall":
+                model.set_encoding(False)
+                model.set_retrieval(True)
+            # reset state between phases
+            if "reset_state" in info and info["reset_state"]:
+                state = model.init_state(1, recall=True, prev_state=state)
+            
+            output, value, state, _ = model(obs, state)
+            action_distribution = output
+            action, log_prob_action, action_max = pick_action(action_distribution)
+            obs_, reward, _, _, info = env.step(action.cpu().detach().numpy().squeeze(axis=1))
+            obs = torch.Tensor(obs_).reshape(1, -1)
+            loss_masks.append(info["loss_mask"][0] and not done)
+            outputs.append(output)
+            values.append(value)
+            rewards.append(reward)
+            probs.append(log_prob_action)
+            entropys.append(entropy(output))
+
+            done = info["done"]
+
+        loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+                                                                    loss_masks[memory_num:], print_info=False)
         
-        # Run model forward and get loss
-        total_loss = 0
-        for t in range(len(sequence)):
-            # Get observation and run model
-            obs = env.get_observation()
-            output = model(obs)
-            
-            # Compute loss (using dummy target)
-            target = torch.zeros_like(output)
-            loss = ((output - target)**2).sum()
-            total_loss += loss
-            
-            # Step environment
-            env.step(0)  # Dummy action
-            
-        # Compute gradients
-        total_loss.backward()
-        
-        # Get flattened gradient
+        loss_rl.backward()
         grad = torch.cat([p.grad.flatten() for p in params])
-        
-        # Update NTK
-        if ntk is None:
-            ntk = grad.unsqueeze(0).T @ grad.unsqueeze(0)
-        else:
-            ntk += grad.unsqueeze(0).T @ grad.unsqueeze(0)
+        grads.append(grad)
         
         # Zero gradients
         model.zero_grad()
     
     # Average NTK over samples
-    ntk = ntk / len(data)
+    grads = torch.stack(grads)
+    ntk = grads.T @ grads
     
     return ntk
 
 
-def analyze_training_regime(model, model_checkpoints, env, save_path):
+def analyze_ntk_change(model, model_checkpoints, env, criterion, save_path):
     """Analyze whether model is in rich or lazy regime by tracking NTK over training"""
     
     # Create save directory
@@ -79,13 +128,11 @@ def analyze_training_regime(model, model_checkpoints, env, save_path):
     save_path.mkdir(parents=True, exist_ok=True)
     
     ntk_norms = []
-    param_norms = []
+    data = generate_data(env, 100)
     
     # Get initial NTK and parameters
-    # x_batch, _ = next(iter(dataloader))
-    # init_ntk = compute_ntk(model, x_batch)
+    init_ntk = compute_ntk(model, env, criterion, data)
     model.load_state_dict(model_checkpoints[0])
-    init_params = torch.cat([p.data.flatten() for p in model.parameters()])
     
     # Track changes during training
     for i, model_checkpoint in enumerate(model_checkpoints):
@@ -93,46 +140,20 @@ def analyze_training_regime(model, model_checkpoints, env, save_path):
         model.load_state_dict(model_checkpoint)
         
         # # Compute current NTK and parameters
-        # curr_ntk = compute_ntk(model, x_batch) 
-        curr_params = torch.cat([p.data.flatten() for p in model.parameters()])
+        curr_ntk = compute_ntk(model, env, criterion, data) 
         
         # # Compute relative changes
-        # ntk_diff = torch.norm(curr_ntk - init_ntk) / torch.norm(init_ntk)
-        param_diff = torch.norm(curr_params - init_params) / torch.norm(init_params)
+        ntk_diff = torch.norm(curr_ntk - init_ntk) / torch.norm(init_ntk)
         
-        # ntk_norms.append(ntk_diff.item())
-        param_norms.append(param_diff.item())
-        
-    # Plot results
-    plt.figure(figsize=(4, 3.3), dpi=180)
-    # plt.plot(ntk_norms, label='NTK Change')
-    plt.plot(param_norms, label='Parameter Change') 
-    plt.xlabel('Training Steps')
-    plt.ylabel('Relative Change')
-    plt.legend()
-    # plt.title('NTK vs Parameter Changes During Training')
-    plt.tight_layout()
-    plt.savefig(save_path / 'param_change.png')
-    plt.close()
+        ntk_norms.append(ntk_diff.item())
     
     # Save numerical results
-    # np.save(save_path / 'ntk_changes.npy', np.array(ntk_norms))
-    np.save(save_path / 'param_changes.npy', np.array(param_norms))
-    
-    # Determine regime
-    # ntk_final = np.mean(ntk_norms[-10:])  # Average of last 10 steps
-    # if ntk_final < 0.1:  # Threshold can be adjusted
-    #     print("Model appears to be in lazy regime")
-    #     regime = "lazy"
-    # else:
-    #     print("Model appears to be in rich regime") 
-    #     regime = "rich"
-        
-    # return regime, ntk_norms, param_norms
-    return param_norms
+    np.save(save_path / 'ntk_changes.npy', np.array(ntk_norms))
+
+    return ntk_norms
 
 
-def run(data_all, model_all, env, paths, exp_name, checkpoints=None):
+def run(data_all, model_all, env, paths, exp_name, checkpoints=None, criterion=None):
     plt.rcParams['font.size'] = 16
 
     env = env[0]
@@ -148,5 +169,28 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None):
 
         model = model_all[run_name]
         checkpoints_model = checkpoints[run_name]
+        checkpoint_session_nums, checkpoint_epoch_nums, checkpoints = checkpoints_model[0], checkpoints_model[1], checkpoints_model[2]
         if checkpoints_model is not None:
-            analyze_training_regime(model, checkpoints_model, env, fig_path)
+            checkpoint_labels = ['{}_{}'.format(session_num, epoch_num) for session_num, epoch_num in zip(checkpoint_session_nums, checkpoint_epoch_nums)]
+
+            # analyze parameter change
+            param_norms = analyze_parameter_change(model, checkpoints_model, fig_path)
+            plt.figure(figsize=(4, 3.3), dpi=180)
+            plt.plot(checkpoint_labels, param_norms)
+            plt.xticks(rotation=45)
+            plt.xlabel('Training Steps')
+            plt.ylabel('Relative Parameter Change')
+            plt.tight_layout()
+            plt.savefig(fig_path / 'param_change.png')
+            plt.close()
+
+            # analyze ntk change
+            ntk_norms = analyze_ntk_change(model, checkpoints_model, env, criterion, fig_path)
+            plt.figure(figsize=(4, 3.3), dpi=180)
+            plt.plot(checkpoint_labels, ntk_norms)
+            plt.xticks(rotation=45)
+            plt.xlabel('Training Steps')
+            plt.ylabel('Relative NTK Change')
+            plt.tight_layout()
+            plt.savefig(fig_path / 'ntk_change.png')
+            plt.close()

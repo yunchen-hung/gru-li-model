@@ -18,12 +18,13 @@
             "value_dim": 128,
             "capacity": 8,
             "recall_method": "weight_sum",
+            "remove_retrieved": false,
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
-                    "process_similarity": "gumbel_softmax",
-                    "softmax_temperature": 0.1
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.05
                 }
             ]
         }]
@@ -59,8 +60,16 @@
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.05,
+                        "eta": 0.01,
                         "gamma": 0.99
+                    }
+                ]
+            },
+            "ax_criterion": {
+                "class": "MultiAuxiliaryLoss",
+                "criteria": [
+                    {
+                        "class": "MemoryOneHotRegularization"
                     }
                 ]
             },
