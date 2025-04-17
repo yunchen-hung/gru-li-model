@@ -5,3 +5,4 @@ from .pc_selectivity import PCSelectivity
 from .dm_answer import DMAnswerDecoder
 from .regression import Regressor
 from .classification import Classifier
+from .multi_regression import MultiRegressor

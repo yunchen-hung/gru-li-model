@@ -3,22 +3,49 @@
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
-        "input_dim": 144,
+        "input_dim": 92,
         "output_dims": [65],
         "use_memory": true,
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": true,
+        "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.5,
-        "mem_beta_min": 1e-4,
+        "mem_beta_min": 5e-4,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
             "recall_method": "weight_sum",
-            "transform_memory": true,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.1
+                }
+            ]
+        }]
+    },
+    "model_for_record": {
+        "class": "ValueMemoryGRU",
+        "hidden_dim": 128,
+        "input_dim": 92,
+        "output_dims": [65],
+        "use_memory": true,
+        "softmax_beta": 1.0,
+        "evolve_state_between_phases": true,
+        "em_gate_type": "scalar_sigmoid",
+        "mem_beta_decay": true,
+        "mem_beta_decay_rate": 0.5,
+        "mem_beta_min": 5e-4,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 128,
+            "capacity": 8,
+            "recall_method": "weight_sum",
             "subclasses": [
                 {
                     "name":"similarity_measure",
@@ -33,7 +60,7 @@
         "env": [{
             "vector_env": {
                 "mode": "sync",
-                "batch_size": 32
+                "batch_size": 64
             },
             "wrapper": [{
                 "class": "MetaLearningEnv"
@@ -43,11 +70,12 @@
             "feature_dim": 2,
             "sequence_len": 8,
             "correct_reward": 1.0,
-            "wrong_reward": -0.75,
-            "no_action_reward": -0.75
+            "wrong_reward": -0.8,
+            "no_action_reward": -0.8,
+            "one_hot_stimuli": false
         }],
         "trainer": {
-            "num_iter": 200,
+            "num_iter": 600,
             "test_iter": 100,
             "save_iter": 200,
             "use_memory": true,
@@ -74,7 +102,7 @@
         "env": [{
             "vector_env": {
                 "mode": "sync",
-                "batch_size": 32
+                "batch_size": 64
             },
             "wrapper": [{
                 "class": "MetaLearningEnv"
@@ -84,8 +112,9 @@
             "feature_dim": 2,
             "sequence_len": 8,
             "correct_reward": 1.0,
-            "wrong_reward": -0.75,
-            "no_action_reward": -0.75
+            "wrong_reward": -0.8,
+            "no_action_reward": -0.8,
+            "one_hot_stimuli": false
         }],
         "trainer": {
             "num_iter": 2e5,
@@ -93,7 +122,7 @@
             "save_iter": 5000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "mem_beta_decay_threshold": 0.9,
+            "mem_beta_decay_threshold": 0.85,
             "mem_beta_decay_iter": 10000,
             "criterion": {
                 "class": "MultiRLLoss",
@@ -101,7 +130,7 @@
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.02,
+                        "eta": 0.05,
                         "gamma": 0.99
                     }
                 ]
@@ -125,5 +154,5 @@
         }
     }],
     "load_saved_model": false,
-    "context_num": 1000
+    "context_num": 10000
 }

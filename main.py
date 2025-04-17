@@ -4,6 +4,7 @@ import os
 import argparse
 from pathlib import Path
 import ast
+from collections import defaultdict
 import numpy as np
 import torch
 
@@ -169,7 +170,8 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 for i in record_env:
                     data = record(model, env[i], used_output=used_output[i], 
                                         reset_memory=training_setup.get("reset_memory", True), 
-                                        device=device, context_num=setups[-1].get("context_num", 20))
+                                        device=device, context_num=setups[-1].get("context_num", 20),
+                                        record_activity=setups[-1].get("record_activity", True))
                     data_all_env.append(data)
 
                 model_all[run_name_with_num] = model
@@ -183,25 +185,37 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 # get all files in model_load_path with the pattern "*.pt" and not "model.pt"
                 checkpoint_files = list(model_load_path.glob("*.pt"))
                 # Extract checkpoint numbers and sort them
-                checkpoint_numbers = []
+                checkpoint_numbers = defaultdict(list)
                 for file in checkpoint_files:
                     if file.name != "model.pt":
                         try:
-                            num = int(file.stem.split('.')[0])  # Get number after last underscore
-                            checkpoint_numbers.append(num)
+                            num = file.stem.split('.')[0]
+                            if '_' in num:
+                                epoch_num = int(num.split('_')[0])
+                                session_num = int(num.split('_')[1])
+                                checkpoint_numbers[int(epoch_num)].append(int(session_num))
+                            else:
+                                if num == "0":
+                                    checkpoint_numbers[0].append(int(num))     # initial checkpoint
                         except ValueError:
                             continue
-                checkpoint_numbers.sort()
+                for epoch_num, session_nums in checkpoint_numbers.items():
+                    session_nums.sort()
+                print(checkpoint_numbers)
                 
                 # Reorder checkpoint files based on sorted numbers
-                checkpoint_files = [model_load_path/f"{num}.pt" for num in checkpoint_numbers]
-                for checkpoint_file in checkpoint_files:
-                    if checkpoint_file.name != "model.pt":
-                        # print(checkpoint_file.name)
-                        checkpoints.append(torch.load(checkpoint_file, map_location=torch.device('cpu'), weights_only=True))
-                        checkpoint_epoch_nums.append(int(checkpoint_file.stem.split('.')[0].split('_')[1]))
-                        checkpoint_session_nums.append(int(checkpoint_file.stem.split('.')[0].split('_')[0]))
-                print(checkpoint_session_nums, checkpoint_epoch_nums)
+                for epoch_num in checkpoint_numbers:
+                    if epoch_num == 0:
+                        for session_num in checkpoint_numbers[epoch_num]:
+                            checkpoints.append(torch.load(model_load_path/f"{session_num}.pt", map_location=torch.device('cpu'), weights_only=True))
+                            checkpoint_epoch_nums.append(epoch_num)
+                            checkpoint_session_nums.append(session_num)
+                    else:
+                        for session_num in checkpoint_numbers[epoch_num]:
+                            checkpoints.append(torch.load(model_load_path/f"{epoch_num}_{session_num}.pt", map_location=torch.device('cpu'), weights_only=True))
+                            checkpoint_epoch_nums.append(epoch_num)
+                            checkpoint_session_nums.append(session_num)
+                print(checkpoint_epoch_nums, checkpoint_session_nums)
                 checkpoints_all[run_name_with_num] = [checkpoint_session_nums, checkpoint_epoch_nums, checkpoints]
             else:
                 checkpoints_all = None

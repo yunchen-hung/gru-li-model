@@ -10,7 +10,7 @@ from sklearn.metrics import rand_score, adjusted_mutual_info_score
 
 from utils import savefig
 from analysis.decomposition import PCA
-from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor, Classifier
+from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor, Classifier, MultiRegressor
 from analysis.behavior import RecallProbability, RecallProbabilityInTime, TemporalFactor
 
 
@@ -307,6 +307,52 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         }
         with open(fig_path/"ridge_classifier_stat.pkl", "wb") as f:
             pickle.dump(ridge_classifier_stat, f)
+
+
+        """ explained variance of index and identity """
+        multi_regressor = MultiRegressor()
+        r2_index_encoding, r2_identity_encoding = multi_regressor.fit(c_memorizing, encoding_index, memory_sequence)
+        print("r2_index_encoding: ", r2_index_encoding)
+        print("r2_identity_encoding: ", r2_identity_encoding)
+        r2_index_recall, r2_identity_recall = multi_regressor.fit(c_recalling, recall_index, actions[:, -timestep_each_phase:], ridge_mask)
+        print("r2_index_recall: ", r2_index_recall)
+        print("r2_identity_recall: ", r2_identity_recall)
+
+        # plot the explained variance of index and identity
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.bar(["index", "identity"], [r2_index_encoding, r2_identity_encoding])
+        plt.xlabel("variable")
+        plt.ylabel("explained variance")
+        plt.tight_layout()
+        savefig(fig_path/"multi_regression", "explained_variance_encoding")
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.bar(["index", "identity"], [r2_index_recall, r2_identity_recall])
+        plt.xlabel("variable")
+        plt.ylabel("explained variance")
+        plt.tight_layout()
+        savefig(fig_path/"multi_regression", "explained_variance_recall")
+
+        # plot encoding and recall phases together
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        bar_width = 0.35
+        index = np.arange(2)
+        
+        plt.bar(index, [r2_index_encoding, r2_index_recall], bar_width, label="index")
+        plt.bar(index + bar_width, [r2_identity_encoding, r2_identity_recall], bar_width, label="identity")
+        
+        plt.xlabel("variable")
+        plt.ylabel("explained variance")
+        plt.xticks(index + bar_width / 2, ["encoding", "recall"])
+        plt.legend()
+        plt.tight_layout()
+        savefig(fig_path/"multi_regression", "explained_variance_combined")
+
+        # put encoding and recall data together
+        c_all = np.stack([readouts[i]['state'].squeeze() for i in range(all_context_num)])
+
+
+        
 
 
         """ PC selectivity """

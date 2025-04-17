@@ -1,5 +1,5 @@
 {
-    "run_num": 3,
+    "run_num": 1,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -126,5 +126,6 @@
     }],
     "load_checkpoints": false,
     "load_saved_model": false,
-    "context_num": 1000
+    "record_activity": false,
+    "context_num": 10000
 }

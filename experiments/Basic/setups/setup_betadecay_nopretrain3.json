@@ -1,5 +1,5 @@
 {
-    "run_num": 3,
+    "run_num": 5,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -10,15 +10,15 @@
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
         "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.5,
-        "mem_beta_min": 1e-4,
+        "mem_beta_decay_rate": 0.9,
+        "mem_beta_min": 2e-4,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
             "recall_method": "weight_sum",
-            "transform_memory": true,
+            "remove_retrieved": false,
             "subclasses": [
                 {
                     "name":"similarity_measure",
@@ -43,66 +43,24 @@
             "feature_dim": 2,
             "sequence_len": 8,
             "correct_reward": 1.0,
-            "wrong_reward": -0.75,
-            "no_action_reward": -0.75
+            "wrong_reward": -0.8,
+            "no_action_reward": -0.8
         }],
         "trainer": {
-            "num_iter": 200,
-            "test_iter": 100,
-            "save_iter": 200,
-            "use_memory": true,
-            "stop_test_accu": 0.99,
-            "sl_criterion": {
-                "class": "MultiSupervisedLoss",
-                "criteria": [
-                    {
-                        "class": "EncodingCrossEntropyLoss",
-                        "class_num": 65
-                    }
-                ]
-            },
-            "optimizer": {
-                "class": "Adam",
-                "lr": 3e-3,
-                "lr_decay_factor": 0.1,
-                "lr_decay_patience": 30,
-                "lr_decay_threshold": 1e-3,
-                "min_lr": 1e-7
-            }
-        }
-    }, {
-        "env": [{
-            "vector_env": {
-                "mode": "sync",
-                "batch_size": 32
-            },
-            "wrapper": [{
-                "class": "MetaLearningEnv"
-            }],
-            "class": "FreeRecall",
-            "num_features": 6,
-            "feature_dim": 2,
-            "sequence_len": 8,
-            "correct_reward": 1.0,
-            "wrong_reward": -0.75,
-            "no_action_reward": -0.75
-        }],
-        "trainer": {
-            "num_iter": 2e5,
+            "num_iter": 1e5,
             "test_iter": 500,
             "save_iter": 5000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "mem_beta_decay_threshold": 0.9,
-            "mem_beta_decay_iter": 10000,
+            "mem_beta_decay_iter": 2000,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
                     {
                         "class": "A2CLoss",
                         "use_V": true,
-                        "eta": 0.02,
-                        "gamma": 0.99
+                        "eta": 0.05,
+                        "gamma": 0.999
                     }
                 ]
             },
@@ -116,7 +74,7 @@
             },
             "optimizer": {
                 "class": "Adam",
-                "lr": 3e-3,
+                "lr": 1e-3,
                 "lr_decay_factor": 0.1,
                 "lr_decay_patience": 30,
                 "lr_decay_threshold": 1e-3,
@@ -124,6 +82,7 @@
             }
         }
     }],
+    "load_checkpoints": false,
     "load_saved_model": false,
     "context_num": 1000
 }

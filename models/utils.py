@@ -11,7 +11,7 @@ def load_act_fn(act_fn: str):
         return import_attr("torch.nn.{}".format(act_fn))()
 
 
-def entropy(probs, device):
+def entropy(probs, device='cpu'):
     """calculate entropy.
 
     Parameters

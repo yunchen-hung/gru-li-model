@@ -63,9 +63,11 @@ class BaseEMTask(gym.Env):
 
     def reset(self, memory_sequence_index=None, **kwargs):
         if memory_sequence_index is None:
-            self.memory_sequence = self.all_stimuli[np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)]
+            self.memory_sequence_index = np.random.choice(len(self.all_stimuli), self.sequence_len, replace=False)  
+            self.memory_sequence = self.all_stimuli[self.memory_sequence_index]
         else:
-            self.memory_sequence = self.all_stimuli[memory_sequence_index]
+            self.memory_sequence_index = memory_sequence_index
+            self.memory_sequence = self.all_stimuli[self.memory_sequence_index]
         self.memory_sequence_int = self._convert_item_to_int(self.memory_sequence)
         self._generate_condition_features() # will use different method for different tasks
 

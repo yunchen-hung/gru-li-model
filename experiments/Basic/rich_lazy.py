@@ -46,11 +46,18 @@ def analyze_parameter_change(model, model_checkpoints, save_path, layer_names=["
         for j, layer in enumerate(layer_names):
             param_diff_by_layer.append(torch.norm(curr_params_by_layer[j] - init_params_by_layer[j]) / torch.norm(init_params_by_layer[j]))
 
+        # # cumulative
+        init_params = curr_params
+        init_params_by_layer = curr_params_by_layer
+
         param_norms.append(param_diff.item())
         param_norms_by_layer.append([param_diff_by_layer[j].item() for j in range(len(layer_names))])
 
     param_norms = np.array(param_norms)
     param_norms_by_layer = np.array(param_norms_by_layer)
+
+    param_norms = np.cumsum(param_norms)
+    param_norms_by_layer = np.cumsum(param_norms_by_layer, axis=0)
 
     # Save numerical results
     np.save(save_path / 'param_changes.npy', param_norms)
@@ -120,7 +127,7 @@ def compute_ntk(model, env, criterion, data, layer_names=["encoder", "hidden", "
             output, value, state, _ = model(obs, state)
             action_distribution = output
             action, log_prob_action, action_max = pick_action(action_distribution)
-            obs_, reward, _, _, info = env.step(action.cpu().detach().numpy().squeeze(axis=1))
+            obs_, reward, _, _, info = env.step(action_max.cpu().detach().numpy().squeeze(axis=1))
             obs = torch.Tensor(obs_).reshape(1, -1)
             loss_masks.append([info["loss_mask"] and not done])
             values[0].append(value[0])
@@ -265,6 +272,12 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, criterion=N
 
         # analyze ntk change
         ntk_norms, ntk_norms_by_layer = analyze_ntk_change(model, checkpoints_model, env, criterion, fig_path, layer_names)
+
+        # delete results with index 2
+        ntk_norms = ntk_norms[2:]
+        ntk_norms_by_layer = ntk_norms_by_layer[2:]
+        checkpoint_labels = checkpoint_labels[2:]
+
         plt.figure(figsize=(5, 4), dpi=180)
         plt.plot(checkpoint_labels, ntk_norms)
         plt.xticks(rotation=45, fontsize=9)
