@@ -47,8 +47,8 @@ def analyze_parameter_change(model, model_checkpoints, save_path, layer_names=["
             param_diff_by_layer.append(torch.norm(curr_params_by_layer[j] - init_params_by_layer[j]) / torch.norm(init_params_by_layer[j]))
 
         # # cumulative
-        init_params = curr_params
-        init_params_by_layer = curr_params_by_layer
+        # init_params = curr_params
+        # init_params_by_layer = curr_params_by_layer
 
         param_norms.append(param_diff.item())
         param_norms_by_layer.append([param_diff_by_layer[j].item() for j in range(len(layer_names))])
@@ -56,8 +56,8 @@ def analyze_parameter_change(model, model_checkpoints, save_path, layer_names=["
     param_norms = np.array(param_norms)
     param_norms_by_layer = np.array(param_norms_by_layer)
 
-    param_norms = np.cumsum(param_norms)
-    param_norms_by_layer = np.cumsum(param_norms_by_layer, axis=0)
+    # param_norms = np.cumsum(param_norms)
+    # param_norms_by_layer = np.cumsum(param_norms_by_layer, axis=0)
 
     # Save numerical results
     np.save(save_path / 'param_changes.npy', param_norms)

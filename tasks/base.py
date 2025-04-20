@@ -74,7 +74,7 @@ class BaseEMTask(gym.Env):
         self.phase = "encoding"     # encoding, recall
         self.timestep = 0
         self.answered = False       # whether all matched items are recalled/the question is answered
-
+        self.done = False
         # convert the first observation to concatenated one-hot vectors
         obs = self._generate_observation(self.memory_sequence[0], self.condition_feature, self.condition_value, 
                                          include_condition=self.include_condition_during_encode)
@@ -125,6 +125,7 @@ class BaseEMTask(gym.Env):
 
             if self.timestep >= self.retrieve_time_limit:
                 info["done"] = True
+                self.done = True
                 
             return obs, reward, False, False, info
     
@@ -200,11 +201,12 @@ class BaseEMTask(gym.Env):
 
     def _compute_gt(self):
         gt = np.zeros(len(self.action_space.nvec))
+        ind = min(self.timestep-1, self.sequence_len-1)
         if self.one_hot_action:
-            item_int = self._convert_item_to_int(self.memory_sequence[self.timestep-1].reshape(1, -1)) + 1
+            item_int = self._convert_item_to_int(self.memory_sequence[ind].reshape(1, -1)) + 1
             gt[0] = item_int[0]
         else:
-            gt[:self.num_features] = self.memory_sequence[self.timestep-1]
+            gt[:self.num_features] = self.memory_sequence[ind]
             gt[-1] = 0
         return gt
     

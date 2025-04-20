@@ -29,6 +29,35 @@
             ]
         }]
     },
+    "model_for_record": {
+        "class": "ValueMemoryGRU",
+        "hidden_dim": 128,
+        "input_dim": 144,
+        "output_dims": [65],
+        "use_memory": true,
+        "softmax_beta": 1.0,
+        "evolve_state_between_phases": true,
+        "em_gate_type": "constant",
+        "mem_beta_decay": true,
+        "mem_beta_decay_rate": 0.9,
+        "mem_beta_min": 2e-4,
+        "subclasses": [{
+            "name": "memory_module",
+            "class": "ValueMemory",
+            "value_dim": 128,
+            "capacity": 8,
+            "recall_method": "argmax",
+            "remove_retrieved": false,
+            "subclasses": [
+                {
+                    "name":"similarity_measure",
+                    "class": "BasicSimilarity",
+                    "process_similarity": "softmax",
+                    "softmax_temperature": 0.05
+                }
+            ]
+        }]
+    },
     "training": [{
         "env": [{
             "vector_env": {
@@ -82,7 +111,7 @@
             }
         }
     }],
-    "load_checkpoints": false,
+    "load_checkpoints": true,
     "load_saved_model": false,
-    "context_num": 1000
+    "context_num": 1
 }

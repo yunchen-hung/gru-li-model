@@ -1,0 +1,4 @@
+- use FreeRecall2 task
+    - allow repeat, no penalty
+    - penalty when not recalling all items
+    - more time steps to recall, end the trial once recalling all items.

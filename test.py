@@ -7,8 +7,7 @@ import seaborn as sns
 
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
-from tasks import ConditionalEMRecall , MetaLearningEnv, ConditionalQuestionAnswer, FreeRecallRepeat, \
-    FreeRecall, PlaceHolderWrapper, NonlinearConditionalQuestionAnswer
+from tasks import FreeRecall2
 
 from utils import load_dict, savefig
 
@@ -52,99 +51,48 @@ def main():
     #     print(obs.shape)
     #     print()
 
-    """ Conditional Question Answer tests """
-    # seqlen = 8
-    # env = ConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=seqlen, 
-    #     include_question_during_encode=True)
-    # env = PlaceHolderWrapper(env, 11)
-    # env = MetaLearningEnv(env)
 
-    # answer = np.zeros(2)
-    # # prev_answer = np.zeros(2)
-    # cnts = np.zeros(seqlen+1)
-    # for i in range(10000):
-    #     env.reset()
-    #     if env.answer is not None:
-    #         answer[env.answer] += 1
-    #     # if np.array_equal(env.answer, prev_answer):
-    #     #     print(env.answer)
-    #     # prev_answer = env.answer
-    #     cnts[env.cnt] += 1
-    # print(answer)
-    # print(cnts)
-
-    """ Nonlinear Conditional Question Answer tests """
-    # env = NonlinearConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=9, 
-    #     include_question_during_encode=True, question_type="sum", sum_reference=2)
-
-    # for i in range(1):
-    #     obs, info = env.reset()
-    #     print(obs)
-    #     terminated = False
-    #     cnt = 0
-    #     while not terminated:
-    #         print("timestep: ", cnt)
-    #         action = env.action_space.sample()
-    #         cnt += 1
-    #         obs, reward, done, _, info = env.step(action)
-    #         terminated = np.logical_or(terminated, info['done'])
-    #         print(action)
-    #         print(obs, reward, terminated, info)
-    #         # if cnt > 20:
-    #         #     break
-    #         print()
-    #     print(obs.shape)
-    #     print()
-    #     print(env.get_trial_data())
-
-    # seqlen = 9
-    # answer = np.zeros(16)
-    # # prev_answer = np.zeros(2)
-    # cnts = np.zeros(seqlen+1)
-    # for i in range(10000):
-    #     env.reset()
-    #     if env.answer is not None:
-    #         answer[env.answer] += 1
-    #     # if np.array_equal(env.answer, prev_answer):
-    #     #     print(env.answer)
-    #     # prev_answer = env.answer
-    #     cnts[env.cnt] += 1
-    # print(answer)
-    # print(cnts)
-
-
-    """ Conditional EM Recall tests """
-    # env = ConditionalEMRecall(num_features=2, feature_dim=2, sequence_len=4, vocabulary_num=8, value_dim=2, 
-    #     include_question_during_encode=False, no_condition=True)
-    # obs, info = env.reset()
-    # env.render()
-    # print()
-    # print(obs)
-    # print(info)
-    # terminated = False
-    # while not terminated:
-    #     action = env.action_space.sample()
-    #     obs, reward, _, _, info = env.step(action)
-    #     terminated = np.logical_or(terminated, info['done'])
-    #     print(action)
-    #     print(obs, reward, terminated, info)
-    #     print()
+    """ Free Recall 2 tests """
+    env = FreeRecall2(num_features=4, feature_dim=2, sequence_len=4, retrieve_time_limit=6, repeat_reward=0.0, no_action_reward=0.0)
+    obs, info = env.reset()
+    trial_data = env.get_trial_data()
+    gts = trial_data["memory_sequence_int"]
+    t = 0
+    print(trial_data)
+    print()
+    print(obs)
+    print(info)
+    terminated = False
+    while not terminated:
+        if t < len(gts):
+            action = env.action_space.sample()
+        else:
+            action = [gts[min(t-len(gts), len(gts)-1)]]
+        t += 1
+        obs, reward, _, _, info = env.step(action)
+        terminated = np.logical_or(terminated, info['done'])
+        print(action, reward, terminated)
+        print()
+        print(obs, info)
 
 
     """ Vary parameters """
-    seq_len_all = [8,16]
-    noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
-    gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    # seq_len_all = [8,16]
+    # noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
+    # gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # eta_all = [0.005, 0.01, 0.02, 0.04]
 
-    # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
-    setup_dir = Path("./experiments/FreeRecall/VaryGamma/setups")
-    setup_file = setup_dir / "setup.json"
-    setup = load_dict(setup_file)
+    # # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
+    # setup_dir = Path("./experiments/VaryGamma/setups")
+    # setup_file = setup_dir / "setup.json"
+    # setup = load_dict(setup_file)
 
-    for gamma in gamma_all:
-        setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
-        with open(setup_dir / "setup_gamma{}.json".format(str(gamma).replace(".", "")), "w") as f:
-            json.dump(setup, f, indent=4)
+    # for gamma in gamma_all:
+    #     for eta in eta_all:
+    #         setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["eta"] = eta
+    #         setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
+    #         with open(setup_dir / "setup_eta{}_gamma{}.json".format(str(eta).replace(".",""), str(gamma).replace(".", "")), "w") as f:
+    #             json.dump(setup, f, indent=4)
 
     # for seq_len in seq_len_all:
     #     for noise in noise_all:

@@ -106,11 +106,16 @@ def train(setup,                            # setup dict, including model and tr
         except:
             seq_len = setup["training"]["env"][0]["tasks"][0]["sequence_len"]
 
+        try:
+            retrieve_time_limit = setup["training"]["env"][0]["retrieve_time_limit"]
+        except:
+            retrieve_time_limit = setup["training"]["env"][0]["tasks"][0]["retrieve_time_limit"]
+
         # rewards = np.zeros((seq_len*2, batch_size))
         rewards = []
-        gts = np.zeros((seq_len*2, batch_size, len(agent.output_dims)))
-        gt_masks = np.zeros((seq_len*2, batch_size), dtype=bool)
-        loss_masks = np.zeros((seq_len*2, batch_size), dtype=bool)
+        gts = np.zeros((seq_len+retrieve_time_limit, batch_size, len(agent.output_dims)))
+        gt_masks = np.zeros((seq_len+retrieve_time_limit, batch_size), dtype=bool)
+        loss_masks = np.zeros((seq_len+retrieve_time_limit, batch_size), dtype=bool)
 
         outputs = defaultdict(list)
         # actions, probs, actions_max = defaultdict(list), defaultdict(list), defaultdict(list)

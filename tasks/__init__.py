@@ -4,3 +4,4 @@
 # from .free_recall_features import FreeRecallWithFeatures
 from .wrappers import MetaLearningEnv, PlaceHolderWrapper
 from .FreeRecall import FreeRecall
+from .FreeRecall2 import FreeRecall2
