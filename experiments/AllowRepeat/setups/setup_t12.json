@@ -9,7 +9,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": true,
+        "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.95,
         "mem_beta_min": 2e-4,
         "subclasses": [{
@@ -18,35 +18,6 @@
             "value_dim": 128,
             "capacity": 8,
             "recall_method": "weight_sum",
-            "remove_retrieved": false,
-            "subclasses": [
-                {
-                    "name":"similarity_measure",
-                    "class": "BasicSimilarity",
-                    "process_similarity": "softmax",
-                    "softmax_temperature": 0.05
-                }
-            ]
-        }]
-    },
-    "model_for_record": {
-        "class": "ValueMemoryGRU",
-        "hidden_dim": 128,
-        "input_dim": 144,
-        "output_dims": [65],
-        "use_memory": true,
-        "softmax_beta": 1.0,
-        "evolve_state_between_phases": true,
-        "em_gate_type": "constant",
-        "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.9,
-        "mem_beta_min": 2e-4,
-        "subclasses": [{
-            "name": "memory_module",
-            "class": "ValueMemory",
-            "value_dim": 128,
-            "capacity": 8,
-            "recall_method": "argmax",
             "remove_retrieved": false,
             "subclasses": [
                 {
@@ -73,7 +44,7 @@
             "sequence_len": 8,
             "retrieve_time_limit": 12,
             "correct_reward": 1.0,
-            "wrong_reward": -0.8,
+            "wrong_reward": -1.0,
             "no_action_reward": -0.0,
             "repeat_reward": 0.0
         }],
@@ -91,7 +62,7 @@
                         "class": "A2CLoss",
                         "use_V": true,
                         "eta": 0.02,
-                        "gamma": 0.9999
+                        "gamma": 1.0
                     }
                 ]
             },

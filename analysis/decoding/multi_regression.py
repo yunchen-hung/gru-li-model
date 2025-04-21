@@ -36,8 +36,8 @@ class MultiRegressor:
         data = np.concatenate([index, identity], axis=-1)
         data = data[mask]
         states = states[mask]
-        print("data shape: ", data.shape)
-        print("states shape: ", states.shape)
+        # print("data shape: ", data.shape)
+        # print("states shape: ", states.shape)
 
         kf = KFold(n_splits=self.n_splits, shuffle=True)
         r2_index, r2_identity = [], []
@@ -50,7 +50,7 @@ class MultiRegressor:
         
             ss_total = np.sum((states_test - np.mean(states_test)) ** 2)
             ss_res = np.sum((states_test - states_pred) ** 2)
-            print(self.regressor.coef_.shape, data_test.shape)
+            # print(self.regressor.coef_.shape, data_test.shape)
             ss_index = np.sum((self.regressor.coef_[:, :index.shape[1]] @ data_test[:, :index.shape[1]].T) ** 2)
             ss_identity = np.sum((self.regressor.coef_[:, index.shape[1]:] @ data_test[:, index.shape[1]:].T) ** 2)
             r2_index.append(ss_index / ss_total)

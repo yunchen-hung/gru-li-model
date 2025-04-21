@@ -10,7 +10,7 @@ from sklearn.metrics import rand_score, adjusted_mutual_info_score
 
 from utils import savefig
 from analysis.decomposition import PCA
-from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor, Classifier, MultiRegressor
+from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor, Classifier, MultiRegressor, CrossClassifier
 from analysis.behavior import RecallProbability, RecallProbabilityInTime, TemporalFactor
 
 
@@ -237,6 +237,7 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
 
 
+
         """ decode item identity """
         retrieved_memories = []
         for i in range(all_context_num):
@@ -309,6 +310,7 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
             pickle.dump(ridge_classifier_stat, f)
 
 
+
         """ explained variance of index and identity """
         multi_regressor = MultiRegressor()
         r2_index_encoding, r2_identity_encoding = multi_regressor.fit(c_memorizing, encoding_index, memory_sequence)
@@ -348,11 +350,46 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         plt.tight_layout()
         savefig(fig_path/"multi_regression", "explained_variance_combined")
 
-        # put encoding and recall data together
-        c_all = np.stack([readouts[i]['state'].squeeze() for i in range(all_context_num)])
+        # # put encoding and recall data together
+        # c_all = np.stack([readouts[i]['state'].squeeze() for i in range(all_context_num)])
 
 
+
+        """ cross-phase classification """
+        # index
+        c_recalling_for_index = np.stack([readouts[i]['state'][timestep_each_phase:timestep_each_phase*2].squeeze() for i in range(all_context_num)])
+        cross_classifier = CrossClassifier()
+        cross_classifier.fit(c_memorizing, encoding_index)
+        r2_index_rec, acc_index_rec = cross_classifier.score(c_recalling_for_index, recall_index, index_mask)
+        cross_classifier.fit(c_recalling_for_index, recall_index, index_mask)
+        r2_index_enc, acc_index_enc = cross_classifier.score(c_memorizing, encoding_index)
+        print("cross acc_index_enc, acc_index_rec: ", acc_index_enc, acc_index_rec)
+
+        # identity
+        cross_classifier = CrossClassifier()
+        # print(memory_sequence[:5]+1, actions[:5, -timestep_each_phase:])
+        cross_classifier.fit(c_memorizing, memory_sequence+1)
+        r2_identity_rec, acc_identity_rec = cross_classifier.score(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
+        cross_classifier.fit(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
+        r2_identity_enc, acc_identity_enc = cross_classifier.score(c_memorizing, memory_sequence+1)
+        print("cross acc_identity_enc, acc_identity_rec: ", acc_identity_enc, acc_identity_rec)
+
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        bar_width = 0.35
+        index = np.arange(2)
         
+        plt.bar(index, [acc_index_enc, acc_identity_enc], bar_width, label="recall-encoding")
+        plt.bar(index + bar_width, [acc_index_rec, acc_identity_rec], bar_width, label="encoding-recall")
+        
+        plt.xlabel("variable")
+        plt.ylabel("decoding accuracy")
+        plt.xticks(index + bar_width / 2, ["index", "identity"])
+        plt.ylim(0, 1)
+        plt.legend()
+        plt.tight_layout()
+        savefig(fig_path/"cross_classification", "cross_phase_accuracy")
+
 
 
         """ PC selectivity """
