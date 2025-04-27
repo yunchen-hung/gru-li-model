@@ -6,7 +6,7 @@
         "rand_mem": true,
         "threshold": 0.016,
         "beta": 0.5,
-        "gamma_fc": 0.5,
+        "gamma_fc": 1.0,
         "start_recall_with_ith_item_init": 0,
         "softmax_temperature": 0.1
     },

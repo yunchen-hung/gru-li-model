@@ -350,6 +350,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         plt.tight_layout()
         savefig(fig_path/"multi_regression", "explained_variance_combined")
 
+        explained_variance = np.stack([r2_index_encoding, r2_index_recall, r2_identity_encoding, r2_identity_recall])
+        np.save(fig_path/"explained_variance.npy", explained_variance)
+
         # # put encoding and recall data together
         # c_all = np.stack([readouts[i]['state'].squeeze() for i in range(all_context_num)])
 
@@ -389,6 +392,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         plt.legend()
         plt.tight_layout()
         savefig(fig_path/"cross_classification", "cross_phase_accuracy")
+
+        cross_acc = np.stack([acc_index_enc, acc_identity_enc, acc_index_rec, acc_identity_rec])
+        np.save(fig_path/"cross_acc.npy", cross_acc)
 
 
 
@@ -527,7 +533,7 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         vocabulary_size = env.unwrapped.vocabulary_size
         recall_num_by_time = np.zeros((timestep_each_phase, vocabulary_size+1))
         rec_actions = actions[:, -timestep_each_phase:].astype(int)
-        for i in range(context_num):
+        for i in range(all_context_num):
             for t in range(timestep_each_phase):
                 recall_num_by_time[t][rec_actions[i][t]] += 1
         plt.figure(figsize=(0.25*vocabulary_size, 3.7), dpi=180)

@@ -87,7 +87,7 @@ class PCA:
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
         # colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
 
-        plt.figure(figsize=(4, 3.3), dpi=180)
+        plt.figure(figsize=(4.5, 3.8), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
         for i in range(proj_act.shape[0]):
@@ -109,10 +109,10 @@ class PCA:
             plt.xlim(min_x - 0.5, max_x + 0.5)
             plt.ylim(min_y - 0.5, max_y + 0.5)
 
-        ax.set_xlabel("PC1 of hidden states")
-        ax.set_ylabel("PC2 of hidden states")
+        ax.set_xlabel("PC1 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[0] * 100))
+        ax.set_ylabel("PC2 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[1] * 100))
         if show_3d:
-            ax.set_zlabel("PC3")
+            ax.set_zlabel("PC3 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[2] * 100))
 
         # display_start_step = display_start_step if display_start_step is not None else start_step
         # display_end_step = display_end_step if display_end_step is not None else end_step
