@@ -14,6 +14,8 @@
         "mem_beta_decay": true,
         "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 0.0002,
+        "init_state_type": "noise",
+        "flush_noise": 0.4,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -47,6 +49,8 @@
         "mem_beta_decay": true,
         "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 0.0002,
+        "init_state_type": "noise",
+        "flush_noise": 0.4,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -101,7 +105,7 @@
                         {
                             "class": "A2CLoss",
                             "use_V": true,
-                            "eta": 0.02,
+                            "eta": 0.01,
                             "gamma": 0.999
                         }
                     ]
