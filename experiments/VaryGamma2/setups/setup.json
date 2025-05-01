@@ -10,10 +10,8 @@
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
         "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.95,
+        "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 2e-4,
-        "init_state_type": "noise",
-        "flush_noise": 0.0,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -43,21 +41,19 @@
         "mem_beta_decay": true,
         "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 2e-4,
-        "init_state_type": "noise",
-        "flush_noise": 0.0,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
             "value_dim": 128,
             "capacity": 8,
-            "recall_method": "weight_sum",
+            "recall_method": "argmax",
             "remove_retrieved": false,
             "subclasses": [
                 {
                     "name":"similarity_measure",
                     "class": "BasicSimilarity",
                     "process_similarity": "softmax",
-                    "softmax_temperature": 0.003
+                    "softmax_temperature": 0.05
                 }
             ]
         }]
