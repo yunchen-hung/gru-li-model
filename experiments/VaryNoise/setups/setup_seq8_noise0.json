@@ -11,7 +11,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": true,
+        "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.95,
         "mem_beta_min": 0.0002,
         "init_state_type": "noise",
@@ -46,7 +46,7 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": true,
+        "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 0.0002,
         "init_state_type": "noise",
@@ -64,7 +64,7 @@
                         "name": "similarity_measure",
                         "class": "BasicSimilarity",
                         "process_similarity": "softmax",
-                        "softmax_temperature": 0.003
+                        "softmax_temperature": 0.05
                     }
                 ]
             }
@@ -105,7 +105,7 @@
                         {
                             "class": "A2CLoss",
                             "use_V": true,
-                            "eta": 0.02,
+                            "eta": 0.005,
                             "gamma": 0.999
                         }
                     ]

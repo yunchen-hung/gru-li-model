@@ -36,6 +36,7 @@ class ValueMemoryGRU(BasicModule):
                  mem_beta_decay=False,             # whether to decay softmax beta for computing memory similarity loss
                  mem_beta_decay_rate=0.5,          # decay rate for softmax beta
                  mem_beta_min=1e-6,                # minimum value for softmax beta
+                 reservoir=False,
                  device: str = 'cpu'):
         super().__init__()
         self.device = device
@@ -122,6 +123,11 @@ class ValueMemoryGRU(BasicModule):
         else:
             self.reset_parameters2()
 
+        if reservoir:
+            for name, param in self.named_parameters():
+                if 'hidden' in name or 'ln' in name:
+                    param.requires_grad = False
+
     def reset_parameters(self):
         std = 1.0 / math.sqrt(self.hidden_dim)
         for w in self.parameters():
@@ -180,8 +186,8 @@ class ValueMemoryGRU(BasicModule):
                 inp0 = torch.zeros_like(inp)
                 # do a timestep of forward pass between encoding and retrieval phases
                 state = self.gru(inp0, state)
-                self.last_encoding = False
-                self.write(state, 'state')
+            self.last_encoding = False
+            self.write(state, 'state')
 
         # retrieve memory
         if self.use_memory and self.retrieving:

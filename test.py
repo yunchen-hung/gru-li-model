@@ -84,9 +84,9 @@ def main():
     eta_all = [0.005, 0.01, 0.02, 0.04]
 
     # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
-    setup_dir = Path("./experiments/VaryGamma2/setups")
-    # setup_dir = Path("./experiments/VaryNoise/setups")
-    setup_file = setup_dir / "setup.json"
+    # setup_dir = Path("./experiments/VaryGamma2/setups")
+    setup_dir = Path("./experiments/VaryNoise/setups")
+    setup_file = setup_dir / "setup_pretrain.json"
     setup = load_dict(setup_file)
 
     # for gamma in gamma_all:
@@ -96,10 +96,10 @@ def main():
     #         with open(setup_dir / "setup_eta{}_gamma{}.json".format(str(eta).replace(".",""), str(gamma).replace(".", "")), "w") as f:
     #             json.dump(setup, f, indent=4)
 
-    for gamma in gamma_all:
-        setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
-        with open(setup_dir / "setup_gamma{}.json".format(str(gamma).replace(".", "")), "w") as f:
-            json.dump(setup, f, indent=4)
+    # for gamma in gamma_all:
+    #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
+    #     with open(setup_dir / "setup_gamma{}.json".format(str(gamma).replace(".", "")), "w") as f:
+    #         json.dump(setup, f, indent=4)
 
     # for eta in eta_all:
     #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["eta"] = eta
@@ -107,16 +107,16 @@ def main():
     #     with open(setup_dir / "setup_pretrain_eta{}_gamma10.json".format(str(eta).replace(".","")), "w") as f:
     #         json.dump(setup, f, indent=4)
 
-    # # for seq_len in seq_len_all:
-    # for noise in noise_all:
-    #     setup["model"]["flush_noise"] = noise
-    #     setup["model_for_record"]["flush_noise"] = noise
-    #     # setup["model"]["subclasses"][0]["capacity"] = seq_len
-    #     # for i in range(len(setup["training"])):
-    #     #     setup["training"][i]["env"][0]["memory_num"] = seq_len
-    #     #     setup["training"][i]["env"][0]["retrieve_time_limit"] = seq_len
-    #     with open(setup_dir / "setup_seq8_noise{}.json".format(str(noise).replace(".", "")), "w") as f:
-    #         json.dump(setup, f, indent=4)
+    # for seq_len in seq_len_all:
+    for noise in noise_all:
+        setup["model"]["flush_noise"] = noise
+        setup["model_for_record"]["flush_noise"] = noise
+        # setup["model"]["subclasses"][0]["capacity"] = seq_len
+        # for i in range(len(setup["training"])):
+        #     setup["training"][i]["env"][0]["memory_num"] = seq_len
+        #     setup["training"][i]["env"][0]["retrieve_time_limit"] = seq_len
+        with open(setup_dir / "setup_pretrain_seq8_noise{}.json".format(str(noise).replace(".", "")), "w") as f:
+            json.dump(setup, f, indent=4)
 
 
 

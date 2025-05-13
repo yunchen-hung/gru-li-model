@@ -11,11 +11,9 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": false,
-        "mem_beta_decay_rate": 0.95,
+        "mem_beta_decay": true,
+        "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 0.0002,
-        "init_state_type": "noise",
-        "flush_noise": 0.6,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -46,18 +44,16 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": false,
+        "mem_beta_decay": true,
         "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 0.0002,
-        "init_state_type": "noise",
-        "flush_noise": 0.6,
         "subclasses": [
             {
                 "name": "memory_module",
                 "class": "ValueMemory",
                 "value_dim": 128,
                 "capacity": 8,
-                "recall_method": "weight_sum",
+                "recall_method": "argmax",
                 "remove_retrieved": false,
                 "subclasses": [
                     {
@@ -106,7 +102,7 @@
                             "class": "A2CLoss",
                             "use_V": true,
                             "eta": 0.02,
-                            "gamma": 0.999
+                            "gamma": 0.2
                         }
                     ]
                 },

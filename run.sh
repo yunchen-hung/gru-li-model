@@ -27,7 +27,8 @@
 
 # gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '1')
 # gamma=('0' '02' '04' '06' '08' '10')
-gamma=('08' '085' '09' '095' '099' '0999' '09999')
+# gamma=('08' '085' '09' '095' '099' '0999' '09999')
+gamma=('0' '01' '02' '03' '04')
 # eta=('0005' '001' '002' '004')
 
 # for g in "${gamma[@]}"
@@ -42,6 +43,7 @@ gamma=('08' '085' '09' '095' '099' '0999' '09999')
 
 for g in "${gamma[@]}"
 do
+    # python run_cluster.py --exp VaryGamma2 --cpus_per_task 4 --setup setup_gamma${g}.json --time 11 -train
     python run_cluster.py --exp VaryGamma2 --cpus_per_task 4 --setup setup_gamma${g}.json --time 11 -train
 done
 
