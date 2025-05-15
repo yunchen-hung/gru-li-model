@@ -281,6 +281,17 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         plt.tight_layout()
         savefig(fig_path/"multi_regression", "explained_variance_combined")
 
+        # plot mean of encoding and recall phases
+        plt.figure(figsize=(3, 3.7), dpi=180)
+        plt.bar(["index", "identity"], [(r2_index_encoding+r2_index_recall)/2, (r2_identity_encoding+r2_identity_recall)/2], color=["#C08552", "#895737"])
+        plt.xlabel("variable")
+        plt.ylabel("explained variance")
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout()
+        savefig(fig_path/"multi_regression", "explained_variance_combined_mean")
+
 
         # put encoding and recall data together
         # only consider time steps 2-8
@@ -317,7 +328,7 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         print("cross acc_index_enc, acc_index_rec: ", acc_index_enc, acc_index_rec)
 
         # identity
-        cross_classifier = CrossClassifier()
+        # cross_classifier = CrossClassifier(decoder=ridge_decoder)
         # print(memory_sequence[:5]+1, actions[:5, -timestep_each_phase:])
         cross_classifier.fit(c_memorizing, memory_sequence+1)
         r2_identity_rec, acc_identity_rec = cross_classifier.score(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
@@ -343,6 +354,18 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         cross_acc = np.stack([acc_index_enc, acc_identity_enc, acc_index_rec, acc_identity_rec])
         np.save(fig_path/"cross_acc.npy", cross_acc)
+
+        # mean of encoding and recall phases
+        plt.figure(figsize=(3, 3.7), dpi=180)
+        plt.bar(["index", "identity"], [(acc_index_enc+acc_index_rec)/2, (acc_identity_enc+acc_identity_rec)/2], color=["#C08552", "#895737"])
+        plt.xlabel("variable")
+        plt.ylabel("decoding accuracy")
+        plt.ylim(0, 1)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout()
+        savefig(fig_path/"cross_classification", "cross_phase_accuracy_mean")
 
 
 

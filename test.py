@@ -79,14 +79,14 @@ def main():
     """ Vary parameters """
     seq_len_all = [8,16]
     noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
-    # gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    gamma_all = [0.8, 0.85, 0.9, 0.95, 0.99, 0.999, 0.9999]
+    gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # gamma_all = [0.8, 0.85, 0.9, 0.95, 0.99, 0.999, 0.9999]
     eta_all = [0.005, 0.01, 0.02, 0.04]
 
     # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
-    # setup_dir = Path("./experiments/VaryGamma2/setups")
-    setup_dir = Path("./experiments/VaryNoise/setups")
-    setup_file = setup_dir / "setup_pretrain.json"
+    setup_dir = Path("./experiments/VaryNoiseSeq12/setups")
+    # setup_dir = Path("./experiments/VaryNoise/setups")
+    setup_file = setup_dir / "setup.json"
     setup = load_dict(setup_file)
 
     # for gamma in gamma_all:
@@ -115,7 +115,7 @@ def main():
         # for i in range(len(setup["training"])):
         #     setup["training"][i]["env"][0]["memory_num"] = seq_len
         #     setup["training"][i]["env"][0]["retrieve_time_limit"] = seq_len
-        with open(setup_dir / "setup_pretrain_seq8_noise{}.json".format(str(noise).replace(".", "")), "w") as f:
+        with open(setup_dir / "setup_noise{}.json".format(str(noise).replace(".", "")), "w") as f:
             json.dump(setup, f, indent=4)
 
 

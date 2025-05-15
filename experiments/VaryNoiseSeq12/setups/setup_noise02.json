@@ -11,15 +11,17 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.9,
+        "mem_beta_decay": false,
+        "mem_beta_decay_rate": 0.95,
         "mem_beta_min": 0.0002,
+        "init_state_type": "noise",
+        "flush_noise": 0.2,
         "subclasses": [
             {
                 "name": "memory_module",
                 "class": "ValueMemory",
                 "value_dim": 128,
-                "capacity": 8,
+                "capacity": 12,
                 "recall_method": "weight_sum",
                 "remove_retrieved": false,
                 "subclasses": [
@@ -44,16 +46,18 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": true,
+        "mem_beta_decay": false,
         "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 0.0002,
+        "init_state_type": "noise",
+        "flush_noise": 0.2,
         "subclasses": [
             {
                 "name": "memory_module",
                 "class": "ValueMemory",
                 "value_dim": 128,
-                "capacity": 8,
-                "recall_method": "argmax",
+                "capacity": 12,
+                "recall_method": "weight_sum",
                 "remove_retrieved": false,
                 "subclasses": [
                     {
@@ -82,14 +86,14 @@
                     "class": "FreeRecall",
                     "num_features": 6,
                     "feature_dim": 2,
-                    "sequence_len": 8,
+                    "sequence_len": 12,
                     "correct_reward": 1.0,
                     "wrong_reward": -0.75,
                     "no_action_reward": -0.75
                 }
             ],
             "trainer": {
-                "num_iter": 100000.0,
+                "num_iter": 200000.0,
                 "test_iter": 500,
                 "save_iter": 5000,
                 "use_memory": true,
@@ -101,7 +105,7 @@
                         {
                             "class": "A2CLoss",
                             "use_V": true,
-                            "eta": 0.01,
+                            "eta": 0.02,
                             "gamma": 0.999
                         }
                     ]
@@ -116,7 +120,7 @@
                 },
                 "optimizer": {
                     "class": "Adam",
-                    "lr": 0.001,
+                    "lr": 0.003,
                     "lr_decay_factor": 0.1,
                     "lr_decay_patience": 30,
                     "lr_decay_threshold": 0.001,
@@ -127,5 +131,5 @@
     ],
     "load_checkpoints": false,
     "load_saved_model": false,
-    "context_num": 5000
+    "context_num": 1000
 }

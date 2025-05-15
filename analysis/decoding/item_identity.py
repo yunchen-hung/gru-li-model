@@ -158,7 +158,7 @@ class ItemIdentityDecoder:
         figsize = figsize if figsize is not None else (0.6 * self.results.shape[1], 3.3)
         plt.figure(figsize=figsize, dpi=180)
         n_steps = self.results.shape[1]
-        colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0, 0.9, n_steps)])
+        colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0.1, 0.8, n_steps)])
         # colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
         # colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]

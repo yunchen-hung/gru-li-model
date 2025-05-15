@@ -12,7 +12,7 @@ class CrossClassifier:
     train a classifier to decode the information from data of all timesteps, then test on another dataset
     used for analyzing how consistent the information is across phases (encoding/recall)
     """
-    def __init__(self, decoder=svm.SVC(decision_function_shape='ovo')):
+    def __init__(self, decoder=svm.SVC(decision_function_shape='ovr')):
         self.decoder = decoder
         self.results = None
 

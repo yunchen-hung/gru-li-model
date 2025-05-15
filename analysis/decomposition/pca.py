@@ -82,7 +82,7 @@ class PCA:
         if end_step is None:
             end_step = self.n_steps
         n_steps = end_step - start_step
-        colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0, 0.9, n_steps)])
+        colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0.1, 0.8, n_steps)])
         # colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
         # colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
@@ -119,7 +119,7 @@ class PCA:
         # cmap = plt.cm.rainbow.reversed()
         # norm = plt.Normalize(0.5, display_end_step-display_start_step+0.5)
         # cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, display_end_step-display_start_step+1), ax=ax, label=colormap_label)
-        cmap = ListedColormap(colors[:-1])
+        cmap = ListedColormap(colors)
         norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
         plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label, ax=ax)
 

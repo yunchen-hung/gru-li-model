@@ -1,5 +1,5 @@
 {
-    "run_num": 20,
+    "run_num": 5,
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -9,9 +9,10 @@
         "softmax_beta": 1.0,
         "evolve_state_between_phases": true,
         "em_gate_type": "constant",
-        "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.9,
-        "mem_beta_min": 2e-4,
+        "mem_beta_decay": false,
+        "reservoir": true,
+        "init_state_type": "random",
+        "random_init_noise": 0.1,
         "subclasses": [{
             "name": "memory_module",
             "class": "ValueMemory",
@@ -29,40 +30,11 @@
             ]
         }]
     },
-    "model_for_record": {
-        "class": "ValueMemoryGRU",
-        "hidden_dim": 128,
-        "input_dim": 144,
-        "output_dims": [65],
-        "use_memory": true,
-        "softmax_beta": 1.0,
-        "evolve_state_between_phases": true,
-        "em_gate_type": "constant",
-        "mem_beta_decay": true,
-        "mem_beta_decay_rate": 0.9,
-        "mem_beta_min": 2e-4,
-        "subclasses": [{
-            "name": "memory_module",
-            "class": "ValueMemory",
-            "value_dim": 128,
-            "capacity": 8,
-            "recall_method": "argmax",
-            "remove_retrieved": false,
-            "subclasses": [
-                {
-                    "name":"similarity_measure",
-                    "class": "BasicSimilarity",
-                    "process_similarity": "softmax",
-                    "softmax_temperature": 0.05
-                }
-            ]
-        }]
-    },
     "training": [{
         "env": [{
             "vector_env": {
                 "mode": "sync",
-                "batch_size": 16
+                "batch_size": 64
             },
             "wrapper": [{
                 "class": "MetaLearningEnv"
@@ -72,8 +44,8 @@
             "feature_dim": 2,
             "sequence_len": 8,
             "correct_reward": 1.0,
-            "wrong_reward": -0.75,
-            "no_action_reward": -0.75
+            "wrong_reward": -0.8,
+            "no_action_reward": -0.8
         }],
         "trainer": {
             "num_iter": 1e5,
@@ -81,7 +53,6 @@
             "save_iter": 5000,
             "use_memory": true,
             "stop_test_accu": 0.99,
-            "mem_beta_decay_iter": 2000,
             "criterion": {
                 "class": "MultiRLLoss",
                 "criteria": [
