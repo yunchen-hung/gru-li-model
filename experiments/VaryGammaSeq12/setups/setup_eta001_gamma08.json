@@ -15,7 +15,7 @@
         "mem_beta_decay_rate": 0.95,
         "mem_beta_min": 0.0002,
         "init_state_type": "noise_all",
-        "flush_noise": 0.6,
+        "flush_noise": 1.0,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -50,7 +50,7 @@
         "mem_beta_decay_rate": 0.9,
         "mem_beta_min": 0.0002,
         "init_state_type": "noise_all",
-        "flush_noise": 0.6,
+        "flush_noise": 1.0,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -105,8 +105,8 @@
                         {
                             "class": "A2CLoss",
                             "use_V": true,
-                            "eta": 0.04,
-                            "gamma": 0.9
+                            "eta": 0.01,
+                            "gamma": 0.8
                         }
                     ]
                 },
@@ -131,5 +131,5 @@
     ],
     "load_checkpoints": false,
     "load_saved_model": false,
-    "context_num": 5000
+    "context_num": 1000
 }

@@ -25,20 +25,20 @@
 
 
 
-gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '10')
-# gamma=('0' '02' '04' '06' '08' '10')
+# gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '10')
+gamma=('0' '02' '04' '06' '08' '10')
 # gamma=('08' '085' '09' '095' '099' '0999' '09999')
 # gamma=('0' '01' '02' '03' '04')
 eta=('0005' '001' '002' '004')
 
-# for g in "${gamma[@]}"
-# do
-#     for e in "${eta[@]}"
-#     do
-#         python run_cluster.py --exp VaryGamma2 --cpus_per_task 4 --setup setup_eta${e}_gamma${g}.json --time 11 -train
-#         # python run_cluster.py --exp VaryGamma --cpus_per_task 4 --setup setup_pretrain_eta${e}_gamma${g}.json --time 11 -train
-#     done
-# done
+for g in "${gamma[@]}"
+do
+    for e in "${eta[@]}"
+    do
+        python run_cluster.py --exp VaryGammaSeq12 --cpus_per_task 4 --setup setup_eta${e}_gamma${g}.json --time 16 -train
+        # python run_cluster.py --exp VaryGamma --cpus_per_task 4 --setup setup_pretrain_eta${e}_gamma${g}.json --time 11 -train
+    done
+done
 
 # for g in "${gamma[@]}"
 # do
@@ -51,10 +51,11 @@ noise=('0' '02' '04' '06' '08' '1')
 # # noise=('0' '1')
 # seqlen=('8' '16')
 
-for n in "${noise[@]}"
-do
-    python run_cluster.py --exp VaryNoiseSeq12 --cpus_per_task 4 --setup setup_noise${n}.json --time 16
-done
+# for n in "${noise[@]}"
+# do
+#     python run_cluster.py --exp VaryNoiseSeq12 --cpus_per_task 4 --setup setup_noise${n}.json --time 16 -train
+#     # python run_cluster.py --exp VaryNoiseSeq12 --cpus_per_task 1 --setup setup_noise${n}.json --time 1
+# done
 
 # for n in "${noise[@]}"
 # do

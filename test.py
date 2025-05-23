@@ -78,13 +78,14 @@ def main():
 
     """ Vary parameters """
     seq_len_all = [8,16]
-    noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
-    gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    noise_all = [0, 0.2, 0.4, 0.6, 0.8, 0.9, 1]
+    # gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    gamma_all = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
     # gamma_all = [0.8, 0.85, 0.9, 0.95, 0.99, 0.999, 0.9999]
     eta_all = [0.005, 0.01, 0.02, 0.04]
 
     # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
-    setup_dir = Path("./experiments/VaryNoiseSeq12/setups")
+    setup_dir = Path("./experiments/VaryNoiseSeq12Decay/setups")
     # setup_dir = Path("./experiments/VaryNoise/setups")
     setup_file = setup_dir / "setup.json"
     setup = load_dict(setup_file)

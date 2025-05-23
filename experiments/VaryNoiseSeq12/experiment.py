@@ -364,9 +364,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         # put encoding and recall data together
         # only consider time steps 2-8
-        c_all = np.concatenate([c_memorizing[:, 1:8, :], c_recalling[:, :-1, :]], axis=0)
-        index_all = np.concatenate([encoding_index[:, 1:8], recall_index[:, 1:8]], axis=0)
-        memory_sequence_all = np.concatenate([memory_sequence[:, 1:8]+1, actions[:, -timestep_each_phase:-1]], axis=0)
+        c_all = np.concatenate([c_memorizing[:, 1:timestep_each_phase, :], c_recalling[:, :-1, :]], axis=0)
+        index_all = np.concatenate([encoding_index[:, 1:timestep_each_phase], recall_index[:, 1:timestep_each_phase]], axis=0)
+        memory_sequence_all = np.concatenate([memory_sequence[:, 1:timestep_each_phase]+1, actions[:, -timestep_each_phase:-1]], axis=0)
         print(c_all.shape, index_all.shape, memory_sequence_all.shape)
 
         multi_regressor = MultiRegressor()
