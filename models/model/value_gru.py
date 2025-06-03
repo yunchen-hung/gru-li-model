@@ -148,7 +148,13 @@ class ValueMemoryGRU(BasicModule):
             elif self.init_state_type == 'zeros':
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == 'noise' or self.init_state_type == 'noise_all':
-                state = math.sqrt(1 - self.flush_noise) * prev_state + math.sqrt(self.flush_noise) * torch.randn_like(prev_state) * torch.std(prev_state)
+                # state = math.sqrt(1 - self.flush_noise) * prev_state + math.sqrt(self.flush_noise) * torch.randn_like(prev_state) * torch.std(prev_state)
+                state = math.sqrt(1 - self.flush_noise**2) * prev_state + self.flush_noise * torch.randn_like(prev_state) * torch.std(prev_state)
+            elif self.init_state_type == 'noise_random' or self.init_state_type == 'noise_random_all':
+                # noise, but random the flush_noise
+                flush_noise = self.flush_noise[0] + (self.flush_noise[1] - self.flush_noise[0]) * torch.rand((batch_size, 1), device=self.device)
+                # state = torch.sqrt(1 - flush_noise) * prev_state + torch.sqrt(flush_noise) * torch.randn_like(prev_state) * torch.std(prev_state)
+                state = torch.sqrt(1 - flush_noise**2) * prev_state + flush_noise * torch.randn_like(prev_state) * torch.std(prev_state)
             elif self.init_state_type == 'random':
                 # state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
                 state = self.random_init_state.clone()
@@ -161,11 +167,11 @@ class ValueMemoryGRU(BasicModule):
             state = torch.tanh(state)
         else:
             # initialize hidden state for encoding phase
-            if self.init_state_type == "zeros" or self.init_state_type == "noise":
+            if self.init_state_type == "zeros" or self.init_state_type == "noise" or self.init_state_type == "noise_random":
                 state = torch.zeros((batch_size, self.hidden_dim), device=self.device, requires_grad=True)
             elif self.init_state_type == "train" or self.init_state_type == "train_diff":
                 state = torch.tanh(self.h0.repeat(batch_size, 1))
-            elif self.init_state_type == "random" or self.init_state_type == "noise_all":
+            elif self.init_state_type == "random" or self.init_state_type == "noise_all" or self.init_state_type == "noise_random_all":
                 self.random_init_state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
                 state = self.random_init_state.clone()
             else:

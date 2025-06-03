@@ -44,9 +44,10 @@
             "sequence_len": 8,
             "retrieve_time_limit": 12,
             "correct_reward": 1.0,
-            "wrong_reward": -1.0,
-            "no_action_reward": -0.0,
-            "repeat_reward": 0.0
+            "wrong_reward": -0.66,
+            "no_action_reward": -0.66,
+            "repeat_reward": 0.0,
+            "final_penalty": -1.0
         }],
         "trainer": {
             "num_iter": 5e5,

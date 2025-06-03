@@ -352,7 +352,7 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         # plot mean of encoding and recall phases
         plt.figure(figsize=(3, 3.7), dpi=180)
-        plt.bar(["index", "identity"], [(r2_index_encoding+r2_index_recall)/2, (r2_identity_encoding+r2_identity_recall)/2], color=["#C08552", "#895737"])
+        plt.bar(["index", "identity"], [(r2_index_encoding+r2_index_recall)/2, (r2_identity_encoding+r2_identity_recall)/2], color=["#219EBC", "#8ECAE6"])
         plt.xlabel("variable")
         plt.ylabel("explained variance")
         ax = plt.gca()
@@ -425,9 +425,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         # mean of encoding and recall phases
         plt.figure(figsize=(3, 3.7), dpi=180)
-        plt.bar(["index", "identity"], [(acc_index_enc+acc_index_rec)/2, (acc_identity_enc+acc_identity_rec)/2], color=["#C08552", "#895737"])
+        plt.bar(["index", "identity"], [(acc_index_enc+acc_index_rec)/2, (acc_identity_enc+acc_identity_rec)/2], color=["#219EBC", "#8ECAE6"])
         plt.xlabel("variable")
-        plt.ylabel("decoding accuracy")
+        plt.ylabel("cross-decoding accuracy")
         plt.ylim(0, 1)
         ax = plt.gca()
         ax.spines['top'].set_visible(False)

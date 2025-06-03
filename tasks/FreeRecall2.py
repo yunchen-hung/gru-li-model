@@ -14,12 +14,13 @@ class FreeRecall2(BaseEMTask):
     there's a final penalty for not recalled items
     the trial ends when all items are recalled
     """
-    def __init__(self, repeat_reward=0.0, **kwargs):
+    def __init__(self, repeat_reward=0.0, final_penalty=-1.0, **kwargs):
         """
         recommend reward: correct = 1, wrong = -1, no_action = 0, repeat = 0
         """
         super().__init__(**kwargs)
         self.repeat_reward = repeat_reward if repeat_reward is not None else self.correct_reward
+        self.final_penalty = final_penalty if final_penalty is not None else self.wrong_reward
 
 
     def reset(self, **kwargs):
@@ -82,7 +83,7 @@ class FreeRecall2(BaseEMTask):
             reward = self.wrong_reward
 
         if self.timestep >= self.retrieve_time_limit:
-            reward += self.wrong_reward * (self.sequence_len - self.num_retrieved)
+            reward += self.final_penalty * (self.sequence_len - self.num_retrieved)
 
         return reward, correct, wrong, not_know
 
