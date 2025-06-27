@@ -63,7 +63,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 assert len(run_num[i]) == 2
                 run_nums.extend(list(range(run_num[i][0], run_num[i][1]+1)))
     else:
-        run_nums = list(range(0, run_num))
+        run_nums = list(range(0, int(run_num)))
 
     print("device:", device)
 

@@ -241,7 +241,8 @@ def train(setup,                            # setup dict, including model and tr
             total_loss += loss_rl.item()
             total_actor_loss += loss_actor.item()
             total_critic_loss += loss_critic.item()
-            total_entropy += np.mean(torch.stack(entropys[used_output_index[env_id]]).cpu().detach().numpy())
+            t = torch.stack(entropys[used_output_index[env_id]]).cpu().detach().numpy().astype(np.float32)
+            total_entropy += np.mean(t)
 
         # compute SL loss
 
