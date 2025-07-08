@@ -84,11 +84,12 @@ def main():
     gamma_all_actual = [0, 0.2, 0.4, 0.6, 0.8, 0.99]
     # gamma_all = [0.8, 0.85, 0.9, 0.95, 0.99, 0.999, 0.9999]
     eta_all = [0.005, 0.01, 0.02, 0.04]
-    wm_noise_all = [0, 0.1, 0.2, 0.4, 0.6, 0.8]
+    # wm_noise_all = [0, 0.1, 0.2, 0.4, 0.6, 0.8]
+    wm_noise_all = [0, 0.01, 0.04, 0.09, 0.16, 0.25]
 
     # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
-    setup_dir = Path("./experiments/VaryAllSeq8/setups")
-    # setup_dir = Path("./experiments/VaryNoise/setups")
+    # setup_dir = Path("./experiments/VaryAllSeq8NoNoise/setups")
+    setup_dir = Path("./experiments/VaryWMNoise/setups")
     setup_file = setup_dir / "setup.json"
     setup = load_dict(setup_file)
 
@@ -121,20 +122,20 @@ def main():
     #     with open(setup_dir / "setup_noise{}.json".format(str(noise).replace(".", "")), "w") as f:
     #         json.dump(setup, f, indent=4)
 
-    for gamma, gamma_actual in zip(gamma_all, gamma_all_actual):
-        for noise in noise_all:
-            for i in range(len(setup["training"])):
-                setup["training"][i]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma_actual
-            setup["model"]["flush_noise"] = noise
-            setup["model_for_record"]["flush_noise"] = noise
-            with open(setup_dir / "setup_gamma{}_noise{}.json".format(str(gamma).replace(".", ""), str(noise).replace(".", "")), "w") as f:
-                json.dump(setup, f, indent=4)
+    # for gamma, gamma_actual in zip(gamma_all, gamma_all_actual):
+    #     for noise in noise_all:
+    #         for i in range(len(setup["training"])):
+    #             setup["training"][i]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma_actual
+    #         setup["model"]["flush_noise"] = noise
+    #         setup["model_for_record"]["flush_noise"] = noise
+    #         with open(setup_dir / "setup_gamma{}_noise{}.json".format(str(gamma).replace(".", ""), str(noise).replace(".", "")), "w") as f:
+    #             json.dump(setup, f, indent=4)
 
-    # for wm_noise in wm_noise_all:
-    #     setup["model"]["wm_noise_prop"] = wm_noise
-    #     setup["model_for_record"]["wm_noise_prop"] = wm_noise
-    #     with open(setup_dir / "setup_wmnoise{}.json".format(str(wm_noise).replace(".", "")), "w") as f:
-    #         json.dump(setup, f, indent=4)
+    for wm_noise in wm_noise_all:
+        setup["model"]["wm_noise_prop"] = wm_noise
+        setup["model_for_record"]["wm_noise_prop"] = wm_noise
+        with open(setup_dir / "setup_wmnoise{}.json".format(str(wm_noise).replace(".", "")), "w") as f:
+            json.dump(setup, f, indent=4)
 
 
 if __name__ == '__main__':

@@ -437,6 +437,34 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
 
 
+        """ is there a bias to recall a particular item at a particular time step? """
+        vocabulary_size = env.unwrapped.vocabulary_size
+        recall_num_by_time = np.zeros((timestep_each_phase, vocabulary_size+1))
+        rec_actions = actions[:, -timestep_each_phase:].astype(int)
+        for i in range(all_context_num):
+            for t in range(timestep_each_phase):
+                recall_num_by_time[t][rec_actions[i][t]] += 1
+        plt.figure(figsize=(0.25*vocabulary_size, 3.7), dpi=180)
+        plt.imshow(recall_num_by_time, cmap="Blues")
+        plt.colorbar(label="recall number")
+        plt.xlabel("memory item")
+        plt.ylabel("time in recall phase")
+        plt.tight_layout()
+        savefig(fig_path/"recall_num_by_time", "recall_num_by_time.png")
+
+
+
+        """ state similarity of keys and values """
+        """ do keys change more smoothly than values? """
+        keys = np.stack([readouts[i]['KeyValueMemory']['key'].squeeze() for i in range(all_context_num)])
+        values = np.stack([readouts[i]['KeyValueMemory']['value'].squeeze() for i in range(all_context_num)])
+        print(keys.shape, values.shape)
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(np.corrcoef(keys, values), cmap="Blues")
+        plt.colorbar(label="correlation")
+        plt.xlabel("key")
+
+
         """ PC selectivity """
         # # convert actions and item index to one-hot
         # actions_one_hot = np.zeros((all_context_num, sequence_len, env.vocabulary_num))
@@ -503,85 +531,67 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
 
         """ do the hidden state get away from the just recalled item? """
-        # get all the data needed
-        rec_states = []
-        retrieved_memories = []
-        most_similar_memories = []
-        for i in range(all_context_num):
-            state = readouts[i]['state'].squeeze()
-            rec_states.append(state[-timestep_each_phase:])
-            retrieved_memories.append(readouts[i]['KeyValueMemory']['retrieved_memory'].squeeze()[-timestep_each_phase:])
-            memory_similarity = readouts[i]['KeyValueMemory']['similarity']
-            most_similar_index = np.argmax(memory_similarity, axis=-1).squeeze()[-timestep_each_phase:]
-            most_similar_memories.append(state[most_similar_index])
-        rec_states = np.stack(rec_states)
-        retrieved_memories = np.stack(retrieved_memories)
-        most_similar_memories = np.stack(most_similar_memories)
-        print("rec_states shape: ", rec_states.shape)
-        print("retrieved_memories shape: ", retrieved_memories.shape)
+        # # get all the data needed
+        # rec_states = []
+        # retrieved_memories = []
+        # most_similar_memories = []
+        # for i in range(all_context_num):
+        #     state = readouts[i]['state'].squeeze()
+        #     rec_states.append(state[-timestep_each_phase:])
+        #     retrieved_memories.append(readouts[i]['KeyValueMemory']['retrieved_memory'].squeeze()[-timestep_each_phase:])
+        #     memory_similarity = readouts[i]['KeyValueMemory']['similarity']
+        #     most_similar_index = np.argmax(memory_similarity, axis=-1).squeeze()[-timestep_each_phase:]
+        #     most_similar_memories.append(state[most_similar_index])
+        # rec_states = np.stack(rec_states)
+        # retrieved_memories = np.stack(retrieved_memories)
+        # most_similar_memories = np.stack(most_similar_memories)
+        # print("rec_states shape: ", rec_states.shape)
+        # print("retrieved_memories shape: ", retrieved_memories.shape)
 
-        # calculate the distance between the hidden state and the just recalled memory
-        distances = np.zeros((timestep_each_phase, timestep_each_phase))
-        for i in range(timestep_each_phase):
-            for j in range(timestep_each_phase):
-                dist = 0.0
-                for k in range(all_context_num):
-                    x = rec_states[k][i] / np.linalg.norm(rec_states[k][i])
-                    y = retrieved_memories[k][j] / np.linalg.norm(retrieved_memories[k][j])
-                    # print(x.shape, y.shape)
-                    if np.sum(x * y) > 1:
-                        print("strange cosine similarity: ", np.sum(x * y))
-                    dist += np.sum(x * y)
-                distances[i][j] = dist / all_context_num
-        # distances = distances / np.sum(np.abs(distances), axis=-1, keepdims=True)
+        # # calculate the distance between the hidden state and the just recalled memory
+        # distances = np.zeros((timestep_each_phase, timestep_each_phase))
+        # for i in range(timestep_each_phase):
+        #     for j in range(timestep_each_phase):
+        #         dist = 0.0
+        #         for k in range(all_context_num):
+        #             x = rec_states[k][i] / np.linalg.norm(rec_states[k][i])
+        #             y = retrieved_memories[k][j] / np.linalg.norm(retrieved_memories[k][j])
+        #             # print(x.shape, y.shape)
+        #             if np.sum(x * y) > 1:
+        #                 print("strange cosine similarity: ", np.sum(x * y))
+        #             dist += np.sum(x * y)
+        #         distances[i][j] = dist / all_context_num
+        # # distances = distances / np.sum(np.abs(distances), axis=-1, keepdims=True)
         
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.imshow(distances, cmap="RdBu", vmin=-1, vmax=1)
-        plt.colorbar(label="cosine similarity")
-        plt.xlabel("retrieved memory")
-        plt.ylabel("time in recall phase")
-        plt.tight_layout()
-        savefig(fig_path/"distances", "state_retrieved_memory.png")
+        # plt.figure(figsize=(4.5, 3.7), dpi=180)
+        # plt.imshow(distances, cmap="RdBu", vmin=-1, vmax=1)
+        # plt.colorbar(label="cosine similarity")
+        # plt.xlabel("retrieved memory")
+        # plt.ylabel("time in recall phase")
+        # plt.tight_layout()
+        # savefig(fig_path/"distances", "state_retrieved_memory.png")
 
 
-        # calculate the distance between the hidden state and the most similar memory
-        distances = np.zeros((timestep_each_phase, timestep_each_phase))
-        for i in range(timestep_each_phase):
-            for j in range(timestep_each_phase):
-                dist = 0.0
-                for k in range(all_context_num):
-                    x = rec_states[k][i] / np.linalg.norm(rec_states[k][i])
-                    y = most_similar_memories[k][j] / np.linalg.norm(most_similar_memories[k][j])
-                    if np.sum(x * y) > 1:
-                        print("strange cosine similarity: ", np.sum(x * y))
-                    dist += np.sum(x * y)
-                distances[i][j] = dist / all_context_num
-        # distances = distances / np.sum(np.abs(distances), axis=-1, keepdims=True)
+        # # calculate the distance between the hidden state and the most similar memory
+        # distances = np.zeros((timestep_each_phase, timestep_each_phase))
+        # for i in range(timestep_each_phase):
+        #     for j in range(timestep_each_phase):
+        #         dist = 0.0
+        #         for k in range(all_context_num):
+        #             x = rec_states[k][i] / np.linalg.norm(rec_states[k][i])
+        #             y = most_similar_memories[k][j] / np.linalg.norm(most_similar_memories[k][j])
+        #             if np.sum(x * y) > 1:
+        #                 print("strange cosine similarity: ", np.sum(x * y))
+        #             dist += np.sum(x * y)
+        #         distances[i][j] = dist / all_context_num
+        # # distances = distances / np.sum(np.abs(distances), axis=-1, keepdims=True)
         
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.imshow(distances, cmap="RdBu", vmin=-1, vmax=1)
-        plt.colorbar(label="cosine similarity")
-        plt.xlabel("most similar memory")
-        plt.ylabel("time in recall phase")
-        plt.tight_layout()
-        savefig(fig_path/"distances", "state_most_similar_memory.png")
-
-
-
-        """ is there a bias to recall a particular item at a particular time step? """
-        vocabulary_size = env.unwrapped.vocabulary_size
-        recall_num_by_time = np.zeros((timestep_each_phase, vocabulary_size+1))
-        rec_actions = actions[:, -timestep_each_phase:].astype(int)
-        for i in range(context_num):
-            for t in range(timestep_each_phase):
-                recall_num_by_time[t][rec_actions[i][t]] += 1
-        plt.figure(figsize=(0.25*vocabulary_size, 3.7), dpi=180)
-        plt.imshow(recall_num_by_time, cmap="Blues")
-        plt.colorbar(label="recall number")
-        plt.xlabel("memory item")
-        plt.ylabel("time in recall phase")
-        plt.tight_layout()
-        savefig(fig_path/"recall_num_by_time", "recall_num_by_time.png")
-
+        # plt.figure(figsize=(4.5, 3.7), dpi=180)
+        # plt.imshow(distances, cmap="RdBu", vmin=-1, vmax=1)
+        # plt.colorbar(label="cosine similarity")
+        # plt.xlabel("most similar memory")
+        # plt.ylabel("time in recall phase")
+        # plt.tight_layout()
+        # savefig(fig_path/"distances", "state_most_similar_memory.png")
 
 

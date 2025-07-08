@@ -1,0 +1,7 @@
+{
+    "exclude": [
+        "**/figures/**",
+        "**/logs/**",
+        "**/saved_mpdels/**",
+    ]
+}

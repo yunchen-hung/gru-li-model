@@ -57,20 +57,27 @@ noise=('0' '02' '04' '06' '08' '1')
 #     done
 # done
 
-for n in "${noise[@]}"
-do
-    # python run_cluster.py --exp VaryAllSeq12NoNoise --cpus_per_task 8 --setup setup_gamma10_noise${n}.json --time 20 -train
-    # python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 4 --setup setup_gamma10_noise${n}.json --time 11 -train
-    python run_cluster.py --exp VaryAllSeq8 --cpus_per_task 1 --setup setup_gamma10_noise${n}.json --time 1 --exp_file perturbation
-done
+# for n in "${noise[@]}"
+# do
+#     # python run_cluster.py --exp VaryAllSeq12NoNoise --cpus_per_task 8 --setup setup_gamma10_noise${n}.json --time 20 -train
+#     # python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 4 --setup setup_gamma10_noise${n}.json --time 11 -train
+#     python run_cluster.py --exp VaryAllSeq8 --cpus_per_task 1 --setup setup_gamma10_noise${n}.json --time 1 --exp_file perturbation
+# done
 
-for g in "${gamma[@]}"
-do
-    # python run_cluster.py --exp VaryAllSeq12NoNoise --cpus_per_task 8 --setup setup_gamma${g}_noise1.json --time 20 -train
-    # python run_cluster.py --exp VaryAllSeq8 --cpus_per_task 4 --setup setup_gamma${g}_noise1.json --time 11 -train
-    python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 1 --setup setup_gamma${g}_noise1.json --time 1 --exp_file perturbation
-done
+# for g in "${gamma[@]}"
+# do
+#     # python run_cluster.py --exp VaryAllSeq12NoNoise --cpus_per_task 8 --setup setup_gamma${g}_noise1.json --time 20 -train
+#     # python run_cluster.py --exp VaryAllSeq8 --cpus_per_task 4 --setup setup_gamma${g}_noise1.json --time 11 -train
+#     python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 1 --setup setup_gamma${g}_noise1.json --time 1 --exp_file perturbation
+# done
 
+# for n in "${noise[@]}"
+# do
+#     for g in "${gamma[@]}"
+#     do
+#         python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 4 --setup setup_gamma${g}_noise${n}.json --time 11 -train
+#     done
+# done
 
 
 hidden_dim=('16' '32' '64' '128' '256')
@@ -82,12 +89,13 @@ hidden_dim=('16' '32' '64' '128' '256')
 # done
 
 
-wm_noise=('0' '01' '02' '04' '06' '08')
+# wm_noise=('0' '01' '02' '04' '06' '08')
+wm_noise=('0' '001' '004' '009' '016' '025')
 
-# for w in "${wm_noise[@]}"
-# do
-#     python run_cluster.py --exp VaryWMNoise --cpus_per_task 8 --setup setup_wmnoise${w}.json --time 20 -train
-#     # python run_cluster.py --exp VaryWMNoise --cpus_per_task 1 --setup setup_wmnoise${w}.json --time 2
-# done
+for w in "${wm_noise[@]}"
+do
+    python run_cluster.py --exp VaryWMNoise --cpus_per_task 8 --setup setup_wmnoise${w}.json --time 20 -train
+    # python run_cluster.py --exp VaryWMNoise --cpus_per_task 1 --setup setup_wmnoise${w}.json --time 2
+done
 
 
