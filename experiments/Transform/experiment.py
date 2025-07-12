@@ -456,13 +456,71 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         """ state similarity of keys and values """
         """ do keys change more smoothly than values? """
-        keys = np.stack([readouts[i]['KeyValueMemory']['key'].squeeze() for i in range(all_context_num)])
-        values = np.stack([readouts[i]['KeyValueMemory']['value'].squeeze() for i in range(all_context_num)])
+        keys = np.stack([readouts[i]['KeyValueMemory']['encoded_keys'].squeeze() for i in range(all_context_num)])
+        values = np.stack([readouts[i]['KeyValueMemory']['encoded_values'].squeeze() for i in range(all_context_num)])
         print(keys.shape, values.shape)
+
+        keys_similarity = skp.cosine_similarity(keys, keys)
+        print(keys_similarity.shape)
         plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.imshow(np.corrcoef(keys, values), cmap="Blues")
-        plt.colorbar(label="correlation")
-        plt.xlabel("key")
+        plt.imshow(keys_similarity, cmap="Blues")
+        plt.colorbar(label="cosine similarity")
+        plt.xlabel("keys")
+        plt.ylabel("keys")
+        plt.tight_layout()
+        savefig(fig_path/"state_similarity", "keys_similarity.png")
+
+        values_similarity = skp.cosine_similarity(values, values)
+        print(values_similarity.shape)
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(values_similarity, cmap="Blues")
+        plt.colorbar(label="cosine similarity")
+        plt.xlabel("values")
+        plt.ylabel("values")
+        plt.tight_layout()
+        savefig(fig_path/"state_similarity", "values_similarity.png")
+
+        keys_values_similarity = skp.cosine_similarity(keys, values)
+        print(keys_values_similarity.shape)
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(keys_values_similarity, cmap="Blues")
+        plt.colorbar(label="cosine similarity")
+        plt.xlabel("keys")
+        plt.ylabel("values")
+        plt.tight_layout()
+        savefig(fig_path/"state_similarity", "keys_values_similarity.png")
+
+
+
+        """ decoding index and identity from keys and values """
+        decoder = RidgeClassifier()
+        index_decoder = ItemIndexDecoder(decoder=decoder)
+        keys_index_res, keys_index_acc, keys_index_r2 = index_decoder.fit(keys, encoding_index)
+        values_index_res, values_index_acc, values_index_r2 = index_decoder.fit(values, encoding_index)
+
+        decoder = RidgeClassifier()
+        identity_decoder = ItemIdentityDecoder(decoder=decoder)
+        keys_identity_res, keys_identity_stat_res = identity_decoder.fit(keys, memory_sequence+1)
+        values_identity_res, values_identity_stat_res = identity_decoder.fit(values, memory_sequence+1)
+        keys_identity_acc = keys_identity_stat_res["acc"]
+        values_identity_acc = values_identity_stat_res["acc"]
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        bar_width = 0.35
+        index = np.arange(2)
+        plt.bar(index, [keys_index_acc, keys_identity_acc], bar_width, label="keys")
+        plt.bar(index + bar_width, [values_index_acc, values_identity_acc], bar_width, label="values")
+        plt.xlabel("variable")
+        plt.ylabel("decoding accuracy")
+        plt.xticks(index + bar_width / 2, ["index", "identity"])
+        plt.legend()
+        plt.tight_layout()
+        savefig(fig_path/"keys_values_decoder", "keys_values_decoder.png")
+
+        keys_values_decoder_acc = np.stack([keys_index_acc, keys_identity_acc, values_index_acc, values_identity_acc])
+        np.save(fig_path/"keys_values_decoder_acc.npy", keys_values_decoder_acc)
+
+        
 
 
         """ PC selectivity """
