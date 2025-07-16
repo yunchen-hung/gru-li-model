@@ -387,53 +387,53 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
 
         """ cross-phase classification """
-        # index
-        c_recalling_for_index = np.stack([readouts[i]['state'][timestep_each_phase:timestep_each_phase*2].squeeze() for i in range(all_context_num)])
-        cross_classifier = CrossClassifier()
-        cross_classifier.fit(c_memorizing, encoding_index)
-        r2_index_rec, acc_index_rec = cross_classifier.score(c_recalling_for_index, recall_index, index_mask)
-        cross_classifier.fit(c_recalling_for_index, recall_index, index_mask)
-        r2_index_enc, acc_index_enc = cross_classifier.score(c_memorizing, encoding_index)
-        print("cross acc_index_enc, acc_index_rec: ", acc_index_enc, acc_index_rec)
+        # # index
+        # c_recalling_for_index = np.stack([readouts[i]['state'][timestep_each_phase:timestep_each_phase*2].squeeze() for i in range(all_context_num)])
+        # cross_classifier = CrossClassifier()
+        # cross_classifier.fit(c_memorizing, encoding_index)
+        # r2_index_rec, acc_index_rec = cross_classifier.score(c_recalling_for_index, recall_index, index_mask)
+        # cross_classifier.fit(c_recalling_for_index, recall_index, index_mask)
+        # r2_index_enc, acc_index_enc = cross_classifier.score(c_memorizing, encoding_index)
+        # print("cross acc_index_enc, acc_index_rec: ", acc_index_enc, acc_index_rec)
 
-        # identity
-        # cross_classifier = CrossClassifier(decoder=ridge_decoder)
-        # print(memory_sequence[:5]+1, actions[:5, -timestep_each_phase:])
-        cross_classifier.fit(c_memorizing, memory_sequence+1)
-        r2_identity_rec, acc_identity_rec = cross_classifier.score(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
-        cross_classifier.fit(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
-        r2_identity_enc, acc_identity_enc = cross_classifier.score(c_memorizing, memory_sequence+1)
-        print("cross acc_identity_enc, acc_identity_rec: ", acc_identity_enc, acc_identity_rec)
+        # # identity
+        # # cross_classifier = CrossClassifier(decoder=ridge_decoder)
+        # # print(memory_sequence[:5]+1, actions[:5, -timestep_each_phase:])
+        # cross_classifier.fit(c_memorizing, memory_sequence+1)
+        # r2_identity_rec, acc_identity_rec = cross_classifier.score(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
+        # cross_classifier.fit(c_recalling, actions[:, -timestep_each_phase:], ridge_mask)
+        # r2_identity_enc, acc_identity_enc = cross_classifier.score(c_memorizing, memory_sequence+1)
+        # print("cross acc_identity_enc, acc_identity_rec: ", acc_identity_enc, acc_identity_rec)
 
 
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        bar_width = 0.35
-        index = np.arange(2)
+        # plt.figure(figsize=(4.5, 3.7), dpi=180)
+        # bar_width = 0.35
+        # index = np.arange(2)
         
-        plt.bar(index, [acc_index_enc, acc_identity_enc], bar_width, label="recall-encoding")
-        plt.bar(index + bar_width, [acc_index_rec, acc_identity_rec], bar_width, label="encoding-recall")
+        # plt.bar(index, [acc_index_enc, acc_identity_enc], bar_width, label="recall-encoding")
+        # plt.bar(index + bar_width, [acc_index_rec, acc_identity_rec], bar_width, label="encoding-recall")
         
-        plt.xlabel("variable")
-        plt.ylabel("decoding accuracy")
-        plt.xticks(index + bar_width / 2, ["index", "identity"])
-        plt.legend()
-        plt.tight_layout()
-        savefig(fig_path/"cross_classification", "cross_phase_accuracy")
+        # plt.xlabel("variable")
+        # plt.ylabel("decoding accuracy")
+        # plt.xticks(index + bar_width / 2, ["index", "identity"])
+        # plt.legend()
+        # plt.tight_layout()
+        # savefig(fig_path/"cross_classification", "cross_phase_accuracy")
 
-        cross_acc = np.stack([acc_index_enc, acc_identity_enc, acc_index_rec, acc_identity_rec])
-        np.save(fig_path/"cross_acc.npy", cross_acc)
+        # cross_acc = np.stack([acc_index_enc, acc_identity_enc, acc_index_rec, acc_identity_rec])
+        # np.save(fig_path/"cross_acc.npy", cross_acc)
 
-        # mean of encoding and recall phases
-        plt.figure(figsize=(3, 3.7), dpi=180)
-        plt.bar(["index", "identity"], [(acc_index_enc+acc_index_rec)/2, (acc_identity_enc+acc_identity_rec)/2], color=["#C08552", "#895737"])
-        plt.xlabel("variable")
-        plt.ylabel("cross-decoding accuracy")
-        plt.ylim(0, 1)
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.tight_layout()
-        savefig(fig_path/"cross_classification", "cross_phase_accuracy_mean")
+        # # mean of encoding and recall phases
+        # plt.figure(figsize=(3, 3.7), dpi=180)
+        # plt.bar(["index", "identity"], [(acc_index_enc+acc_index_rec)/2, (acc_identity_enc+acc_identity_rec)/2], color=["#C08552", "#895737"])
+        # plt.xlabel("variable")
+        # plt.ylabel("cross-decoding accuracy")
+        # plt.ylim(0, 1)
+        # ax = plt.gca()
+        # ax.spines['top'].set_visible(False)
+        # ax.spines['right'].set_visible(False)
+        # plt.tight_layout()
+        # savefig(fig_path/"cross_classification", "cross_phase_accuracy_mean")
 
 
 
@@ -456,39 +456,55 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         """ state similarity of keys and values """
         """ do keys change more smoothly than values? """
-        keys = np.stack([readouts[i]['KeyValueMemory']['encoded_keys'].squeeze() for i in range(all_context_num)])
-        values = np.stack([readouts[i]['KeyValueMemory']['encoded_values'].squeeze() for i in range(all_context_num)])
+        keys = np.stack([readouts[i]['KeyValueMemory']['encoded_key'].squeeze() for i in range(all_context_num)])
+        values = np.stack([readouts[i]['KeyValueMemory']['encoded_value'].squeeze() for i in range(all_context_num)])
         print(keys.shape, values.shape)
 
-        keys_similarity = skp.cosine_similarity(keys, keys)
-        print(keys_similarity.shape)
+        keys_similarities = []
+        for i in range(all_context_num):
+            keys_similarities.append(skp.cosine_similarity(keys[i], keys[i]))
+        keys_similarities = np.stack(keys_similarities)
+        keys_similarity = np.mean(keys_similarities, axis=0)
+
+        values_similarities = []
+        for i in range(all_context_num):
+            values_similarities.append(skp.cosine_similarity(values[i], values[i]))
+        values_similarities = np.stack(values_similarities)
+        values_similarity = np.mean(values_similarities, axis=0)
+
+        print("keys_similarity shape: ", keys_similarity.shape)
+        print("values_similarity shape: ", values_similarity.shape)
+
         plt.figure(figsize=(4.5, 3.7), dpi=180)
         plt.imshow(keys_similarity, cmap="Blues")
         plt.colorbar(label="cosine similarity")
         plt.xlabel("keys")
         plt.ylabel("keys")
         plt.tight_layout()
-        savefig(fig_path/"state_similarity", "keys_similarity.png")
+        savefig(fig_path/"state_similarity", "keys_similarity")
 
-        values_similarity = skp.cosine_similarity(values, values)
-        print(values_similarity.shape)
         plt.figure(figsize=(4.5, 3.7), dpi=180)
         plt.imshow(values_similarity, cmap="Blues")
         plt.colorbar(label="cosine similarity")
         plt.xlabel("values")
         plt.ylabel("values")
         plt.tight_layout()
-        savefig(fig_path/"state_similarity", "values_similarity.png")
+        savefig(fig_path/"state_similarity", "values_similarity")
 
-        keys_values_similarity = skp.cosine_similarity(keys, values)
-        print(keys_values_similarity.shape)
+        keys_values_similarities = []
+        for i in range(all_context_num):
+            keys_values_similarities.append(skp.cosine_similarity(keys[i], values[i]))
+        keys_values_similarities = np.stack(keys_values_similarities)
+        keys_values_similarity = np.mean(keys_values_similarities, axis=0)
+        print("keys_values_similarity shape: ", keys_values_similarity.shape)
+
         plt.figure(figsize=(4.5, 3.7), dpi=180)
         plt.imshow(keys_values_similarity, cmap="Blues")
         plt.colorbar(label="cosine similarity")
         plt.xlabel("keys")
         plt.ylabel("values")
         plt.tight_layout()
-        savefig(fig_path/"state_similarity", "keys_values_similarity.png")
+        savefig(fig_path/"state_similarity", "keys_values_similarity")
 
 
 
@@ -497,13 +513,17 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         index_decoder = ItemIndexDecoder(decoder=decoder)
         keys_index_res, keys_index_acc, keys_index_r2 = index_decoder.fit(keys, encoding_index)
         values_index_res, values_index_acc, values_index_r2 = index_decoder.fit(values, encoding_index)
+        print("keys_index decoding accuracy: ", keys_index_acc)
+        print("values_index decoding accuracy: ", values_index_acc)
 
         decoder = RidgeClassifier()
         identity_decoder = ItemIdentityDecoder(decoder=decoder)
-        keys_identity_res, keys_identity_stat_res = identity_decoder.fit(keys, memory_sequence+1)
-        values_identity_res, values_identity_stat_res = identity_decoder.fit(values, memory_sequence+1)
+        keys_identity_res, keys_identity_stat_res = identity_decoder.fit(keys.transpose(1, 0, 2), memory_sequence.transpose(1, 0)+1)
+        values_identity_res, values_identity_stat_res = identity_decoder.fit(values.transpose(1, 0, 2), memory_sequence.transpose(1, 0)+1)
         keys_identity_acc = keys_identity_stat_res["acc"]
         values_identity_acc = values_identity_stat_res["acc"]
+        print("keys_identity decoding accuracy: ", keys_identity_acc)
+        print("values_identity decoding accuracy: ", values_identity_acc)
 
         plt.figure(figsize=(4.5, 3.7), dpi=180)
         bar_width = 0.35

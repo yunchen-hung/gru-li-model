@@ -5,3 +5,4 @@
 from .wrappers import MetaLearningEnv, PlaceHolderWrapper
 from .FreeRecall import FreeRecall
 from .FreeRecall2 import FreeRecall2
+from .ConditionalFreeRecall import ConditionalFreeRecall

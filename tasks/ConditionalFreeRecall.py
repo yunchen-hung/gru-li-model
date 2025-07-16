@@ -8,14 +8,26 @@ from .base import BaseEMTask
 
 
 class ConditionalFreeRecall(BaseEMTask):
-    def __init__(self, **kwargs):
+    def __init__(self, fix_one_feature=False, **kwargs):
         super().__init__(**kwargs)
+        self.fix_one_feature = fix_one_feature
 
     def reset(self, **kwargs):
         obs, info = super().reset(**kwargs)
         # self._generate_task_condition()
         self.retrieved = np.zeros(self.vocabulary_size, dtype=bool)
-        self.matched_item_indexes = np.arange(self.sequence_len)
+
+        self.no_action_num = 0
+        if self.fix_one_feature:
+            fixed_feature = np.random.choice(self.num_features)
+            all_stimuli = self.all_stimuli[self.all_stimuli[:, fixed_feature] == self.condition_value]
+            self.memory_sequence = all_stimuli[np.random.choice(len(all_stimuli), self.sequence_len, replace=False)]
+            self.memory_sequence_int = self._convert_item_to_int(self.memory_sequence)
+            obs = self._generate_observation(self.memory_sequence[0], self.condition_feature, self.condition_value, 
+                                         self.query_feature, include_question=self.include_question_during_encode)
+        
+        self.matched_item_indexes = np.where(self.memory_sequence[:, self.condition_feature] == self.condition_value)[0]
+
         return obs, info
 
     
@@ -33,44 +45,69 @@ class ConditionalFreeRecall(BaseEMTask):
             action_item_int = self._convert_item_to_int(action_item)
             if action_item_int < 0:
                 not_knows += 1
-            elif action_item in self.memory_sequence and not retrieved[action_item_int]:
+            elif action_item_int in self.memory_sequence_int[self.matched_item_indexes] and not retrieved[action_item_int]:
                 corrects += 1
                 retrieved[action_item_int] = True
             else:
                 wrongs += 1
         return corrects, wrongs, not_knows
 
+
+    def _generate_condition_features(self):
+        iter_num = 0
+        while True:
+            self.condition_feature = np.random.choice(self.num_features)
+            self.condition_value = np.random.choice(self.feature_dim)
+            if np.sum(self.memory_sequence[:, self.condition_feature] == self.condition_value) > 0:
+                break
+        
+        self.matched_item_num = 0
+        for i in range(self.sequence_len):
+            if self.memory_sequence[i, self.condition_feature] == self.condition_value:
+                self.matched_item_num += 1
+
     
     def _compute_reward_and_metrics(self, action):
         action_item = self._convert_action_to_item(action)
         action_item_int = self._convert_item_to_int(action_item.reshape(1, -1))
         correct, wrong, not_know = 0, 0, 0
-        if action_item_int in self.memory_sequence_int and not self.retrieved[action_item_int]:
+        if action_item_int in self.memory_sequence_int[self.matched_item_indexes] \
+            and not self.retrieved[action_item_int]:
             correct += 1
             reward = self.correct_reward
             self.retrieved[action_item_int] = True
         elif action_item_int < 0:
             not_know += 1
             reward = self.no_action_reward
+            self.no_action_num += 1
         else:
             wrong += 1
             reward = self.wrong_reward
-        return reward, correct, wrong, not_know
-    
-    
-    def _generate_condition_features(self):
-        iter_num = 0
-        while True:
-            self.condition_feature = np.random.choice(self.num_features)
-            self.condition_value = np.random.choice(self.feature_dim)
-            if np.sum(self.memory_sequence[:, self.condition_feature] == self.condition_value) > 0 or iter_num>10:
-                break
-        self.query_feature = None
-        
-        self.answer = None
-        self.matched_item_num = 0
-        for i in range(self.sequence_len):
-            if self.memory_sequence[i, self.condition_feature] == self.condition_value:
-                self.matched_item_num += 1
 
+        # if last time step, give a penalty of all not recalled items
+        if self.timestep == self.sequence_len:
+            reward += self.wrong_reward * min((self.matched_item_num - np.sum(self.retrieved)), self.no_action_num)
+
+        return reward, correct, wrong, not_know
+
+
+    def _compute_gt(self):
+        gt = np.zeros(len(self.action_space.nvec))
+        ind = min(self.timestep-1, self.sequence_len-1)
+        if self.one_hot_action:
+            if (self.phase == "recall" or self.include_condition_during_encode) and\
+                self.memory_sequence_int[self.timestep-1] not in self.memory_sequence_int[self.matched_item_indexes]: 
+                gt[0] = self.feature_dim ** self.num_features
+            else:
+                item_int = self._convert_item_to_int(self.memory_sequence[self.timestep-1].reshape(1, -1))
+                gt[0] = item_int[0]
+        else:
+            if (self.phase == "recall" or self.include_condition_during_encode) and\
+                self.memory_sequence_int[self.timestep-1] not in self.memory_sequence_int[self.matched_item_indexes]:
+                # item doesn't match condition
+                gt[-1] = 1
+            else:
+                gt[:self.num_features] = self.memory_sequence[self.timestep-1]
+                gt[-1] = 0
+        return gt
         
