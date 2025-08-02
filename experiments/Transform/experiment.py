@@ -226,14 +226,37 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
             states.append(readouts[i]['state'])
         states = np.stack(states).squeeze()
         print(states.shape)
+
+        keys = np.stack([readouts[i]['KeyValueMemory']['encoded_key'].squeeze() for i in range(all_context_num)])
+        values = np.stack([readouts[i]['KeyValueMemory']['encoded_value'].squeeze() for i in range(all_context_num)])
+        print(keys.shape, values.shape)
+
         
         """ PCA """
         pca = PCA()
         pca.fit(states)
         pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
-                                file_name="encoding", format="svg")
+                                file_name="encoding")
         pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
-                                colormap_label="time in recall phase", file_name="recall", format="svg")
+                                colormap_label="time in recall phase", file_name="recall")
+
+        # PCA for keys and values
+        keys_values_concat = np.concatenate([keys, values], axis=1)
+        print(keys_values_concat.shape)
+        pca = PCA()
+        pca.fit(keys_values_concat)
+        pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
+                                file_name="keys")
+        pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
+                                colormap_label="time in\nencoding phase", file_name="values")
+
+        # separate keys and values
+        pca.fit(keys)
+        pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
+                                file_name="keys_only")
+        pca.fit(values)
+        pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
+                                file_name="values_only")
 
 
 
@@ -456,9 +479,6 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         """ state similarity of keys and values """
         """ do keys change more smoothly than values? """
-        keys = np.stack([readouts[i]['KeyValueMemory']['encoded_key'].squeeze() for i in range(all_context_num)])
-        values = np.stack([readouts[i]['KeyValueMemory']['encoded_value'].squeeze() for i in range(all_context_num)])
-        print(keys.shape, values.shape)
 
         keys_similarities = []
         for i in range(all_context_num):
@@ -535,11 +555,36 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         plt.xticks(index + bar_width / 2, ["index", "identity"])
         plt.legend()
         plt.tight_layout()
-        savefig(fig_path/"keys_values_decoder", "keys_values_decoder.png")
+        savefig(fig_path/"keys_values_decoder", "decoding_accuracy")
 
         keys_values_decoder_acc = np.stack([keys_index_acc, keys_identity_acc, values_index_acc, values_identity_acc])
         np.save(fig_path/"keys_values_decoder_acc.npy", keys_values_decoder_acc)
 
+
+        """ explained variance of keys and values """
+        multi_regressor = MultiRegressor()
+        r2_keys_index, r2_keys_identity = multi_regressor.fit(keys, encoding_index, memory_sequence)
+        r2_values_index, r2_values_identity = multi_regressor.fit(values, encoding_index, memory_sequence)
+        print("r2_keys_index: ", r2_keys_index)
+        print("r2_keys_identity: ", r2_keys_identity)
+        print("r2_values_index: ", r2_values_index)
+        print("r2_values_identity: ", r2_values_identity)
+        np.save(fig_path/"explained_variance_keys_values.npy", np.stack([r2_keys_index, r2_keys_identity, r2_values_index, r2_values_identity]))
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        bar_width = 0.35
+        index = np.arange(2)
+        plt.bar(index, [r2_keys_index, r2_values_index], bar_width, label="index", color=["#9A8C98"])
+        plt.bar(index + bar_width, [r2_keys_identity, r2_values_identity], bar_width, label="identity", color=["#C9ADA7"])
+        plt.xlabel("variable")
+        plt.ylabel("explained variance")
+        plt.xticks(index + bar_width / 2, ["index", "identity"])
+        plt.legend()
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout()
+        savefig(fig_path/"keys_values_decoder", "explained_variance")
         
 
 

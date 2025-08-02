@@ -8,8 +8,8 @@ from .base import BaseEMTask
 
 
 class ConditionalFreeRecall(BaseEMTask):
-    def __init__(self, fix_one_feature=False, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, fix_one_feature=False, no_action_reward=-0.0, **kwargs):
+        super().__init__(no_action_reward=no_action_reward, **kwargs)
         self.fix_one_feature = fix_one_feature
 
     def reset(self, **kwargs):
@@ -24,7 +24,7 @@ class ConditionalFreeRecall(BaseEMTask):
             self.memory_sequence = all_stimuli[np.random.choice(len(all_stimuli), self.sequence_len, replace=False)]
             self.memory_sequence_int = self._convert_item_to_int(self.memory_sequence)
             obs = self._generate_observation(self.memory_sequence[0], self.condition_feature, self.condition_value, 
-                                         self.query_feature, include_question=self.include_question_during_encode)
+                                         include_question=self.include_condition_during_encode)
         
         self.matched_item_indexes = np.where(self.memory_sequence[:, self.condition_feature] == self.condition_value)[0]
 
@@ -70,6 +70,7 @@ class ConditionalFreeRecall(BaseEMTask):
     def _compute_reward_and_metrics(self, action):
         action_item = self._convert_action_to_item(action)
         action_item_int = self._convert_item_to_int(action_item.reshape(1, -1))
+        # print("action_item_int", action_item_int)
         correct, wrong, not_know = 0, 0, 0
         if action_item_int in self.memory_sequence_int[self.matched_item_indexes] \
             and not self.retrieved[action_item_int]:
@@ -84,7 +85,7 @@ class ConditionalFreeRecall(BaseEMTask):
             wrong += 1
             reward = self.wrong_reward
 
-        # if last time step, give a penalty of all not recalled items
+        # if last time step, give a penalty of all not recalled items 
         if self.timestep == self.sequence_len:
             reward += self.wrong_reward * min((self.matched_item_num - np.sum(self.retrieved)), self.no_action_num)
 
@@ -97,9 +98,9 @@ class ConditionalFreeRecall(BaseEMTask):
         if self.one_hot_action:
             if (self.phase == "recall" or self.include_condition_during_encode) and\
                 self.memory_sequence_int[self.timestep-1] not in self.memory_sequence_int[self.matched_item_indexes]: 
-                gt[0] = self.feature_dim ** self.num_features
+                gt[0] = 0
             else:
-                item_int = self._convert_item_to_int(self.memory_sequence[self.timestep-1].reshape(1, -1))
+                item_int = self._convert_item_to_int(self.memory_sequence[self.timestep-1].reshape(1, -1)) + 1
                 gt[0] = item_int[0]
         else:
             if (self.phase == "recall" or self.include_condition_during_encode) and\

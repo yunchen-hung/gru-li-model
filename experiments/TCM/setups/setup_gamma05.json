@@ -1,0 +1,45 @@
+{
+    "run_num": 1,
+    "model": {
+        "class": "TCM",
+        "dim": 78,
+        "rand_mem": true,
+        "threshold": 0.016,
+        "beta": 0.5,
+        "gamma_fc": 0.5,
+        "start_recall_with_ith_item_init": 0,
+        "softmax_temperature": 0.1
+    },
+    "training": [{
+        "env": [{
+            "class": "FreeRecall",
+            "num_features": 6,
+            "feature_dim": 2,
+            "sequence_len": 8,
+            "correct_reward": 1.0,
+            "wrong_reward": -0.8,
+            "no_action_reward": -0.8
+        }],
+        "trainer": {
+            "num_iter": 0,
+            "test_iter": 500,
+            "save_iter": 2000,
+            "stop_test_accu": 0.99,
+            "use_memory": true,
+            "criterion": {
+                "class": "EncodingCrossEntropyLoss",
+                "class_num": 78
+            },
+            "optimizer": {
+                "class": "Adam",
+                "lr": 1e-3,
+                "lr_decay_factor": 0.5,
+                "lr_decay_patience": 10,
+                "lr_decay_threshold": 1e-3,
+                "min_lr": 1e-8
+            } 
+        }
+    }],
+    "load_saved_model": false,
+    "context_num": 1000
+}
