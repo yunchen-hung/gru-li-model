@@ -91,6 +91,22 @@ def run(data_all, model_all, env, paths, exp_name):
         plt.tight_layout()
         savefig(fig_path/"state_similarity", "encode_recall")
 
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(similarity[:timestep_each_phase, :timestep_each_phase], cmap="Blues")
+        plt.colorbar(label="cosine similarity\nbetween hidden states")
+        plt.xlabel("time in encoding phase")
+        plt.ylabel("time in encoding phase")
+        plt.tight_layout()
+        savefig(fig_path/"state_similarity", "encode_encode")
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, timestep_each_phase:timestep_each_phase*2], cmap="Blues")
+        plt.colorbar(label="cosine similarity\nbetween hidden states")
+        plt.xlabel("time in recall phase")
+        plt.ylabel("time in recall phase")
+        plt.tight_layout()
+        savefig(fig_path/"state_similarity", "recall_recall")
+
         """ memory gate """
         # if "mem_gate_recall" in readouts[0]:
         #     plt.figure(figsize=(4, 3), dpi=180)
@@ -135,6 +151,67 @@ def run(data_all, model_all, env, paths, exp_name):
         recall_probability_in_time = RecallProbabilityInTime()
         recall_probability_in_time.fit(memory_contexts, actions[:, -timestep_each_phase:])
         recall_probability_in_time.visualize(fig_path)
+
+
+
+        retrieved_memories = []
+        memory_gates = []
+        for i in range(all_context_num):
+            retrieved_memory = readouts[i]["ValueMemory"]["similarity"].squeeze()
+            retrieved_memory = np.argmax(retrieved_memory, axis=-1)
+            retrieved_memories.append(retrieved_memory)
+            memory_gates.append(readouts[i]['mem_gate_recall'].squeeze())
+        retrieved_memories = np.stack(retrieved_memories)
+        memory_gates = np.stack(memory_gates)
+        print("retrieved_memories shape: ", retrieved_memories.shape)
+        print("memory_gates shape: ", memory_gates.shape)
+        """ recall probability (retrieved memory) """
+        recall_probability = RecallProbability()
+        recall_probability.fit(np.repeat(np.arange(timestep_each_phase).reshape(1,-1), retrieved_memories.shape[0], axis=0), retrieved_memories)
+        recall_probability.visualize(fig_path/"recall_prob_memory", format="png")
+        recall_probability.visualize_all_time(fig_path/"recall_prob_memory", format="png")
+
+        """ number of unique memories retrieved and probability of retrieving each memory """
+        num_unique_memories = []
+        num_retrieve_memory = np.zeros(timestep_each_phase)
+        num_retrieve_memory_by_time = np.zeros(timestep_each_phase)
+        for i in range(all_context_num):
+            num_unique_memory = 0
+            retrieved = np.zeros(timestep_each_phase, dtype=bool)
+            for t in range(timestep_each_phase):
+                if not retrieved[retrieved_memories[i][t]]:
+                    retrieved[retrieved_memories[i][t]] = True
+                    num_unique_memory += 1
+                    num_retrieve_memory[retrieved_memories[i][t]] += 1
+                    num_retrieve_memory_by_time[t] += memory_gates[i][t]
+            num_unique_memories.append(num_unique_memory)
+        num_unique_memories = np.array(num_unique_memories)
+        prob_retrieve_memory = num_retrieve_memory / all_context_num
+        prob_retrieve_memory_by_time = num_retrieve_memory_by_time / all_context_num
+
+        # plot the distribution
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.hist(num_unique_memories, bins=np.arange(0, timestep_each_phase+1, 1), edgecolor="black")
+        plt.xlabel("number of unique\nmemories retrieved")
+        plt.ylabel("proportion of trials")
+        plt.tight_layout()
+        savefig(fig_path/"num_retrieve_memory", "num_unique_memories")
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), prob_retrieve_memory)
+        plt.xlabel("memory index")
+        plt.ylabel("probability of\nretrieving memory")
+        plt.tight_layout()
+        savefig(fig_path/"num_retrieve_memory", "prob_retrieve_each_memory")
+
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.bar(np.arange(1, timestep_each_phase+1), prob_retrieve_memory_by_time)
+        plt.xlabel("time step in recall phase")
+        plt.ylabel("probability of\nretrieving memory")
+        plt.tight_layout()
+        savefig(fig_path/"num_retrieve_memory", "prob_retrieve_each_timestep")
+
+
 
 
         """ compute statistics of weights and activity """
@@ -325,4 +402,70 @@ def run(data_all, model_all, env, paths, exp_name):
         # plt.ylabel("memory item")
         # plt.tight_layout()
         # savefig(fig_path/"policy", "all_trial.png")
+
+
+
+        """ do the hidden state get away from the just recalled item? """
+        # get all the data needed
+        rec_states = []
+        retrieved_memories = []
+        most_similar_memories = []
+        for i in range(all_context_num):
+            state = readouts[i]['state'].squeeze()
+            rec_states.append(state[-timestep_each_phase:])
+            retrieved_memories.append(readouts[i]['ValueMemory']['retrieved_memory'].squeeze()[-timestep_each_phase:])
+            memory_similarity = readouts[i]['ValueMemory']['similarity']
+            most_similar_index = np.argmax(memory_similarity, axis=-1).squeeze()[-timestep_each_phase:]
+            most_similar_memories.append(state[most_similar_index])
+        rec_states = np.stack(rec_states)
+        retrieved_memories = np.stack(retrieved_memories)
+        most_similar_memories = np.stack(most_similar_memories)
+        print("rec_states shape: ", rec_states.shape)
+        print("retrieved_memories shape: ", retrieved_memories.shape)
+
+        # calculate the distance between the hidden state and the just recalled memory
+        distances = np.zeros((timestep_each_phase, timestep_each_phase))
+        for i in range(timestep_each_phase):
+            for j in range(timestep_each_phase):
+                dist = 0.0
+                for k in range(all_context_num):
+                    x = rec_states[k][i] / np.linalg.norm(rec_states[k][i])
+                    y = retrieved_memories[k][j] / np.linalg.norm(retrieved_memories[k][j])
+                    # print(x.shape, y.shape)
+                    if np.sum(x * y) > 1:
+                        print("strange cosine similarity: ", np.sum(x * y))
+                    dist += np.sum(x * y)
+                distances[i][j] = dist / all_context_num
+        # distances = distances / np.sum(np.abs(distances), axis=-1, keepdims=True)
+        
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(distances, cmap="RdBu", vmin=-1, vmax=1)
+        plt.colorbar(label="cosine similarity")
+        plt.xlabel("retrieved memory")
+        plt.ylabel("time in recall phase")
+        plt.tight_layout()
+        savefig(fig_path/"distances", "state_retrieved_memory.png")
+
+
+        # calculate the distance between the hidden state and the most similar memory
+        distances = np.zeros((timestep_each_phase, timestep_each_phase))
+        for i in range(timestep_each_phase):
+            for j in range(timestep_each_phase):
+                dist = 0.0
+                for k in range(all_context_num):
+                    x = rec_states[k][i] / np.linalg.norm(rec_states[k][i])
+                    y = most_similar_memories[k][j] / np.linalg.norm(most_similar_memories[k][j])
+                    if np.sum(x * y) > 1:
+                        print("strange cosine similarity: ", np.sum(x * y))
+                    dist += np.sum(x * y)
+                distances[i][j] = dist / all_context_num
+        # distances = distances / np.sum(np.abs(distances), axis=-1, keepdims=True)
+        
+        plt.figure(figsize=(4.5, 3.7), dpi=180)
+        plt.imshow(distances, cmap="RdBu", vmin=-1, vmax=1)
+        plt.colorbar(label="cosine similarity")
+        plt.xlabel("most similar memory")
+        plt.ylabel("time in recall phase")
+        plt.tight_layout()
+        savefig(fig_path/"distances", "state_most_similar_memory.png")
 

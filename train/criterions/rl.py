@@ -76,12 +76,15 @@ class A2CLoss(nn.Module):
             # A2C loss
             # print(returns.shape, values.shape)
             A = returns - values.data
-            if self.value_loss_func == 'mse':
-                value_losses = 0.5 * mse_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
-                                              torch.squeeze(returns[loss_masks != 0].to(device).float())) * values[loss_masks != 0].shape[0]
-            elif self.value_loss_func == 'l1':
-                value_losses = smooth_l1_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
-                                              torch.squeeze(returns[loss_masks != 0].to(device).float())) * values[loss_masks != 0].shape[0]
+            if torch.sum(loss_masks) == 0:
+                value_losses = torch.tensor(0.0).to(device)
+            else:
+                if self.value_loss_func == 'mse':
+                    value_losses = 0.5 * mse_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
+                                                torch.squeeze(returns[loss_masks != 0].to(device).float())) * values[loss_masks != 0].shape[0]
+                elif self.value_loss_func == 'l1':
+                    value_losses = smooth_l1_loss(torch.squeeze(values[loss_masks != 0].to(device).float()), 
+                                                torch.squeeze(returns[loss_masks != 0].to(device).float())) * values[loss_masks != 0].shape[0]
             # smooth_l1_loss(torch.squeeze(v_t.to(self.device)), torch.squeeze(R_t.to(self.device)))
         else:
             # policy gradient loss
@@ -101,8 +104,8 @@ def pick_action(action_distribution):
 
     Parameters
     ----------
-    action_distribution : 2d torch.tensor, batch_size x action_dim
-        action distribution, pi(a|s)
+    action_distribution : a list of 2d torch.tensor, batch_size x action_dim
+        each element is an action distribution, pi(a|s) of one of the action spaces
 
     Returns
     -------
@@ -110,20 +113,19 @@ def pick_action(action_distribution):
     log_prob(sampled action): 2d torch.tensor, batch_size x action_dim
 
     """
-    # a_ts, log_prob_a_ts, a_t_maxs = [], [], []
-    # for i in range(action_distribution.shape[0]):
-    # m = Categorical(action_distribution[i])
-    m = Categorical(action_distribution)
-    a_t = m.sample()
-    # a_t_max = torch.argmax(action_distribution[i])
-    a_t_max = torch.argmax(action_distribution, dim=1)
-    log_prob_a_t = m.log_prob(a_t)
-    # a_ts.append(a_t)
-    # log_prob_a_ts.append(log_prob_a_t)
-    # # a_t_maxs.append(a_t_max)
-    # return a_ts, log_prob_a_ts, a_t_maxs
-    return a_t, log_prob_a_t, a_t_max
-
+    actions, log_prob_actions, actions_max = [], [], []
+    for a_d in action_distribution:
+        m = Categorical(a_d)
+        a_t = m.sample()
+        a_t_max = torch.argmax(a_d, dim=1)
+        log_prob_a_t = m.log_prob(a_t)
+        actions.append(a_t)
+        log_prob_actions.append(log_prob_a_t)
+        actions_max.append(a_t_max)
+    actions = torch.stack(actions)
+    log_prob_actions = torch.stack(log_prob_actions)
+    actions_max = torch.stack(actions_max)
+    return actions, log_prob_actions, actions_max
 
 def compute_returns(rewards, loss_masks, gamma=0, normalize=False):
     """

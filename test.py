@@ -7,8 +7,7 @@ import seaborn as sns
 
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
-from tasks import ConditionalEMRecall , MetaLearningEnv, ConditionalQuestionAnswer, FreeRecallRepeat, \
-    FreeRecall, PlaceHolderWrapper, NonlinearConditionalQuestionAnswer
+from tasks import FreeRecall2
 
 from utils import load_dict, savefig
 
@@ -52,109 +51,91 @@ def main():
     #     print(obs.shape)
     #     print()
 
-    """ Conditional Question Answer tests """
-    # seqlen = 8
-    # env = ConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=seqlen, 
-    #     include_question_during_encode=True)
-    # env = PlaceHolderWrapper(env, 11)
-    # env = MetaLearningEnv(env)
 
-    # answer = np.zeros(2)
-    # # prev_answer = np.zeros(2)
-    # cnts = np.zeros(seqlen+1)
-    # for i in range(10000):
-    #     env.reset()
-    #     if env.answer is not None:
-    #         answer[env.answer] += 1
-    #     # if np.array_equal(env.answer, prev_answer):
-    #     #     print(env.answer)
-    #     # prev_answer = env.answer
-    #     cnts[env.cnt] += 1
-    # print(answer)
-    # print(cnts)
-
-    """ Nonlinear Conditional Question Answer tests """
-    # env = NonlinearConditionalQuestionAnswer(num_features=4, feature_dim=2, sequence_len=9, 
-    #     include_question_during_encode=True, question_type="sum", sum_reference=2)
-
-    # for i in range(1):
-    #     obs, info = env.reset()
-    #     print(obs)
-    #     terminated = False
-    #     cnt = 0
-    #     while not terminated:
-    #         print("timestep: ", cnt)
+    """ Free Recall 2 tests """
+    # env = FreeRecall2(num_features=4, feature_dim=2, sequence_len=4, retrieve_time_limit=6, repeat_reward=0.0, no_action_reward=0.0)
+    # obs, info = env.reset()
+    # trial_data = env.get_trial_data()
+    # gts = trial_data["memory_sequence_int"]
+    # t = 0
+    # print(trial_data)
+    # print()
+    # print(obs)
+    # print(info)
+    # terminated = False
+    # while not terminated:
+    #     if t < len(gts):
     #         action = env.action_space.sample()
-    #         cnt += 1
-    #         obs, reward, done, _, info = env.step(action)
-    #         terminated = np.logical_or(terminated, info['done'])
-    #         print(action)
-    #         print(obs, reward, terminated, info)
-    #         # if cnt > 20:
-    #         #     break
-    #         print()
-    #     print(obs.shape)
+    #     else:
+    #         action = [gts[min(t-len(gts), len(gts)-1)]]
+    #     t += 1
+    #     obs, reward, _, _, info = env.step(action)
+    #     terminated = np.logical_or(terminated, info['done'])
+    #     print(action, reward, terminated)
     #     print()
-    #     print(env.get_trial_data())
-
-    # seqlen = 9
-    # answer = np.zeros(16)
-    # # prev_answer = np.zeros(2)
-    # cnts = np.zeros(seqlen+1)
-    # for i in range(10000):
-    #     env.reset()
-    #     if env.answer is not None:
-    #         answer[env.answer] += 1
-    #     # if np.array_equal(env.answer, prev_answer):
-    #     #     print(env.answer)
-    #     # prev_answer = env.answer
-    #     cnts[env.cnt] += 1
-    # print(answer)
-    # print(cnts)
-
-
-    """ Conditional EM Recall tests """
-    env = ConditionalEMRecall(num_features=2, feature_dim=2, sequence_len=4, vocabulary_num=8, value_dim=2, 
-        include_question_during_encode=False, no_condition=True)
-    obs, info = env.reset()
-    env.render()
-    print()
-    print(obs)
-    print(info)
-    terminated = False
-    while not terminated:
-        action = env.action_space.sample()
-        obs, reward, _, _, info = env.step(action)
-        terminated = np.logical_or(terminated, info['done'])
-        print(action)
-        print(obs, reward, terminated, info)
-        print()
+    #     print(obs, info)
 
 
     """ Vary parameters """
-    # seq_len_all = [8,16]
-    # noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
-    # gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    seq_len_all = [8,16]
+    noise_all = [0, 0.2, 0.4, 0.6, 0.8, 1]
+    # gamma_all = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    gamma_all = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    gamma_all_actual = [0, 0.2, 0.4, 0.6, 0.8, 0.99]
+    # gamma_all = [0.8, 0.85, 0.9, 0.95, 0.99, 0.999, 0.9999]
+    eta_all = [0.005, 0.01, 0.02, 0.04]
+    # wm_noise_all = [0, 0.1, 0.2, 0.4, 0.6, 0.8]
+    wm_noise_all = [0, 0.01, 0.04, 0.09, 0.16, 0.25]
 
     # setup_dir = Path("./experiments/FreeRecall/VaryNoise/setups")
-    # setup_file = setup_dir / "setup.json"
-    # setup = load_dict(setup_file)
+    # setup_dir = Path("./experiments/VaryAllSeq8NoNoise/setups")
+    setup_dir = Path("./experiments/VaryWMNoise/setups")
+    setup_file = setup_dir / "setup.json"
+    setup = load_dict(setup_file)
 
-    # # for gamma in gamma_all:
-    # #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
-    # #     with open(setup_dir / "setup_gamma{}.json".format(str(gamma).replace(".", "")), "w") as f:
-    # #         json.dump(setup, f, indent=4)
-
-    # for seq_len in seq_len_all:
-    #     for noise in noise_all:
-    #         setup["model"]["flush_noise"] = noise
-    #         setup["model"]["subclasses"][0]["capacity"] = seq_len
-    #         for i in range(len(setup["training"])):
-    #             setup["training"][i]["env"][0]["memory_num"] = seq_len
-    #             setup["training"][i]["env"][0]["retrieve_time_limit"] = seq_len
-    #         with open(setup_dir / "setup_seq{}_noise{}.json".format(seq_len, str(noise).replace(".", "")), "w") as f:
+    # for gamma in gamma_all:
+    #     for eta in eta_all:
+    #         setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["eta"] = eta
+    #         setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
+    #         with open(setup_dir / "setup_eta{}_gamma{}.json".format(str(eta).replace(".",""), str(gamma).replace(".", "")), "w") as f:
     #             json.dump(setup, f, indent=4)
 
+    # for gamma in gamma_all:
+    #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma
+    #     with open(setup_dir / "setup_gamma{}.json".format(str(gamma).replace(".", "")), "w") as f:
+    #         json.dump(setup, f, indent=4)
+
+    # for eta in eta_all:
+    #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["eta"] = eta
+    #     setup["training"][-1]["trainer"]["criterion"]["criteria"][0]["gamma"] = 0.999
+    #     with open(setup_dir / "setup_pretrain_eta{}_gamma10.json".format(str(eta).replace(".","")), "w") as f:
+    #         json.dump(setup, f, indent=4)
+
+    # # for seq_len in seq_len_all:
+    # for noise in noise_all:
+    #     setup["model"]["flush_noise"] = noise
+    #     setup["model_for_record"]["flush_noise"] = noise
+    #     # setup["model"]["subclasses"][0]["capacity"] = seq_len
+    #     # for i in range(len(setup["training"])):
+    #     #     setup["training"][i]["env"][0]["memory_num"] = seq_len
+    #     #     setup["training"][i]["env"][0]["retrieve_time_limit"] = seq_len
+    #     with open(setup_dir / "setup_noise{}.json".format(str(noise).replace(".", "")), "w") as f:
+    #         json.dump(setup, f, indent=4)
+
+    # for gamma, gamma_actual in zip(gamma_all, gamma_all_actual):
+    #     for noise in noise_all:
+    #         for i in range(len(setup["training"])):
+    #             setup["training"][i]["trainer"]["criterion"]["criteria"][0]["gamma"] = gamma_actual
+    #         setup["model"]["flush_noise"] = noise
+    #         setup["model_for_record"]["flush_noise"] = noise
+    #         with open(setup_dir / "setup_gamma{}_noise{}.json".format(str(gamma).replace(".", ""), str(noise).replace(".", "")), "w") as f:
+    #             json.dump(setup, f, indent=4)
+
+    for wm_noise in wm_noise_all:
+        setup["model"]["wm_noise_prop"] = wm_noise
+        setup["model_for_record"]["wm_noise_prop"] = wm_noise
+        with open(setup_dir / "setup_wmnoise{}.json".format(str(wm_noise).replace(".", "")), "w") as f:
+            json.dump(setup, f, indent=4)
 
 
 if __name__ == '__main__':

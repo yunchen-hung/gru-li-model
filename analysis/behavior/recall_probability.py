@@ -73,9 +73,9 @@ class RecallProbability:
     def visualize_all_time(self, save_path, save_name="all_time", title="", format="png"):
         # plot of all time
         plt.figure(figsize=(4, 3.3), dpi=180)
-        plt.scatter(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='b', zorder=2)
+        plt.scatter(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='w', edgecolor='k', zorder=2)
         plt.plot(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='k', zorder=1)
-        plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='b', zorder=2)
+        plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='w', edgecolor='k', zorder=2)
         plt.plot(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='k', zorder=1)
         plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
         plt.xlabel("lag")

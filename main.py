@@ -4,11 +4,13 @@ import os
 import argparse
 from pathlib import Path
 import ast
+from collections import defaultdict
 import numpy as np
 import torch
 
 import consts
 from utils import load_setup, parse_setup, import_attr
+from train.utils import save_model
 from train import plot_accuracy_and_error, record
 
 
@@ -61,7 +63,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 assert len(run_num[i]) == 2
                 run_nums.extend(list(range(run_num[i][0], run_num[i][1]+1)))
     else:
-        run_nums = list(range(0, run_num))
+        run_nums = list(range(0, int(run_num)))
 
     print("device:", device)
 
@@ -80,6 +82,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         figuire_path = Path(consts.EXPERIMENT_FOLDER)/exp_dir/consts.FIGURE_FOLDER
 
     model_all, data_all = {}, {}
+    checkpoints_all = {}
     for i in run_nums:
         print("run {}".format(i))
         general_setup = deepcopy(setup_origin)
@@ -123,6 +126,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             model.to(device)
 
             # train the model with each training setup
+            save_model(model, model_save_path, filename="0.pt")
             if train or not os.path.exists(model_load_path/"model.pt"):
                 training_session = 1
                 for env, optimizer, scheduler, criterion, sl_criterion, ax_criterion, training_setup, setup in \
@@ -166,11 +170,55 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 for i in record_env:
                     data = record(model, env[i], used_output=used_output[i], 
                                         reset_memory=training_setup.get("reset_memory", True), 
-                                        device=device, context_num=setups[-1].get("context_num", 20))
+                                        device=device, context_num=setups[-1].get("context_num", 20),
+                                        record_activity=setups[-1].get("record_activity", True))
                     data_all_env.append(data)
 
                 model_all[run_name_with_num] = model
                 data_all[run_name_with_num] = data_all_env
+
+            # load checkpoints
+            if "load_checkpoints" in setup_origin and setup_origin["load_checkpoints"]:
+                checkpoints = []
+                checkpoint_epoch_nums = []
+                checkpoint_session_nums = []
+                # get all files in model_load_path with the pattern "*.pt" and not "model.pt"
+                checkpoint_files = list(model_load_path.glob("*.pt"))
+                # Extract checkpoint numbers and sort them
+                checkpoint_numbers = defaultdict(list)
+                for file in checkpoint_files:
+                    if file.name != "model.pt":
+                        try:
+                            num = file.stem.split('.')[0]
+                            if '_' in num:
+                                epoch_num = int(num.split('_')[0])
+                                session_num = int(num.split('_')[1])
+                                checkpoint_numbers[int(epoch_num)].append(int(session_num))
+                            else:
+                                if num == "0":
+                                    checkpoint_numbers[0].append(int(num))     # initial checkpoint
+                        except ValueError:
+                            continue
+                for epoch_num, session_nums in checkpoint_numbers.items():
+                    session_nums.sort()
+                print(checkpoint_numbers)
+                
+                # Reorder checkpoint files based on sorted numbers
+                for epoch_num in checkpoint_numbers:
+                    if epoch_num == 0:
+                        for session_num in checkpoint_numbers[epoch_num]:
+                            checkpoints.append(torch.load(model_load_path/f"{session_num}.pt", map_location=torch.device('cpu'), weights_only=True))
+                            checkpoint_epoch_nums.append(epoch_num)
+                            checkpoint_session_nums.append(session_num)
+                    else:
+                        for session_num in checkpoint_numbers[epoch_num]:
+                            checkpoints.append(torch.load(model_load_path/f"{epoch_num}_{session_num}.pt", map_location=torch.device('cpu'), weights_only=True))
+                            checkpoint_epoch_nums.append(epoch_num)
+                            checkpoint_session_nums.append(session_num)
+                print(checkpoint_epoch_nums, checkpoint_session_nums)
+                checkpoints_all[run_name_with_num] = [checkpoint_session_nums, checkpoint_epoch_nums, checkpoints]
+            else:
+                checkpoints_all = None
 
     # run experiment
     run_exp = import_attr("{}.{}.{}.run".format(consts.EXPERIMENT_FOLDER.replace('/', '.'), experiment, exp_file_name))
@@ -194,8 +242,12 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
         else:
             paths = {"fig": figuire_path/exp_file_name/setup_origin["model"]["class"]}
 
+        kwargs = {
+            "criterion": criterions[-1]
+        }
+
         exp_name = setup_name.split(".")[0]
-        run_exp(data_all, model_all, env, paths, exp_name)
+        run_exp(data_all, model_all, env, paths, exp_name, checkpoints=checkpoints_all, **kwargs)
 
 
 if __name__ == "__main__":

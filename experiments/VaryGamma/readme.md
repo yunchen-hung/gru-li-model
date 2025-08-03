@@ -1,0 +1,5 @@
+- currently training:
+    - eta = 0.02, gamma=0, no pretrain
+    - eta = 0.02, gamma=1, no pretrain
+    - eta = 0.02, gamma=0, pretrain
+    - eta = 0.02, gamma=1, pretrain

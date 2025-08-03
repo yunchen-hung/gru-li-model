@@ -68,24 +68,29 @@ class PCA:
             savefig(save_path, "pca_temporal", format=format)
         # plot_capture_var(self.pca.explained_variance_ratio_, save_path=save_path, pdf=pdf)
 
-    def visualize_state_space(self, save_path=None, show_3d=False, start_step=None, end_step=None, 
+    def visualize_state_space(self, trial_num=None,save_path=None, show_3d=False, start_step=None, end_step=None, 
         display_start_step=None, display_end_step=None, constrain_lim=True, title=None, format="png",
         file_name="pca_state_space", colormap_label="timesteps"):
+
+        if trial_num is not None:
+            proj_act = self.proj_act[:trial_num]
+        else:
+            proj_act = self.proj_act
+
         if start_step is None:
             start_step = 0
         if end_step is None:
             end_step = self.n_steps
         n_steps = end_step - start_step
-        colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0, 0.9, n_steps)])
+        colors = np.array([cc.cm.rainbow.reversed()(i) for i in np.linspace(0.1, 0.8, n_steps)])
         # colors = sns.color_palette("Spectral", n_steps+1)
         # colors = ["#184E77", "#1A759F", "#168AAD", "#34A0A4", "#52B69A", "#76C893", "#99D98C", "#B5E48C"]
         # colors = ["#E76F51", "#EE8959", "#F4A261", "#E9C46A", "#8AB17D", "#2A9D8F", "#287271", "#264653"]
 
-        plt.figure(figsize=(4, 3.3), dpi=180)
+        plt.figure(figsize=(4.5, 3.8), dpi=180)
         ax = plt.axes(projection='3d') if show_3d else plt.gca()
 
-        proj_act = self.proj_act
-        for i in range(self.n_traj):
+        for i in range(proj_act.shape[0]):
             if not show_3d:
                 ax.plot(proj_act[i, start_step:end_step, 0], proj_act[i, start_step:end_step, 1], color="grey", zorder=1, linewidth=0.7)
             else:
@@ -104,17 +109,17 @@ class PCA:
             plt.xlim(min_x - 0.5, max_x + 0.5)
             plt.ylim(min_y - 0.5, max_y + 0.5)
 
-        ax.set_xlabel("PC1 of hidden states")
-        ax.set_ylabel("PC2 of hidden states")
+        ax.set_xlabel("PC1 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[0] * 100))
+        ax.set_ylabel("PC2 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[1] * 100))
         if show_3d:
-            ax.set_zlabel("PC3")
+            ax.set_zlabel("PC3 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[2] * 100))
 
         # display_start_step = display_start_step if display_start_step is not None else start_step
         # display_end_step = display_end_step if display_end_step is not None else end_step
         # cmap = plt.cm.rainbow.reversed()
         # norm = plt.Normalize(0.5, display_end_step-display_start_step+0.5)
         # cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, display_end_step-display_start_step+1), ax=ax, label=colormap_label)
-        cmap = ListedColormap(colors[:-1])
+        cmap = ListedColormap(colors)
         norm = plt.Normalize(vmin=0.5, vmax=0.5+n_steps)
         plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.arange(1, n_steps+1), label=colormap_label, ax=ax)
 
@@ -129,6 +134,10 @@ class PCA:
         plt.tight_layout()
         if save_path is not None:
             savefig(save_path, file_name, format=format)
+
+    # def visualize_by_identity(self, trial_num=None,save_path=None, show_3d=False, start_step=None, end_step=None, 
+    #     display_start_step=None, display_end_step=None, constrain_lim=True, title=None, format="png",
+    #     file_name="pca_state_space_by_identity")
 
 
 def plot_capture_var(captured_var, save_path=None, pdf=False):

@@ -18,7 +18,7 @@ class BasicSimilarity(BasicModule):
         self.min_beta = 1e-8
         self.device = device
 
-    def forward(self, query, values, input_weight=1.0, beta=None):
+    def forward(self, query, values, input_weight=1.0, beta=None, similarity_mask=None):
         if self.measure == 'cosine':
             # print(query.shape, values.shape)
             origin_similarities = F.cosine_similarity(query.to(self.device), values.permute(1, 0, 2).to(self.device), dim=-1).permute(1, 0)
@@ -31,6 +31,9 @@ class BasicSimilarity(BasicModule):
         else:
             raise Exception(f'Unrecognizable similarity measure: {self.measure}')
         self.write(origin_similarities, 'raw_similarity')
+
+        if similarity_mask is not None:
+            origin_similarities = origin_similarities * similarity_mask
         
         beta = self.softmax_temperature if beta is None else beta
         beta = max(beta, self.min_beta)
@@ -42,6 +45,8 @@ class BasicSimilarity(BasicModule):
         elif self.process_similarity == 'normalize_softmax':
             similarities = (origin_similarities - torch.mean(origin_similarities)) / torch.std(origin_similarities)
             similarities = softmax(similarities, beta=beta)
+        elif self.process_similarity == 'gumbel_softmax':
+            similarities = F.gumbel_softmax(origin_similarities, tau=beta, hard=True)
         elif self.process_similarity == 'none':
             similarities = origin_similarities
         return similarities * input_weight, similarities # softmax(origin_similarities, beta=1.0)

@@ -17,6 +17,8 @@ def train(setup,                            # setup dict, including model and tr
           criterion,                        # loss criterion used for reinforcement learning
           sl_criterion,                     # loss criterion used for supervised learning
           ax_criterion=None,                # auxiliary loss criterion
+          
+          # the following parameters can be any order, don't insert parameters between parameters above
           model_save_path=None,             # path to save the trained model
           device='cpu',                     # device
           use_memory=None,                  # whether to use memory module
@@ -34,6 +36,7 @@ def train(setup,                            # setup dict, including model and tr
           mem_beta_decay_threshold=None,    # performance threshold for decaying softmax beta
           mem_beta_decay_iter=10000,        # number of iterations between decaying softmax beta, 
                                                 # if mem_beta_decay_threshold is not None, decay based on the performance
+          sl_criterion_weight=1.0,          # weight for the supervised learning loss
     ):
     """
     Trains the agent using the specified environments and optimization parameters.
@@ -50,11 +53,16 @@ def train(setup,                            # setup dict, including model and tr
     # set up some parameters and variables
     total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, total_actor_loss, \
         total_critic_loss, total_sl_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0
+    reward_masks = 0.0
     
     num_iter = int(num_iter)
-    test_accuracies = np.zeros(num_iter // test_iter + 5)
-    test_errors = np.zeros(num_iter // test_iter + 5)
+    # test_accuracies = np.zeros(num_iter // test_iter + 5)
+    # test_errors = np.zeros(num_iter // test_iter + 5)
     training_time = np.zeros(num_iter // test_iter + 5)
+    test_accuracies = []
+    test_errors = []
+    test_rewards = []
+    # training_time = []
     test_times = 0
     # test_accuracies, test_errors = [], []
 
@@ -93,29 +101,34 @@ def train(setup,                            # setup dict, including model and tr
         agent.reset_memory(flush=reset_memory)
 
         # create variables to store data related to outputs and results
-        seq_len = setup["training"]["env"][0]["sequence_len"]
+        try:
+            seq_len = setup["training"]["env"][0]["sequence_len"]
+        except:
+            seq_len = setup["training"]["env"][0]["tasks"][0]["sequence_len"]
 
-        # outputs = torch.zeros((output_num, seq_len*2, batch_size, agent.output_dims[0]))
-        # actions = torch.zeros((output_num, seq_len*2, batch_size), dtype=int)
-        # probs = torch.zeros((output_num, seq_len*2, batch_size))
-        # actions_max = torch.zeros((output_num, seq_len*2, batch_size), dtype=int)
-        # values = torch.zeros((output_num, seq_len*2, batch_size))
-        # entropys = torch.zeros((output_num, seq_len*2, batch_size))
-        rewards = np.zeros((seq_len*2, batch_size))
-        # mem_similarities = torch.zeros((seq_len*2, batch_size, seq_len))
-        # mem_sim_entropys = torch.zeros((seq_len*2, batch_size))
-        gts = np.zeros((seq_len*2, batch_size))
-        gt_masks = np.zeros((seq_len*2, batch_size), dtype=bool)
-        loss_masks = np.zeros((seq_len*2, batch_size), dtype=bool)
+        try:
+            try:
+                retrieve_time_limit = setup["training"]["env"][0]["retrieve_time_limit"]
+            except:
+                retrieve_time_limit = setup["training"]["env"][0]["tasks"][0]["retrieve_time_limit"]
+        except:
+            retrieve_time_limit = seq_len
+
+
+        # rewards = np.zeros((seq_len*2, batch_size))
+        rewards = []
+        gts = np.zeros((seq_len+retrieve_time_limit, batch_size, len(agent.output_dims)))
+        gt_masks = np.zeros((seq_len+retrieve_time_limit, batch_size), dtype=bool)
+        loss_masks = np.zeros((seq_len+retrieve_time_limit, batch_size), dtype=bool)
 
         outputs = defaultdict(list)
-        actions, probs, actions_max = defaultdict(list), defaultdict(list), defaultdict(list)
+        # actions, probs, actions_max = defaultdict(list), defaultdict(list), defaultdict(list)
+        probs, actions_max = defaultdict(list), defaultdict(list)
+        actions = []
         values, entropys = defaultdict(list), defaultdict(list)
         model_infos = defaultdict(list)
-        # rewards = []
         mem_similarities, mem_sim_entropys = [], []
-        # gts, gt_masks = [], []
-        # loss_masks = []
+        # action_space_masks = []
 
         """ run the agent in the environment """
         correct_actions, wrong_actions, not_know_actions = 0, 0, 0
@@ -148,53 +161,40 @@ def train(setup,                            # setup dict, including model and tr
 
             t2 = time.time()
 
-            env_updated = False
+
+            t7 = time.time()
+            action, log_prob_action, action_max = pick_action(output)
+            # obs_, reward, _, _, info = env.step(list(action))
+            obs_, reward, _, _, info = env.step(action.cpu().detach().numpy().transpose(1, 0))
+            if "reward" in info:
+                reward = info["reward"]     # reward is a list of rewards for each task
+            env_step_time += time.time() - t7
+            done = info["done"]
+            obs = torch.Tensor(obs_).to(device)
+            # rewards[timestep] = reward
+            if "sum_reward" in info and info["sum_reward"].all():
+                rewards.append(np.sum(reward, axis=1))      # the reward used for RL is the sum, but calculate reward history separately
+            else:
+                rewards.append(reward)
+
+            # print(gts.shape, info["gt"].shape)
+            gts[timestep] = np.array(info["gt"])
+            gt_masks[timestep] = info["gt_mask"]
+            loss_masks[timestep] = np.logical_and(info["loss_mask"], np.logical_not(terminated))
+
+            correct_actions += np.sum(info["correct"], axis=0)
+            wrong_actions += np.sum(info["wrong"], axis=0)
+            not_know_actions += np.sum(info["not_know"], axis=0)
+            terminated = np.logical_or(terminated, done)
+
             for j, o in enumerate(output):
-                action_distribution = o
-                action, log_prob_action, action_max = pick_action(action_distribution)
-                if j == used_output_index[env_id]:
-                    # print(action)
-                    t7 = time.time()
-                    obs_, reward, _, _, info = env.step(list(action))
-                    env_step_time += time.time() - t7
-                    done = info["done"]
-                    # print(done, terminated)
-                    obs = torch.Tensor(obs_).to(device)
-                    rewards[timestep] = reward
-                    # rewards.append(reward)
-                    env_updated = True
-
-                    # gts.append(info["gt"])
-                    # gt_masks.append(info["gt_mask"])
-                    # loss_mask = np.array(info["loss_mask"])
-                    # # print(info)
-                    # # print(loss_mask)
-                    # loss_masks.append(np.logical_and(loss_mask, np.logical_not(terminated)))
-                    
-                    gts[timestep] = info["gt"]
-                    gt_masks[timestep] = info["gt_mask"]
-                    loss_masks[timestep] = np.logical_and(info["loss_mask"], np.logical_not(terminated))
-                    
-                    correct_actions += np.sum(info["correct"])
-                    wrong_actions += np.sum(info["wrong"])
-                    not_know_actions += np.sum(info["not_know"])
-                    terminated = np.logical_or(terminated, done)
-
                 outputs[j].append(o)
-                probs[j].append(log_prob_action)
-                actions[j].append(action)
-                actions_max[j].append(action_max)
+                probs[j].append(log_prob_action[j])
+                # actions[j].append(action[j])
+                actions_max[j].append(action_max[j])
                 values[j].append(value[j])
-                entropys[j].append(entropy(action_distribution, device))
-
-                # outputs[j][timestep] = o
-                # probs[j][timestep] = log_prob_action
-                # actions[j][timestep] = action
-                # actions_max[j][timestep] = action_max
-                # values[j][timestep] = value[j].squeeze(1)
-                # entropys[j][timestep] = entropy(action_distribution, device)
-
-            assert env_updated
+                entropys[j].append(entropy(o, device))
+            actions.append(action)
 
             for key in model_info.keys():
                 model_infos[key].append(model_info[key])
@@ -203,7 +203,7 @@ def train(setup,                            # setup dict, including model and tr
             mem_sim_entropys.append(entropy(model_info["memory_similarity"], device))
             # mem_similarities[timestep] = model_info["memory_similarity"]
             # mem_sim_entropys[timestep] = entropy(model_info["memory_similarity"], device)
-            total_reward += np.sum(reward)
+            total_reward += np.sum(np.array(reward))   
 
             t3 = time.time()
 
@@ -215,7 +215,7 @@ def train(setup,                            # setup dict, including model and tr
         """ compute the loss and do backpropagation """
         if (i+1) % test_iter == 0:
             print_criterion_info = True
-            print('Action distribution:', action_distribution[0])
+            print('Action distribution:', output[0][0])
         else:
             print_criterion_info = False
 
@@ -233,23 +233,27 @@ def train(setup,                            # setup dict, including model and tr
 
         # compute RL loss
         if criterion is not None:
-            loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:timestep], entropys, 
-                                                                       loss_masks[memory_num:timestep], print_info=print_criterion_info, device=device)
+            loss_rl, loss_actor, loss_critic, loss_ent_reg = criterion(probs, values, rewards[memory_num:], entropys, 
+                                                                       loss_masks[memory_num:], print_info=print_criterion_info, 
+                                                                       device=device)
             loss += loss_rl
 
             total_loss += loss_rl.item()
             total_actor_loss += loss_actor.item()
             total_critic_loss += loss_critic.item()
-            total_entropy += np.mean(torch.stack(entropys[used_output_index[env_id]]).cpu().detach().numpy())
+            t = torch.stack(entropys[used_output_index[env_id]]).cpu().detach().numpy().astype(np.float32)
+            total_entropy += np.mean(t)
 
         # compute SL loss
+
         gts = torch.tensor(np.array(gts), dtype=torch.long).to(device)    # time x batch_size
         gt_masks = torch.tensor(np.array(gt_masks)).to(device)
+        # print(gts.shape, gt_masks.shape, gts[gt_masks].shape)
         # print(gts, gt_masks)
         if sl_criterion is not None:
             # print(gts, gt_masks, outputs[0].shape)
             loss_sl = sl_criterion([outputs[o][gt_masks] for o in outputs], gts[gt_masks])
-            loss += loss_sl
+            loss += loss_sl * sl_criterion_weight
             total_sl_loss += loss_sl.item()
 
         # compute auxiliary loss
@@ -285,24 +289,26 @@ def train(setup,                            # setup dict, including model and tr
 
         """ print training information and save model """
         if (i+1) % test_iter == 0:
-            accuracy = actions_correct_num / actions_total_num
-            error = actions_wrong_num / actions_total_num
-            not_know_rate = 1 - accuracy - error
-            mean_reward = total_reward / (test_iter * batch_size)
+            accuracy = np.round(actions_correct_num / (actions_total_num+1e-10), 2)
+            error = np.round(actions_wrong_num / (actions_total_num+1e-10), 2)
+            not_know_rate = np.round(1 - accuracy - error, 2)
             mean_loss = total_loss / (test_iter * batch_size)
             mean_actor_loss = total_actor_loss / (test_iter * batch_size)
             mean_critic_loss = total_critic_loss / (test_iter * batch_size)
             mean_entropy = total_entropy / (test_iter * batch_size)
 
-            print('Iteration: {},  train accuracy: {:.2f}, error: {:.2f}, no action: {:.2f}, mean reward: {:.2f}, total loss: {:.4f}, actor loss: {:.4f}, '
+            mean_reward = total_reward / (test_iter * batch_size)
+
+            print('Iteration: {},  train accuracy: {}, error: {}, no action: {}, mean reward: {:2f}, total loss: {:.4f}, actor loss: {:.4f}, '
                 'critic loss: {:.4f}, entropy: {:.4f}'.format(i+1, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss,
                                                               mean_entropy))
-            actions_trial = torch.stack(actions[used_output_index[env_id]]).cpu().detach().numpy()
-            gts_trial = gts.cpu().detach().numpy()
+            actions_trial = torch.stack(actions).cpu().detach().numpy().transpose(0, 2, 1)  # timesteps x batch_size x action_num
+            gts_trial = gts.cpu().detach().numpy()  # timesteps x batch_size x action_num
+            # print(actions_trial.shape, gts_trial.shape)
             if sl_criterion is not None:
-                print("encoding phase, action:", actions_trial[0:memory_num, 0], "gt:", gts_trial[0:memory_num, 0])
+                print("encoding phase, action:", actions_trial[0:memory_num, 0].reshape(-1), "gt:", gts_trial[0:memory_num, 0].reshape(-1))
             if criterion is not None:
-                print("recall phase, action:", actions_trial[memory_num:, 0], "gt:", gts_trial[memory_num:, 0])
+                print("recall phase, action:", actions_trial[memory_num:, 0].reshape(-1), "gt:", gts_trial[memory_num:, 0].reshape(-1))
 
             # update learning rate
             if i != 0:
@@ -315,7 +321,7 @@ def train(setup,                            # setup dict, including model and tr
             # decide whether to decay mem_beta based on decay iter and decay threshold of performance
             if (i+1) % mem_beta_decay_iter == 0:
                 if mem_beta_decay_threshold is not None:
-                    if accuracy >= mem_beta_decay_threshold:
+                    if np.max(accuracy) >= mem_beta_decay_threshold:
                         decay_mem_beta = True
                     else:
                         decay_mem_beta = False
@@ -329,19 +335,26 @@ def train(setup,                            # setup dict, including model and tr
             save_model(agent, model_save_path, filename="model.pt")
             
             # stop training if accuracy is high enough
-            if accuracy >= stop_test_accu and i > min_iter:
-                print("training end")
-                break
+            if np.min(accuracy) >= stop_test_accu and i > min_iter:
+                if agent.mem_beta_decay and agent.mem_beta <= agent.mem_beta_min or not agent.mem_beta_decay:
+                    print("training end")
+                    break
 
             # plot accuracy and error
-            test_accuracies[test_times] = accuracy
-            test_errors[test_times] = error
+            # test_accuracies[test_times] = accuracy
+            # test_errors[test_times] = error
+            test_accuracies.append(accuracy)
+            test_errors.append(error)
+            test_rewards.append(mean_reward)
             plot_accuracy_and_error(test_accuracies, test_errors, model_save_path, filename="accuracy_session_{}.png".format(session_num))
+            np.save(model_save_path/"accuracy_{}.npy".format(session_num), np.array(test_accuracies))
+            np.save(model_save_path/"error_{}.npy".format(session_num), np.array(test_errors))
+            np.save(model_save_path/"reward_{}.npy".format(session_num), np.array(test_rewards))
 
             # reset training variables
             total_reward, actions_correct_num, actions_wrong_num, actions_total_num, total_loss, \
                 total_actor_loss, total_critic_loss, total_entropy = 0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0
-            
+
             # print training time and estimated time needed
             print("total time: {:.2f}s, env time: {:.2f}s, env step time: {:.2f}s, forward time: {:.2f}s, loss time: {:.2f}s, backward time: {:.2f}s".format(
                 total_time, env_time, env_step_time, forward_time, loss_time, backward_time))
@@ -360,7 +373,7 @@ def train(setup,                            # setup dict, including model and tr
             print()
             test_times += 1
         
-        if i+1 % save_iter == 0:
-            save_model(agent, model_save_path, filename="{}.pt".format(i))
+        if (i+1) % save_iter == 0:
+            save_model(agent, model_save_path, filename="{}_{}.pt".format(session_num, i))
     
     return test_accuracies, test_errors

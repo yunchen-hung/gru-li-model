@@ -1,75 +1,102 @@
 # # squeue -u <username> -h -t pending,running -r -O "state" | uniq -c
 
-# for i in {1..9}
-# do
-# python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma0$i.json --time 1
-# done
 
-# python run_cluster.py --exp RL --setup setup_gru_negmementreg.json --time 1
-# python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --time 1
-
-# python run_cluster.py --exp RL --setup setup_gru_negmementreg.json --exp_file cogsci
-# python run_cluster.py --exp RL --setup setup_gru_negmementreg_gamma.json --exp_file cogsci
-
-# noise=('0' '02' '04' '06' '08' '1')
-# # noise=('0' '1')
-# seqlen=('8' '16')
-
-# for s in "${seqlen[@]}"
-# do
-#     for n in "${noise[@]}"
-#     do
-#         python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 1
-#     done
-# done
-
-
-
-# gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '1')
+# gamma=('0' '01' '02' '03' '04' '05' '06' '07' '08' '09' '10')
+gamma=('0' '02' '04' '06' '08' '10')
+# gamma=('08' '085' '09' '095' '099' '0999' '09999')
+# gamma=('0' '01' '02' '03' '04')
+eta=('0005' '001' '002' '004')
 
 # for g in "${gamma[@]}"
 # do
-#     python run_cluster.py --exp FreeRecall.VaryGamma --cpus_per_task 1 --setup setup_gamma${g}.json --time 2
+#     for e in "${eta[@]}"
+#     do
+#         # python run_cluster.py --exp VaryGammaSeq12 --cpus_per_task 4 --setup setup_eta${e}_gamma${g}.json --time 16 -train
+#         # python run_cluster.py --exp VaryGammaSeq12 --cpus_per_task 1 --setup setup_eta${e}_gamma${g}.json --time 2
+#         scancel -n VaryGammaSeq12.setup_eta${e}_gamma${g}
+#     done
+# done
+
+# for g in "${gamma[@]}"
+# do
+#     # python run_cluster.py --exp VaryGamma2 --cpus_per_task 4 --setup setup_gamma${g}.json --time 11 -train
+#     python run_cluster.py --exp VaryGamma2 --cpus_per_task 4 --setup setup_gamma${g}.json --time 11 -train
 # done
 
 
 noise=('0' '02' '04' '06' '08' '1')
-# noise=('0' '1')
-seqlen=('8' '16')
+# noise=('06' '08' '1')
+# # noise=('0' '1')
+# seqlen=('8' '16')
 
-for s in "${seqlen[@]}"
+# for n in "${noise[@]}"
+# do
+#     # python run_cluster.py --exp VaryNoiseSeq12Decay --cpus_per_task 4 --setup setup_noise${n}.json --time 20 -train
+#     python run_cluster.py --exp VaryNoiseSeq12Decay --cpus_per_task 1 --setup setup_noise${n}.json --time 2
+# done
+
+# for n in "${noise[@]}"
+# do
+#     python run_cluster.py --exp VaryNoise --cpus_per_task 4 --setup setup_seq8_noise${n}.json --time 10 -train
+#     python run_cluster.py --exp VaryNoise --cpus_per_task 4 --setup setup_pretrain_seq8_noise${n}.json --time 10 -train
+# done
+
+# for n in "${noise[@]}"
+# do
+#     python run_cluster.py --exp VaryNoise --cpus_per_task 4 --setup setup_seq16_noise${n}.json --time 20 -train
+#     python run_cluster.py --exp VaryNoise --cpus_per_task 4 --setup setup_pretrain_seq16_noise${n}.json --time 20 -train
+# done
+
+
+
+# for n in "${noise[@]}"
+# do
+#     for g in "${gamma[@]}"
+#     do
+#         python run_cluster.py --exp VaryAllSeq12 --cpus_per_task 8 --setup setup_gamma${g}_noise${n}.json --time 24 -train
+#     done
+# done
+
+# for n in "${noise[@]}"
+# do
+#     # python run_cluster.py --exp VaryAllSeq12NoNoise --cpus_per_task 8 --setup setup_gamma10_noise${n}.json --time 20 -train
+#     # python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 4 --setup setup_gamma10_noise${n}.json --time 11 -train
+#     python run_cluster.py --exp VaryAllSeq8 --cpus_per_task 1 --setup setup_gamma10_noise${n}.json --time 1 --exp_file perturbation
+# done
+
+# for g in "${gamma[@]}"
+# do
+#     # python run_cluster.py --exp VaryAllSeq12NoNoise --cpus_per_task 8 --setup setup_gamma${g}_noise1.json --time 20 -train
+#     # python run_cluster.py --exp VaryAllSeq8 --cpus_per_task 4 --setup setup_gamma${g}_noise1.json --time 11 -train
+#     python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 1 --setup setup_gamma${g}_noise1.json --time 1 --exp_file perturbation
+# done
+
+for n in "${noise[@]}"
 do
-    for n in "${noise[@]}"
+    for g in "${gamma[@]}"
     do
-        python run_cluster.py --exp FreeRecall.VaryNoise --cpus_per_task 8 --setup setup_seq${s}_noise${n}.json --time 12 -train
+        # python run_cluster.py --exp VaryAllSeq8NoNoise --cpus_per_task 4 --setup setup_gamma${g}_noise${n}.json --time 11 -train
+        python run_cluster.py --exp VaryAllSeq8 --cpus_per_task 1 --setup setup_gamma${g}_noise${n}.json --time 1 --exp_file perturbation
     done
 done
 
 
+hidden_dim=('16' '32' '64' '128' '256')
 
-
-# for s in "${seqlen[@]}"
+# for d in "${hidden_dim[@]}"
 # do
-#     for n in "${noise[@]}"
-#     do
-#         python run_cluster.py --exp RL.Noise.NBack --setup setup_seq${s}_noise${n}.json --time 1
-#     done
+#     # python run_cluster.py --exp VaryHiddenDim --cpus_per_task 8 --setup setup_dim${d}.json --time 20 -train
+#     python run_cluster.py --exp VaryHiddenDim --cpus_per_task 1 --setup setup_dim${d}.json --time 2
 # done
 
 
-# nback_dir="./experiments/RL/NBack/VarySeq/setups/"
-# if [ ! -d $nback_dir ]; then
-#   echo "Directory $nback_dir does not exist"
-#   exit 1
-# fi
+# wm_noise=('0' '01' '02' '04' '06' '08')
+wm_noise=('0' '001' '004' '009' '016' '025')
 
-# for file in "$nback_dir"/*; do
-#   if [ -f "$file" ]; then
-#     name=${file##*/}
-#     python run_cluster.py --exp RL.NBack.VarySeq --setup $name --time 10
-#   fi
+# for w in "${wm_noise[@]}"
+# do
+#     python run_cluster.py --exp VaryWMNoise --cpus_per_task 8 --setup setup_wmnoise${w}.json --time 20 -train
+#     # python run_cluster.py --exp VaryWMNoise --cpus_per_task 1 --setup setup_wmnoise${w}.json --time 2
 # done
 
-
-# python run_cluster.py --exp CondQA.Sup --setup setup_encq_last_nomem.json -train --time 10
 
