@@ -8,12 +8,13 @@ from .base import BaseEMTask
 
 
 class ConditionalFreeRecall(BaseEMTask):
-    def __init__(self, fix_one_feature=False, no_action_reward=-0.0, **kwargs):
+    def __init__(self, fix_one_feature=False, no_action_reward=-0.0, fix_condition=False, **kwargs):
         super().__init__(no_action_reward=no_action_reward, **kwargs)
         self.fix_one_feature = fix_one_feature
+        self.fix_condition = fix_condition
 
-    def reset(self, **kwargs):
-        obs, info = super().reset(**kwargs)
+    def reset(self, memory_sequence_index=None, **kwargs):
+        obs, info = super().reset(memory_sequence_index=memory_sequence_index, **kwargs)
         # self._generate_task_condition()
         self.retrieved = np.zeros(self.vocabulary_size, dtype=bool)
 
@@ -22,9 +23,11 @@ class ConditionalFreeRecall(BaseEMTask):
             fixed_feature = np.random.choice(self.num_features)
             all_stimuli = self.all_stimuli[self.all_stimuli[:, fixed_feature] == self.condition_value]
             self.memory_sequence = all_stimuli[np.random.choice(len(all_stimuli), self.sequence_len, replace=False)]
+            if self.fix_condition:
+                self.condition_feature = fixed_feature
             self.memory_sequence_int = self._convert_item_to_int(self.memory_sequence)
             obs = self._generate_observation(self.memory_sequence[0], self.condition_feature, self.condition_value, 
-                                         include_question=self.include_condition_during_encode)
+                                         include_condition=self.include_condition_during_encode)
         
         self.matched_item_indexes = np.where(self.memory_sequence[:, self.condition_feature] == self.condition_value)[0]
 
@@ -51,6 +54,19 @@ class ConditionalFreeRecall(BaseEMTask):
             else:
                 wrongs += 1
         return corrects, wrongs, not_knows
+
+    
+    def get_trial_data(self):
+        """
+        used when recording data
+        """
+        return {
+            "memory_sequence": self.memory_sequence,
+            "condition_feature": self.condition_feature,
+            "condition_value": self.condition_value,
+            "memory_sequence_int": self.memory_sequence_int + 1,
+            "matched_item_indexes": self.matched_item_indexes
+        }
 
 
     def _generate_condition_features(self):

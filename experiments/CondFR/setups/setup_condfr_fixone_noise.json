@@ -16,6 +16,7 @@
         "mem_beta_min": 0.0002,
         "init_state_type": "zeros",
         "flush_noise": 1,
+        "wm_noise_prop": 0.1,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -51,6 +52,7 @@
         "mem_beta_min": 0.0002,
         "init_state_type": "zeros",
         "flush_noise": 1,
+        "wm_noise_prop": 0.1,
         "subclasses": [
             {
                 "name": "memory_module",
@@ -76,7 +78,7 @@
                 {
                     "vector_env": {
                         "mode": "sync",
-                        "batch_size": 32
+                        "batch_size": 64
                     },
                     "wrapper": [
                         {
