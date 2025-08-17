@@ -25,6 +25,10 @@ class ConditionalFreeRecall(BaseEMTask):
             self.memory_sequence = all_stimuli[np.random.choice(len(all_stimuli), self.sequence_len, replace=False)]
             if self.fix_condition:
                 self.condition_feature = fixed_feature
+                self.matched_item_num = 0
+                for i in range(self.sequence_len):
+                    if self.memory_sequence[i, self.condition_feature] == self.condition_value:
+                        self.matched_item_num += 1
             self.memory_sequence_int = self._convert_item_to_int(self.memory_sequence)
             obs = self._generate_observation(self.memory_sequence[0], self.condition_feature, self.condition_value, 
                                          include_condition=self.include_condition_during_encode)

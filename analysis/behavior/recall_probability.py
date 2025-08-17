@@ -42,7 +42,7 @@ class RecallProbability:
         times_sum[times_sum == 0] = 1
         self.results = self.results / times_sum
 
-    def visualize(self, save_path, timesteps=None, title="", format="png"):
+    def visualize(self, save_path, timesteps=None, no_center=False, title="", format="png"):
         """
         timestep: a list of int indicating the time steps to plot
         """
@@ -58,7 +58,8 @@ class RecallProbability:
             if t != self.memory_num-1:
                 plt.scatter(np.arange(t+2, self.memory_num+1), self.results[t][t+1:], c='b', zorder=2)
                 plt.plot(np.arange(t+2, self.memory_num+1), self.results[t][t+1:], c='k', zorder=1)
-            plt.scatter(np.array([t+1]), self.results[t][t], c='r')
+            if not no_center:
+                plt.scatter(np.array([t+1]), self.results[t][t], c='r')
             plt.xlabel("item position")
             plt.ylabel("possibility of next recalling")
             plt.title("current position: {}".format(t+1))
@@ -70,14 +71,15 @@ class RecallProbability:
             plt.tight_layout()
             savefig(save_path, "timestep_{}".format(t+1), format=format)
 
-    def visualize_all_time(self, save_path, save_name="all_time", title="", format="png"):
+    def visualize_all_time(self, save_path, save_name="all_time", title="", no_center=False, format="png"):
         # plot of all time
         plt.figure(figsize=(4, 3.3), dpi=180)
         plt.scatter(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='w', edgecolor='k', zorder=2)
         plt.plot(np.arange(-self.memory_num+1, 0), self.results_all_time[:self.memory_num-1], c='k', zorder=1)
         plt.scatter(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='w', edgecolor='k', zorder=2)
         plt.plot(np.arange(1, self.memory_num), self.results_all_time[self.memory_num:], c='k', zorder=1)
-        plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
+        if not no_center:
+            plt.scatter(np.array([0]), self.results_all_time[self.memory_num-1], c='r')
         plt.xlabel("lag")
         plt.ylabel("conditional\nrecall probability")
         # title = title if title else "conditional recall probability"

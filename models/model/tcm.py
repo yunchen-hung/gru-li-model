@@ -71,13 +71,17 @@ class TCM(BasicModule):
         elif self.retrieving:
             f_in_raw = torch.mv(self.W_cf, c_t.squeeze())
             f_in = (softmax(f_in_raw.unsqueeze(0), self.softmax_temperature) * self.not_recalled).squeeze(0) 
-            f_in = f_in / torch.sum(f_in)
-            if self.rand_mem:
-                retrieved_idx = Categorical(f_in).sample()
+            if torch.max(f_in) < self.threshold:
+                retrieved_idx = -1
+                retrieved_memory = torch.zeros(self.dim, device=self.device)
             else:
-                retrieved_idx = torch.argmax(f_in)
-            retrieved_memory = torch.zeros(self.dim, device=self.device)
-            retrieved_memory[retrieved_idx] = 1
+                f_in = f_in / torch.sum(f_in)
+                if self.rand_mem:
+                    retrieved_idx = Categorical(f_in).sample()
+                else:
+                    retrieved_idx = torch.argmax(f_in)
+                retrieved_memory = torch.zeros(self.dim, device=self.device)
+                retrieved_memory[retrieved_idx] = 1
 
             c_in_rec = (1 - self.gamma_fc) * torch.mv(self.W_fc_pre, retrieved_memory) + self.gamma_fc * torch.mv(self.W_cf.T, retrieved_memory)
             c_t = c_t * self.rho + c_in_rec * self.beta

@@ -42,6 +42,7 @@ class TCMMemory(BasicModule):
 
     def retrieve(self, query):
         f_in = torch.mv(self.W_cf, query.squeeze())
+        similarity = f_in * self.not_recalled
         retrieved_idx = torch.argmax(f_in * self.not_recalled)
         retrieved_memory = torch.zeros(self.dim, device=self.device)
         retrieved_memory[retrieved_idx] = 1

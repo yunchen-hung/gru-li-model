@@ -4,7 +4,7 @@
         "class": "TCM",
         "dim": 78,
         "rand_mem": true,
-        "threshold": 0.016,
+        "threshold": 0.0015,
         "beta": 0.5,
         "gamma_fc": 0.5,
         "start_recall_with_ith_item_init": 0,
