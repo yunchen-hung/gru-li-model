@@ -70,7 +70,7 @@ class PCA:
 
     def visualize_state_space(self, trial_num=None,save_path=None, show_3d=False, start_step=None, end_step=None, 
         display_start_step=None, display_end_step=None, constrain_lim=True, title=None, format="png",
-        file_name="pca_state_space", colormap_label="timesteps", no_axes=False, explained_var=True):
+        file_name="pca_state_space", colormap_label="timesteps", axis_label="hidden states", no_axes=False, explained_var=True):
 
         if trial_num is not None:
             proj_act = self.proj_act[:trial_num]
@@ -114,8 +114,8 @@ class PCA:
             ax.set_yticks([])
         
         if explained_var:
-            ax.set_xlabel("PC1 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[0] * 100))
-            ax.set_ylabel("PC2 of hidden states\n(explained var: {:.2f}%)".format(self.pca.explained_variance_ratio_[1] * 100))
+            ax.set_xlabel("PC1 of {}\n(explained var: {:.2f}%)".format(axis_label, self.pca.explained_variance_ratio_[0] * 100))
+            ax.set_ylabel("PC2 of {}\n(explained var: {:.2f}%)".format(axis_label, self.pca.explained_variance_ratio_[1] * 100))
         else:
             ax.set_xlabel("PC1")
             ax.set_ylabel("PC2")
