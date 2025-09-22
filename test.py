@@ -128,7 +128,7 @@ def main():
     #         with open(setup_dir / "setup_gamma{}_noise{}.json".format(str(gamma).replace(".", ""), str(noise).replace(".", "")), "w") as f:
     #             json.dump(setup, f, indent=4)
 
-    for seq_len in seq_len_all:
+    for seq_len in [16]:
         setup_file = setup_dir / "setup_seq{}.json".format(seq_len)
         setup = load_dict(setup_file)
         for gamma, gamma_actual in zip([0, 1], [0, 0.999]):

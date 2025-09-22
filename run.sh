@@ -76,7 +76,7 @@ noise=('0' '02' '04' '06' '08' '1')
 #     for g in "${gamma[@]}"
 #     do
 #         # python run_cluster.py --exp VaryAllSeq8LargeNoise --cpus_per_task 4 --setup setup_gamma${g}_noise${n}.json --time 11 -train
-#         python run_cluster.py --exp VaryAllSeq8LargeNoise --cpus_per_task 1 --setup setup_gamma${g}_noise${n}.json --time 1 --exp_file item_invariant
+#         python run_cluster.py --exp VaryAllSeq8LargeNoise --cpus_per_task 1 --setup setup_gamma${g}_noise${n}.json --time 1 --exp_file time_invariant
 #         # --exp_file item_invariant
 #     done
 # done
@@ -103,8 +103,12 @@ wm_noise=('0' '001' '004' '009' '016' '025')
 
 gamma=('0' '1')
 wm_noise=('0' '005' '01')
-seq_len=('4' '8' '12' '16')
-train_time=(6 11 23 47)
+# seq_len=('4' '8' '12' '16')
+# train_time=(6 11 23 47)
+seq_len=('4' '8' '12')
+train_time=(6 11 23)
+# seq_len=('16')
+# train_time=(24)
 
 for i in "${!seq_len[@]}"
 do
@@ -114,7 +118,8 @@ do
     do
         for g in "${gamma[@]}"
         do
-            python run_cluster.py --exp VarySeqLenNoise --cpus_per_task 4 --setup setup_seq${s}_gamma${g}_wmnoise${w}.json --time ${t} -train
+            # python run_cluster.py --exp VarySeqLenNoise --cpus_per_task 8 --setup setup_seq${s}_gate_gamma${g}_wmnoise${w}.json --time ${t} -train
+            python run_cluster.py --exp VarySeqLenNoise --cpus_per_task 1 --setup setup_seq${s}_gamma${g}_wmnoise${w}.json --time 1 --mem 16
         done
     done
 done

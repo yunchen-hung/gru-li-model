@@ -122,11 +122,11 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, criterion=N
             test_memory_sequence.append(data['trial_data'][i]["memory_sequence_int"])
         test_memory_sequence = np.array(test_memory_sequence)
         test_actions = np.array(actions).squeeze()
-        print(test_memory_sequence.shape, test_actions.shape)
+        # print(test_memory_sequence.shape, test_actions.shape)
 
-        test_encoding_states = np.stack([readouts[i]['state'][:timestep_each_phase] for i in range(all_context_num)]).squeeze()
-        test_recalling_states = np.stack([readouts[i]['state'][-timestep_each_phase:] for i in range(all_context_num)]).squeeze()
-        test_encoding_indexes = np.repeat(np.arange(sequence_len).reshape(1, -1), all_context_num, axis=0)
+        test_encoding_states = np.stack([readouts[i]['state'][1:timestep_each_phase] for i in range(all_context_num)]).squeeze()
+        test_recalling_states = np.stack([readouts[i]['state'][-timestep_each_phase:-1] for i in range(all_context_num)]).squeeze()
+        test_encoding_indexes = np.repeat(np.arange(sequence_len-1).reshape(1, -1), all_context_num, axis=0)
         test_recall_indexes = np.zeros_like(test_actions[:, -timestep_each_phase:])
         recall_index_mask = np.zeros_like(test_actions[:, -timestep_each_phase:], dtype=bool)
         for i in range(all_context_num):
@@ -134,6 +134,8 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, criterion=N
                 if test_actions[i][-timestep_each_phase+t] in test_memory_sequence[i]:
                     recall_index_mask[i][t] = 1
                     test_recall_indexes[i][t] = np.where(test_memory_sequence[i] == test_actions[i][-timestep_each_phase+t])[0][0]
+        recall_index_mask = recall_index_mask[:, :-1]
+        test_recall_indexes = test_recall_indexes[:, :-1]
         print(test_encoding_states.shape, test_recalling_states.shape, test_encoding_indexes.shape, test_recall_indexes.shape, recall_index_mask.shape)
         data_encoding_test = test_encoding_states.reshape(-1, test_encoding_states.shape[-1])
         data_recall_test = test_recalling_states.reshape(-1, test_recalling_states.shape[-1])
@@ -151,8 +153,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, criterion=N
             for i in range(1):
                 train_data = generate_data(dict_size, recording_trials, num_item, timestep_each_phase)
                 train_encoding_states, train_recalling_states, train_memory_sequence, train_actions = record_trials(model, env, train_data, timestep_each_phase)
+                # print(train_encoding_states.shape, train_recalling_states.shape, train_memory_sequence.shape, train_actions.shape)
 
-                train_encoding_indexes = np.repeat(np.arange(sequence_len).reshape(1, -1), recording_trials, axis=0)
+                train_encoding_indexes = np.repeat(np.arange(sequence_len-1).reshape(1, -1), recording_trials, axis=0)
                 train_recall_indexes = np.zeros_like(train_actions[:, -timestep_each_phase:])
                 recall_index_mask = np.zeros_like(train_actions[:, -timestep_each_phase:], dtype=bool)
                 for i in range(recording_trials):
@@ -160,6 +163,14 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, criterion=N
                         if train_actions[i][-timestep_each_phase+t] in train_memory_sequence[i]:
                             recall_index_mask[i][t] = 1
                             train_recall_indexes[i][t] = np.where(train_memory_sequence[i] == train_actions[i][-timestep_each_phase+t])[0][0]
+                recall_index_mask = recall_index_mask[:, :-1]
+                train_recall_indexes = train_recall_indexes[:, :-1]
+
+                train_encoding_states = train_encoding_states[:, 1:]
+                train_recalling_states = train_recalling_states[:, :-1]
+
+                # print(train_encoding_indexes[0], train_recall_indexes[0], recall_index_mask[0])
+                # print(test_encoding_indexes[0], test_recall_indexes[0], recall_index_mask[0])
 
                 # print(train_encoding_states.shape, train_recalling_states.shape, train_memory_sequence.shape, train_actions.shape)
             
@@ -175,12 +186,14 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, criterion=N
                 pred_cross_recall = ridge_decoder.predict(data_recall_test)
                 encoding_accuracy = np.sum(pred_encoding == gt_encoding_test) / len(gt_encoding_test)
                 cross_recall_accuracy = np.sum(pred_cross_recall == gt_recall_test) / len(gt_recall_test)
+                # print(pred_encoding[0:10], gt_encoding_test[0:10], pred_cross_recall[0:10], gt_recall_test[0:10])
                 
                 ridge_decoder.fit(data_recall_train, gt_recall_train)
                 pred_recall = ridge_decoder.predict(data_recall_test)
                 pred_cross_encoding = ridge_decoder.predict(data_encoding_test)
                 recall_accuracy = np.sum(pred_recall == gt_recall_test) / len(gt_recall_test)
                 cross_encoding_accuracy = np.sum(pred_cross_encoding == gt_encoding_test) / len(gt_encoding_test)
+                # print(pred_recall[0:10], gt_recall_test[0:10], pred_cross_encoding[0:10], gt_encoding_test[0:10])
                 
                 decoding_accuracy.append(np.mean([encoding_accuracy, recall_accuracy]))
                 cross_phase_decoding_accuracy.append(np.mean([cross_recall_accuracy, cross_encoding_accuracy]))
