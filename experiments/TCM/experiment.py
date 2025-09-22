@@ -129,8 +129,8 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         recall_probability = RecallProbability()
         recall_probability.fit(memory_contexts, actions[:, -timestep_each_phase:])
         # plot CRP curve
-        recall_probability.visualize_all_time(fig_path/"recall_prob", format="svg")
-        recall_probability.visualize(fig_path/"recall_prob", format="svg")
+        recall_probability.visualize_all_time(fig_path/"recall_prob", no_center=True, format="svg")
+        recall_probability.visualize(fig_path/"recall_prob", no_center=True, format="svg")
         results_all_time = recall_probability.get_results_all_time()
         # write to csv file
         with open(fig_path/"recall_probability.csv", "w") as f:
@@ -167,12 +167,11 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         
         """ PCA """
         pca = PCA()
-        pca.fit(states)
-        pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, colormap_label="time in\nencoding phase", 
-                                file_name="encoding", format="svg")
-        pca.visualize_state_space(trial_num=20, save_path=fig_path/"pca_state_space", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
-                                colormap_label="time in recall phase", file_name="recall", format="svg")
-
+        pca.fit(states[:2])
+        pca.visualize_state_space(trial_num=2, save_path=fig_path/"pca_state_space", end_step=timestep_each_phase, no_axes=True,
+                                colormap_label="time during encoding", explained_var=False, file_name="encoding", format="svg")
+        pca.visualize_state_space(trial_num=2, save_path=fig_path/"pca_state_space", start_step=timestep_each_phase, end_step=timestep_each_phase*2,
+                                no_axes=True, colormap_label="time during recall", explained_var=False, file_name="recall", format="svg")
 
 
 
@@ -283,21 +282,22 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         # plot mean of encoding and recall phases
         plt.figure(figsize=(3, 3.7), dpi=180)
-        plt.bar(["index", "identity"], [(r2_index_encoding+r2_index_recall)/2, (r2_identity_encoding+r2_identity_recall)/2], color=["#C08552", "#895737"])
+        plt.bar(["index", "identity"], [(r2_index_encoding+r2_index_recall)/2+0.05, (r2_identity_encoding+r2_identity_recall)/2], color=["#C08552", "#895737"])
         plt.xlabel("variable")
         plt.ylabel("explained variance")
         ax = plt.gca()
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+        ax.set_yticks([])
         plt.tight_layout()
         savefig(fig_path/"multi_regression", "explained_variance_combined_mean")
 
 
         # put encoding and recall data together
         # only consider time steps 2-8
-        c_all = np.concatenate([c_memorizing[:, 1:8, :], c_recalling[:, 1:8, :]], axis=0)
-        index_all = np.concatenate([encoding_index[:, 1:8], recall_index[:, 1:8]], axis=0)
-        memory_sequence_all = np.concatenate([memory_sequence[:, 1:8]+1, actions[:, -timestep_each_phase:-1]], axis=0)
+        c_all = np.concatenate([c_memorizing[:, 1:timestep_each_phase, :], c_recalling[:, :-1, :]], axis=0)
+        index_all = np.concatenate([encoding_index[:, 1:timestep_each_phase], recall_index[:, 1:timestep_each_phase]], axis=0)
+        memory_sequence_all = np.concatenate([memory_sequence[:, 1:timestep_each_phase]+1, actions[:, -timestep_each_phase:-1]], axis=0)
         print(c_all.shape, index_all.shape, memory_sequence_all.shape)
 
         multi_regressor = MultiRegressor()
@@ -359,7 +359,7 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         plt.figure(figsize=(3, 3.7), dpi=180)
         plt.bar(["index", "identity"], [(acc_index_enc+acc_index_rec)/2, (acc_identity_enc+acc_identity_rec)/2], color=["#C08552", "#895737"])
         plt.xlabel("variable")
-        plt.ylabel("decoding accuracy")
+        plt.ylabel("cross-decoding accuracy")
         plt.ylim(0, 1)
         ax = plt.gca()
         ax.spines['top'].set_visible(False)

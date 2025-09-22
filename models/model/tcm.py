@@ -9,8 +9,8 @@ from ..base_module import BasicModule
 
 
 class TCM(BasicModule):
-    def __init__(self, dim: int, threshold = 0.0, beta=0.5, gamma_fc=0.5, rand_mem=False, 
-    start_recall_with_ith_item_init=0, softmax_temperature=1.0, device: str = 'cpu'):
+    def __init__(self, dim: int, item_dim: int, threshold = 0.0, beta=0.5, gamma_fc=0.5, rand_mem=False, 
+    start_recall_with_ith_item_init=0, softmax_temperature=1.0, wm_noise_prop=0, device: str = 'cpu'):
         super().__init__()
         self.device = device
 
@@ -18,12 +18,14 @@ class TCM(BasicModule):
         self.retrieving = False
 
         self.dim = dim
+        self.item_dim = item_dim
         self.beta = beta
         self.rho = 1 - beta
         self.gamma_fc = gamma_fc
         self.threshold = threshold
         self.rand_mem = rand_mem
         self.softmax_temperature = softmax_temperature
+        self.wm_noise_prop = wm_noise_prop
 
         self.W_cf = torch.zeros((dim, dim), device=device)      # W_fc = W_cf.T
         # self.W_fc = torch.eye(dim, device=device) * (1 - lr_fc)
@@ -32,6 +34,7 @@ class TCM(BasicModule):
         # self.W_fc = (torch.eye(dim, device=device, requires_grad=True) * (1 - lr_fc)).repeat(1, 1, 1)
 
         self.not_recalled = torch.zeros(dim, device=device)
+        self.not_recalled[:item_dim] = 1
 
         self.empty_parameter = nn.Parameter(torch.zeros(1, device=device))
 
@@ -40,6 +43,7 @@ class TCM(BasicModule):
     
     def init_state(self, batch_size, recall=False, flush_level=1.0, prev_state=None):
         self.current_timestep = 0
+        self.not_recalled[:self.item_dim] = 1
         if recall and self.start_recall_with_ith_item_init:
             return self.ith_item_state.clone()
         return torch.zeros((batch_size, self.dim), device=self.device)
@@ -54,8 +58,10 @@ class TCM(BasicModule):
             # c_in = torch.bmm(self.W_fc, torch.unsqueeze(inp, dim=2)).squeeze(2)
             # c_in_enc = c_in_enc / torch.norm(c_in_enc, p=2)
             c_t = c_t * self.rho + c_in_enc * self.beta
+            c_t = math.sqrt(1 - self.wm_noise_prop) * c_t + math.sqrt(self.wm_noise_prop) * torch.randn_like(c_t) * torch.std(c_t)
             c_t = F.normalize(c_t, p=2, dim=1)
             self.W_cf = self.W_cf + torch.outer(f_t.squeeze(), c_t.squeeze())   # each row is a state
+            # self.W_cf = math.sqrt(1 - self.wm_noise_prop) * self.W_cf + math.sqrt(self.wm_noise_prop) * torch.randn_like(self.W_cf) * torch.std(self.W_cf)
             self.write(self.W_cf, 'W_cf')
             self.write(c_t, 'state')
 
@@ -63,7 +69,7 @@ class TCM(BasicModule):
             if self.current_timestep == self.start_recall_with_ith_item_init:
                 self.ith_item_state = c_t.detach().clone()
 
-            self.not_recalled[torch.argmax(f_t)] = 1
+            # self.not_recalled[torch.argmax(f_t)] = 1
 
             # print(f_t.shape, c_t.shape)
 
@@ -71,16 +77,21 @@ class TCM(BasicModule):
         elif self.retrieving:
             f_in_raw = torch.mv(self.W_cf, c_t.squeeze())
             f_in = (softmax(f_in_raw.unsqueeze(0), self.softmax_temperature) * self.not_recalled).squeeze(0) 
-            f_in = f_in / torch.sum(f_in)
-            if self.rand_mem:
-                retrieved_idx = Categorical(f_in).sample()
+            if torch.max(f_in) < self.threshold:
+                retrieved_idx = -1
+                retrieved_memory = torch.zeros(self.dim, device=self.device)
             else:
-                retrieved_idx = torch.argmax(f_in)
-            retrieved_memory = torch.zeros(self.dim, device=self.device)
-            retrieved_memory[retrieved_idx] = 1
+                f_in = f_in / torch.sum(f_in)
+                if self.rand_mem:
+                    retrieved_idx = Categorical(f_in).sample()
+                else:
+                    retrieved_idx = torch.argmax(f_in)
+                retrieved_memory = torch.zeros(self.dim, device=self.device)
+                retrieved_memory[retrieved_idx] = 1
 
             c_in_rec = (1 - self.gamma_fc) * torch.mv(self.W_fc_pre, retrieved_memory) + self.gamma_fc * torch.mv(self.W_cf.T, retrieved_memory)
             c_t = c_t * self.rho + c_in_rec * self.beta
+            c_t = math.sqrt(1 - self.wm_noise_prop) * c_t + math.sqrt(self.wm_noise_prop) * torch.randn_like(c_t) * torch.std(c_t)
             c_t = F.normalize(c_t, p=2, dim=1)
 
             self.not_recalled = self.not_recalled * (1 - retrieved_memory)

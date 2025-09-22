@@ -154,7 +154,8 @@ class ValueMemoryGRU(BasicModule):
                 # noise, but random the flush_noise
                 flush_noise = self.flush_noise[0] + (self.flush_noise[1] - self.flush_noise[0]) * torch.rand((batch_size, 1), device=self.device)
                 # state = torch.sqrt(1 - flush_noise) * prev_state + torch.sqrt(flush_noise) * torch.randn_like(prev_state) * torch.std(prev_state)
-                state = torch.sqrt(1 - flush_noise**2) * prev_state + flush_noise * torch.randn_like(prev_state) * torch.std(prev_state)
+                # state = torch.sqrt(1 - flush_noise**2) * prev_state + flush_noise * torch.randn_like(prev_state) * torch.std(prev_state)
+                state = (1 - flush_noise) * prev_state + torch.sqrt(1-(1-flush_noise)**2) * torch.randn_like(prev_state) * torch.std(prev_state)
             elif self.init_state_type == 'random':
                 # state = torch.randn((batch_size, self.hidden_dim), device=self.device, requires_grad=True) * self.random_init_noise
                 state = self.random_init_state.clone()

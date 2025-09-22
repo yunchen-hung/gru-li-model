@@ -1,5 +1,5 @@
 {
-    "run_num": 5,
+    "run_num": [4],
     "model": {
         "class": "ValueMemoryGRU",
         "hidden_dim": 128,
@@ -152,7 +152,7 @@
             }
         }
     }],
-    "load_checkpoints": true,
+    "load_checkpoints": false,
     "load_saved_model": false,
-    "context_num": 1
+    "context_num": 1000
 }
