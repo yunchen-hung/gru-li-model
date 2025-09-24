@@ -1,6 +1,0 @@
-- explore several special setups, including
-    - reservoir network
-    - only do pre-train
-    - pretrain without recurrent connection
-    - multiple time steps between phases (try to see if we can get the backward recall trend to forward?)
-    - match details of the nn model to TCM

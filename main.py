@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument("-debug", action='store_true', help="debug mode, don't save results")
     parser.add_argument("-test_accu", action='store_true', help="test accuracy when loading models")
     parser.add_argument("--run_num", default=None, help="number of runs, can be list or int")
-    parser.add_argument("--exp_file", type=str, default="experiment", help="experiment file name")
+    parser.add_argument("--exp_file", type=str, default="experiment", help="experiment file name for analysis")
 
     args, unknown_args = parser.parse_known_args()
 
