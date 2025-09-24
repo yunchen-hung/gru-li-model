@@ -1,4 +1,0 @@
-- vary temporal discount factor
-- no pre-train
-- eta=0.02
-- vary from 0.8 to 1.0, including 0.8, 0.85, 0.9, 0.95, 0.99, 0.999, 0.9999, 1.0

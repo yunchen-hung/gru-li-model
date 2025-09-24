@@ -1,7 +1,0 @@
-{
-    "exclude": [
-        "**/figures/**",
-        "**/logs/**",
-        "**/saved_models/**"
-    ]
-}
