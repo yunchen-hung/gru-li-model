@@ -16,35 +16,36 @@ class SerialRecall(BaseEMTask):
         # self._generate_task_condition()
         self.retrieved = np.zeros(self.vocabulary_size, dtype=bool)
         self.matched_item_indexes = np.arange(self.sequence_len)
-        #Jen: add step count
-        self.episode_steps = 0
         return obs, info
 
     
     def step(self, action):
         obs, reward, done, _, info = super().step(action)
-        self.episode_steps += 1
         return obs, reward, done, False, info
     
 
     def compute_accuracy(self, actions):
         corrects, wrongs, not_knows = 0, 0, 0
 
-        retrieved = np.ones(self.vocabulary_size, dtype=bool)
-        for action in actions:
+        retrieved = np.zeros(self.vocabulary_size, dtype=bool)
+
+        for i, action in enumerate(actions):
             action_item = self._convert_action_to_item(action)
             action_item_int = self._convert_item_to_int(action_item)
             if action_item_int < 0:
                 not_knows += 1
             #Jen: penalize the model for retrieving more than original sequence length
-            elif self.episode_steps >= len(self.memory_sequence):
-                wrongs+=1
+            elif i >= len(self.memory_sequence):
+                wrongs += 1
             #Jen: check if exactly same at the same position
-            elif action_item == self.memory_sequence[self.episode_steps] and not retrieved[action_item_int]:
+            elif action_item == self.memory_sequence[i] and not retrieved[action_item_int]:
                 corrects += 1
                 retrieved[action_item_int] = True
+            #Jen: if an item is recalled at an incorrect position
             else:
                 wrongs += 1
+                if action_item_int in self.memory_sequence:
+                    retrieved[action_item_int] = True
         return corrects, wrongs, not_knows
 
     
@@ -52,10 +53,10 @@ class SerialRecall(BaseEMTask):
         action_item = self._convert_action_to_item(action)
         action_item_int = self._convert_item_to_int(action_item.reshape(1, -1))
         correct, wrong, not_know = 0, 0, 0
-        if self.episode_steps >= len(self.memory_sequence_int):
+        if self.timestep-1 >= len(self.memory_sequence_int):
             wrong +=1
             reward = self.wrong_reward
-        elif action_item_int == self.memory_sequence_int[self.episode_steps] and not self.retrieved[action_item_int]:
+        elif action_item_int == self.memory_sequence_int[self.timestep-1] and not self.retrieved[action_item_int]:
             correct += 1
             reward = self.correct_reward
             self.retrieved[action_item_int] = True
@@ -65,6 +66,9 @@ class SerialRecall(BaseEMTask):
         else:
             wrong += 1
             reward = self.wrong_reward
+            #Jen: if an item is recalled at an incorrect position
+            if action_item_int in self.memory_sequence:
+                    self.retrieved[action_item_int] = True
         return reward, correct, wrong, not_know
 
         
