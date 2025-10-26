@@ -7,7 +7,7 @@ import seaborn as sns
 
 from models.memory.similarity.lca import LCA
 from models.utils import softmax
-from tasks import FreeRecall2
+from tasks import FreeRecall2, SerialRecall, FreeRecall
 
 from utils import load_dict, savefig
 
