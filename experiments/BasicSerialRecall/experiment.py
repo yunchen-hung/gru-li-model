@@ -11,7 +11,8 @@ from sklearn.metrics import rand_score, adjusted_mutual_info_score
 from utils import savefig
 from analysis.decomposition import PCA
 from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor, Classifier, MultiRegressor, CrossClassifier
-from analysis.behavior import RecallProbability, RecallProbabilityInTime, TemporalFactor
+from analysis.behavior import RecallProbability, RecallProbabilityInTime, TemporalFactor 
+from analysis.visualization import SimilarityBetweenStates
 
 
 
@@ -70,10 +71,10 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         print("accuracy: {}".format(data['accuracy']))
         for i in range(5):
             if has_memory:
-                print("context {}, gt: {}, action: {}, retrieved memory: {}, rewards: {}".format(i, memory_contexts[i], actions[i][sequence_len:], 
+                print("context {}, ground truth: {}, action: {}, retrieved memory: {}, rewards: {}".format(i, memory_contexts[i], actions[i][sequence_len:], 
                 np.argmax(readouts[i]["ValueMemory"]["similarity"].squeeze(), axis=1)+1, rewards[i][sequence_len:]))
             else:
-                print("context {}, gt: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][sequence_len:], 
+                print("context {}, ground truth: {}, action: {}, rewards: {}".format(i, memory_contexts[i], actions[i][sequence_len:], 
                 rewards[i][sequence_len:]))
 
         """ similarity of states """
@@ -85,48 +86,18 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         similarities = np.stack(similarities)
         similarity = np.mean(similarities, axis=0)
 
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], cmap="Blues")
-        plt.colorbar(label="cosine similarity\nbetween hidden states")
-        plt.xlabel("time in encoding phase")
-        plt.ylabel("time in recall phase")
-        # set the color bar to be between 0 and 1
-        plt.clim(0, 1)  # set color limits to [0, 1]
-        # plt.title("encoding-recalling state similarity")
-        plt.tight_layout()
-        savefig(fig_path/"state_similarity", "encode_recall")
-
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.imshow(similarity[:timestep_each_phase, :timestep_each_phase], cmap="Blues")
-        plt.colorbar(label="cosine similarity\nbetween hidden states")
-        plt.xlabel("time in encoding phase")
-        plt.ylabel("time in encoding phase")
-        plt.clim(0, 1)
-        plt.tight_layout()
-        savefig(fig_path/"state_similarity", "encode_encode")
-
-        plt.figure(figsize=(4.5, 3.7), dpi=180)
-        plt.imshow(similarity[timestep_each_phase:timestep_each_phase*2, timestep_each_phase:timestep_each_phase*2], cmap="Blues")
-        plt.colorbar(label="cosine similarity\nbetween hidden states")
-        plt.xlabel("time in recall phase")
-        plt.ylabel("time in recall phase")
-        plt.clim(0, 1)
-        plt.tight_layout()
-        savefig(fig_path/"state_similarity", "recall_recall")
-
-        """ memory gate """
-        # if "mem_gate_recall" in readouts[0]:
-        #     plt.figure(figsize=(4, 3), dpi=180)
-        #     for i in range(context_num):
-        #         em_gates = readouts[i]['mem_gate_recall']
-        #         plt.plot(np.mean(em_gates.squeeze(1), axis=-1)[:timestep_each_phase], label="context {}".format(i))
-        #     ax = plt.gca()
-        #     ax.spines['top'].set_visible(False)
-        #     ax.spines['right'].set_visible(False)
-        #     plt.xlabel("time of recall phase")
-        #     plt.ylabel("memory gate")
-        #     plt.tight_layout()
-        #     savefig(fig_path, "em_gate_recall")
+        """
+        plotting figures for similarity between states (encode-encode, encode-recall, recall-recall)
+        """
+        #encode-recall
+        SimilarityBetweenStates(similarity[timestep_each_phase:timestep_each_phase*2, :timestep_each_phase], 
+                                fig_path, "encoding", "recall", "encode_recall")
+        #encode-encode
+        SimilarityBetweenStates(similarity[:timestep_each_phase, :timestep_each_phase], 
+                                fig_path, "encoding", "encoding", "encode_encode")
+        #recall-recall
+        SimilarityBetweenStates(similarity[timestep_each_phase:timestep_each_phase*2, timestep_each_phase:timestep_each_phase*2], 
+                                fig_path, "recall", "recall", "recall_recall")
 
         """ recall probability (output) (CRP curve) """
         recall_probability = RecallProbability()
@@ -158,8 +129,6 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         recall_probability_in_time = RecallProbabilityInTime()
         recall_probability_in_time.fit(memory_contexts, actions[:, -timestep_each_phase:])
         recall_probability_in_time.visualize(fig_path)
-
-
 
         retrieved_memories = []
         memory_gates = []
@@ -559,6 +528,8 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         plt.ylabel("time in recall phase")
         plt.tight_layout()
         savefig(fig_path/"recall_num_by_time", "recall_num_by_time.png")
+
+        print('Finished running visualizations')
 
 
 
