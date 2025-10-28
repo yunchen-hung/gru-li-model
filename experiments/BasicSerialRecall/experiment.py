@@ -106,6 +106,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         recall_probability.visualize_all_time(fig_path/"recall_prob", format="svg")
         recall_probability.visualize(fig_path/"recall_prob", format="svg")
         results_all_time = recall_probability.get_results_all_time()
+        # plot recall curve (regardless of position, what's the likelihood of recalling some position)
+        recall_probability.visualize_recall_curve(fig_path/"recall_plots", save_name="recall_curve", format="png")
+
         # write to csv file
         with open(fig_path/"recall_probability.csv", "w") as f:
             writer = csv.writer(f)
@@ -380,73 +383,6 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
 
         cross_acc = np.stack([acc_index_enc, acc_identity_enc, acc_index_rec, acc_identity_rec])
         np.save(fig_path/"cross_acc.npy", cross_acc)
-
-
-
-        """ PC selectivity """
-        # # convert actions and item index to one-hot
-        # actions_one_hot = np.zeros((all_context_num, sequence_len, env.vocabulary_num))
-        # for i in range(all_context_num):
-        #     actions_one_hot[i] = np.eye(env.vocabulary_num)[actions[i, sequence_len:]-1]
-
-        # # memory content
-        # memories_one_hot = np.zeros((all_context_num, sequence_len, env.vocabulary_num))
-        # for i in range(all_context_num):
-        #     memories_one_hot[i] = np.eye(env.vocabulary_num)[memory_contexts[i]-1]
-
-        # # memory index
-        # # print(retrieved_memories.shape)
-        # retrieved_memories_one_hot = np.zeros((all_context_num, sequence_len, sequence_len))
-        # for i in range(all_context_num):
-        #     retrieved_memories_one_hot[i] = np.eye(sequence_len)[retrieved_memories[i]]
-        
-        # # labels = {"actions": actions[:, sequence_len:], "memory index": retrieved_memories}
-
-        # pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # # labels = {"memory content": memories_one_hot, "memory index": retrieved_memories_one_hot}
-        # labels = {"item identity": memory_contexts-1, "item index": retrieved_memories}
-        # selectivity, explained_var = pc_selectivity.fit(c_memorizing, labels)
-        # pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="encoding", format="svg")
-        # np.savez(fig_path/"pc_selectivity_encoding.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
-
-        # pc_selectivity = PCSelectivity(n_components=128, reg=RidgeClassifier())
-        # # labels = {"recalled memory": actions_one_hot, "memory index": retrieved_memories_one_hot}
-        # labels = {"item identity": actions[:, sequence_len:]-1, "item index": retrieved_memories}
-        # selectivity, explained_var = pc_selectivity.fit(c_recalling, labels)
-        # pc_selectivity.visualize(save_path=fig_path/"pc_selectivity", file_name="recalling", format="svg")
-        # np.savez(fig_path/"pc_selectivity_recalling.npz", selectivity=selectivity, explained_var=explained_var, labels=labels)
-
-
-        """ policy distribution over all memory items """
-        # policy = []
-        # for i in range(all_context_num):
-        #     policy.append(readouts[i]['decision'])
-        # policy = np.stack(policy).squeeze()
-        # print(policy.shape, actions.shape)
-
-        # policy_sorted = []
-        # for i in range(all_context_num):
-        #     policy_sorted.append(policy[i, -sequence_len:, actions[i, -sequence_len:]])
-        # policy_sorted = np.stack(policy_sorted).squeeze()
-        # print(policy_sorted.shape)
-
-        # plt.imshow(policy_sorted[0], cmap="Blues")
-        # plt.colorbar()
-        # plt.title("policy distribution, one trial")
-        # plt.xlabel("time step")
-        # plt.ylabel("memory item")
-        # plt.tight_layout()
-        # savefig(fig_path/"policy", "one_trial.png")
-
-        # plt.imshow(np.mean(policy_sorted, axis=0), cmap="Blues")
-        # plt.colorbar()
-        # plt.title("policy distribution, averaged")
-        # plt.xlabel("time step")
-        # plt.ylabel("memory item")
-        # plt.tight_layout()
-        # savefig(fig_path/"policy", "all_trial.png")
-
-
 
         """ do the hidden state get away from the just recalled item? """
         # get all the data needed

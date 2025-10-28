@@ -135,6 +135,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         recall_probability.visualize_all_time(fig_path/"recall_prob", format="svg")
         recall_probability.visualize(fig_path/"recall_prob", format="svg")
         results_all_time = recall_probability.get_results_all_time()
+        # plot recall curve (regardless of position, what's the likelihood of recalling some position)
+        recall_probability.visualize_recall_curve(fig_path/"recall_plots", save_name="recall_curve", format="png")
+        
         # write to csv file
         with open(fig_path/"recall_probability.csv", "w") as f:
             writer = csv.writer(f)

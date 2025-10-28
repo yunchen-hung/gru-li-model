@@ -12,6 +12,9 @@ class RecallProbability:
     def fit(self, memory_contexts, actions):
         self.context_num, self.memory_num = memory_contexts.shape
         self.results = np.zeros((self.memory_num, self.memory_num))
+        #note: create a matrix that basically states the counts of transitions between positions
+        #ie. self.results[3][1]: the number of times that one recalls position 2 after recalling position 4
+        # row represents from, col represents to
         for i in range(self.context_num):
             for t in range(self.memory_num - 1):
                 position1 = np.where(memory_contexts[i] == actions[i][t])
@@ -36,7 +39,7 @@ class RecallProbability:
         self.average_times = np.concatenate((np.arange(1, self.memory_num+1),np.arange(self.memory_num-1, 0, -1)), axis=0)
         self.results_all_time = self.results_all_time / self.average_times
         self.results_all_time = self.results_all_time / np.sum(self.results_all_time)
-        # self.results_all_time = self.results_all_time / np.sum(self.results_all_time)
+        # self.results_all_time is the lag CRP. probability of each lag happening, a vector
 
         times_sum = np.expand_dims(np.sum(self.results, axis=1), axis=1)
         times_sum[times_sum == 0] = 1
@@ -103,6 +106,22 @@ class RecallProbability:
         plt.tight_layout()
         savefig(save_path, "recall_prob_mat", format=format)
 
+    def visualize_recall_curve(self, save_path, save_name='recall_plot'):
+        """
+        establish the serial/free recall curve plot 
+        """
+        recall_probs = np.sum(self.results, axis=0)
+        recall_probs = recall_probs / np.sum(recall_probs)
+
+        plt.figure(figsize=(4, 3.3), dpi=180)
+        plt.plot(np.arange(1, self.memory_num+1), recall_probs, 'o-k')
+        plt.colorbar()
+        plt.xlabel("Serial Position")
+        plt.ylabel("Recall Probability")
+        plt.title("Recall Probability by item Position")
+        plt.tight_layout()
+        savefig(save_path, save_name, format=format)
+
     def get_results(self):
         return self.results
 
@@ -113,6 +132,29 @@ class RecallProbability:
         self.results = results
         self.results_all_time = results_all_time
         self.memory_num = self.results.shape[0]
+
+class PriorListItrusion:
+    """
+    calculate the prior list intrustion throughout the entire experiment
+    """
+    def __init__(self) -> None:
+        self.results = None
+    
+    def fit(self, memory_contexts, actions):
+        self.context_num, self.memory_num = memory_contexts.shape
+        self.results = np.zeros((self.memory_num, self.memory_num))
+        #note: create a matrix that basically states the counts of transitions between positions
+        #ie. self.results[3][1]: the number of times that one recalls position 2 after recalling position 4
+        # row represents from, col represents to
+        for i in range(self.context_num):
+            for t in range(self.memory_num - 1):
+                position1 = np.where(memory_contexts[i] == actions[i][t])
+                position2 = np.where(memory_contexts[i] == actions[i][t+1])
+                if position1[0].shape[0] != 0 and position2[0].shape[0] != 0:
+                    position1 = position1[0][0]
+                    position2 = position2[0][0]
+                    self.results[position1][position2] += 1
+
 
 
 class RecallProbabilityInTime:
@@ -129,6 +171,7 @@ class RecallProbabilityInTime:
                 or an int i indicating "given recalling ith item at timestep i"
         Returns:
             results: a 2D array with shape (memory_num, memory_num), data at position (i, j) indicates the probability of recalling ith item at timestep j
+        Jen: Basically each column represents a timestep, and each row represents an item in list.
         """
         if mask is None:
             mask = np.ones(memory_contexts.shape)
