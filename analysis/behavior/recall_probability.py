@@ -143,17 +143,46 @@ class PriorListItrusion:
     def fit(self, memory_contexts, actions):
         self.context_num, self.memory_num = memory_contexts.shape
         self.results = np.zeros((self.memory_num, self.memory_num))
-        #note: create a matrix that basically states the counts of transitions between positions
-        #ie. self.results[3][1]: the number of times that one recalls position 2 after recalling position 4
-        # row represents from, col represents to
+        #self.protrusions is stored as 
+        # row: output position of mistake, 
+        # col: prior list study position
+
+        # protrusions1 is for one before, protrusions2 is for two lists before
+        self.protrusions1 = np.zeros((self.memory_num, self.memory_num))
+        self.protrusions2 = np.zeros((self.memory_num, self.memory_num))
         for i in range(self.context_num):
-            for t in range(self.memory_num - 1):
-                position1 = np.where(memory_contexts[i] == actions[i][t])
-                position2 = np.where(memory_contexts[i] == actions[i][t+1])
-                if position1[0].shape[0] != 0 and position2[0].shape[0] != 0:
-                    position1 = position1[0][0]
-                    position2 = position2[0][0]
-                    self.results[position1][position2] += 1
+            for i in range(self.context_num):
+                # loop through every trial
+                for t in range(self.memory_num - 1):
+                    # loop through every item in sequence
+
+                    # if the current word is not in the study list, find in prior list
+                    if actions[i][t] not in memory_contexts[i]:
+                        # if it is in ONE list prior
+                        if actions[i][t] in memory_contexts[i-1]:
+                            position = np.where(memory_contexts[i-1] == actions[i][t])
+                            self.protrusions1[t][position] += 1
+                        if actions[i][t] in memory_contexts[i-2]:
+                            position = np.where(memory_contexts[i-2] == actions[i][t])
+                            self.protrusions2[t][position] += 1
+        times_sum = np.expand_dims(np.sum(self.protrusions1, axis=1), axis=1)
+        times_sum[times_sum == 0] = 1
+        self.self.protrusions1 = self.protrusions1 / times_sum
+
+        times_sum = np.expand_dims(np.sum(self.protrusions2, axis=1), axis=1)
+        times_sum[times_sum == 0] = 1
+        self.self.protrusions2 = self.protrusions2 / times_sum
+
+    def visualize(self, save_path, timesteps=[0], save_name="serial_position_intrusion", format="png"):
+        plt.figure(figsize=(4, 3.3), dpi=180)
+        # plt.scatter(np.arange(1, self.memory_num+1), self.results[t],c='k', zorder=2)
+       # plt.plot(np.arange(1, self.memory_num+1), self.results[t],  zorder=1, label="t={}".format(t+1))
+        plt.xlabel("Ouput position in Current List")
+        plt.ylabel("Porportion of Errors")
+        # plt.title("recall probability at each timestep")
+        plt.legend()
+        plt.tight_layout()
+        savefig(save_path, save_name, format=format)
 
 
 
