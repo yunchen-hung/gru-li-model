@@ -147,9 +147,9 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         pli = PriorListIntrusion()
         pli.fit(memory_contexts, actions[:, -timestep_each_phase:])
         # plot prior list intrusion errors
-        pli.visualize_priorlist(fig_path, how_many_prior= 1, 
+        pli.visualize_priorlist(fig_path/"pli", how_many_prior= 1, 
                             save_name="serial_position_intrusion1")
-        pli.visualize_priorlist(fig_path, how_many_prior= 2, 
+        pli.visualize_priorlist(fig_path/"pli", how_many_prior= 2, 
                             save_name="serial_position_intrusion2")
 
         """ count temporal factor and forward asymmetry """

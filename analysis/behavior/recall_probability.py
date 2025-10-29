@@ -106,7 +106,7 @@ class RecallProbability:
         plt.tight_layout()
         savefig(save_path, "recall_prob_mat", format=format)
 
-    def visualize_recall_curve(self, save_path, save_name='recall_plot'):
+    def visualize_recall_curve(self, save_path, save_name='recall_plot', format="png"):
         """
         establish the serial/free recall curve plot 
         """
@@ -115,7 +115,6 @@ class RecallProbability:
 
         plt.figure(figsize=(4, 3.3), dpi=180)
         plt.plot(np.arange(1, self.memory_num+1), recall_probs, 'o-k')
-        plt.colorbar()
         plt.xlabel("Serial Position")
         plt.ylabel("Recall Probability")
         plt.title("Recall Probability by item Position")
@@ -167,11 +166,11 @@ class PriorListIntrusion:
                             self.protrusions2[t][position] += 1
         times_sum = np.expand_dims(np.sum(self.protrusions1, axis=1), axis=1)
         times_sum[times_sum == 0] = 1
-        self.self.protrusions1 = self.protrusions1 / times_sum
+        self.protrusions1 = self.protrusions1 / times_sum
 
         times_sum = np.expand_dims(np.sum(self.protrusions2, axis=1), axis=1)
         times_sum[times_sum == 0] = 1
-        self.self.protrusions2 = self.protrusions2 / times_sum
+        self.protrusions2 = self.protrusions2 / times_sum
 
     def visualize_priorlist(self, save_path, how_many_prior= 1, 
                             save_name="serial_position_intrusion", format="png"):
@@ -183,22 +182,19 @@ class PriorListIntrusion:
         
         cmap = plt.get_cmap("tab10")
         #plot chance
-        plt.hlines(1/self.memory_num, linestyles='dashed', colors = 'gray')
+        plt.hlines(1/self.memory_num, 0, self.memory_num, linestyles='dashed', colors = 'gray')
         for i in range(self.memory_num):
             color = cmap(i % 10)
-            x_bar = np.arange(self.memory_num)[i] + np.arange(i) * 0.15
-            heights = protrusion_list[i, :]
-                    
+            x_bar = np.arange(self.memory_num)[i] + np.arange(self.memory_num) * 0.15
             plt.plot(
                 x_bar,
-                heights,
+                protrusion_list[i,:],
                 color=color,        
-                linestyle='-'
+                linestyle='-',
             )
-        plt.xlabel("Ouput position in Current List")
+        plt.xlabel("Output position in Current List")
         plt.ylabel("Proportion of Errors")
         # plt.title("recall probability at each timestep")
-        plt.legend()
         plt.tight_layout()
         savefig(save_path, save_name, format=format)
 

@@ -1,3 +1,3 @@
-from .recall_probability import RecallProbability, RecallProbabilityInTime
+from .recall_probability import RecallProbability, RecallProbabilityInTime, PriorListIntrusion
 from .temporal_factor import TemporalFactor
 from .semantic_contiguity import SemanticContiguity
