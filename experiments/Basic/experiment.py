@@ -11,7 +11,7 @@ from sklearn.metrics import rand_score, adjusted_mutual_info_score
 from utils import savefig
 from analysis.decomposition import PCA
 from analysis.decoding import PCSelectivity, ItemIdentityDecoder, ItemIndexDecoder, Regressor, Classifier, MultiRegressor, CrossClassifier
-from analysis.behavior import RecallProbability, RecallProbabilityInTime, TemporalFactor
+from analysis.behavior import RecallProbability, RecallProbabilityInTime, PriorListIntrusion, TemporalFactor
 
 
 
@@ -137,11 +137,20 @@ def run(data_all, model_all, env, paths, exp_name, checkpoints=None, **kwargs):
         results_all_time = recall_probability.get_results_all_time()
         # plot recall curve (regardless of position, what's the likelihood of recalling some position)
         recall_probability.visualize_recall_curve(fig_path/"recall_plots", save_name="recall_curve", format="png")
-        
+
         # write to csv file
         with open(fig_path/"recall_probability.csv", "w") as f:
             writer = csv.writer(f)
             writer.writerow(results_all_time)
+
+        """ calculate protrusion error of list prior and two lists prior"""
+        pli = PriorListIntrusion()
+        pli.fit(memory_contexts, actions[:, -timestep_each_phase:])
+        # plot prior list intrusion errors
+        pli.visualize_priorlist(fig_path, how_many_prior= 1, 
+                            save_name="serial_position_intrusion1")
+        pli.visualize_priorlist(fig_path, how_many_prior= 2, 
+                            save_name="serial_position_intrusion2")
 
         """ count temporal factor and forward asymmetry """
         recall_probability = RecallProbability()

@@ -133,7 +133,7 @@ class RecallProbability:
         self.results_all_time = results_all_time
         self.memory_num = self.results.shape[0]
 
-class PriorListItrusion:
+class PriorListIntrusion:
     """
     calculate the prior list intrustion throughout the entire experiment
     """
@@ -173,12 +173,30 @@ class PriorListItrusion:
         times_sum[times_sum == 0] = 1
         self.self.protrusions2 = self.protrusions2 / times_sum
 
-    def visualize(self, save_path, timesteps=[0], save_name="serial_position_intrusion", format="png"):
+    def visualize_priorlist(self, save_path, how_many_prior= 1, 
+                            save_name="serial_position_intrusion", format="png"):
         plt.figure(figsize=(4, 3.3), dpi=180)
-        # plt.scatter(np.arange(1, self.memory_num+1), self.results[t],c='k', zorder=2)
-       # plt.plot(np.arange(1, self.memory_num+1), self.results[t],  zorder=1, label="t={}".format(t+1))
+        if how_many_prior == 1:
+            protrusion_list = self.protrusions1
+        if how_many_prior == 2:
+            protrusion_list = self.protrusions2
+        
+        cmap = plt.get_cmap("tab10")
+        #plot chance
+        plt.hlines(1/self.memory_num, linestyles='dashed', colors = 'gray')
+        for i in range(self.memory_num):
+            color = cmap(i % 10)
+            x_bar = np.arange(self.memory_num)[i] + np.arange(i) * 0.15
+            heights = protrusion_list[i, :]
+                    
+            plt.plot(
+                x_bar,
+                heights,
+                color=color,        
+                linestyle='-'
+            )
         plt.xlabel("Ouput position in Current List")
-        plt.ylabel("Porportion of Errors")
+        plt.ylabel("Proportion of Errors")
         # plt.title("recall probability at each timestep")
         plt.legend()
         plt.tight_layout()
