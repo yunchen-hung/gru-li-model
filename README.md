@@ -5,6 +5,10 @@ To run the model with the default setup:
 ```
 python -u main.py --exp Basic --setup setup.json
 ```
+Attempt to run faster on windows
+```
+windows_run.bat --exp Basic --setup setup.json
+```
 Check results in /experiments/Basic/figures.
 
 The model shall show the memory palace strategy in free recall.
