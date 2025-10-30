@@ -56,4 +56,4 @@ class TCMMemory(BasicModule):
         return retrieved_memory
 
     def get_vals(self):
-        return self.W_cf.detach().cpu().numpy()
+        return self.W_cf.detach().to(self.device).numpy()

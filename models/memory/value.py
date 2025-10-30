@@ -112,5 +112,5 @@ class ValueMemory(BasicModule):
         return retrieved_memory, raw_similarity
 
     def get_vals(self):
-        return self.values.detach().cpu().numpy()
+        return self.values.detach().to(self.device).numpy()
 

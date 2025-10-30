@@ -9,7 +9,7 @@ class MemoryOneHotRegularization(nn.Module):
         super().__init__()
         self.weight = weight
 
-    def forward(self, device="cpu", **kwargs):
+    def forward(self, device='cuda' if torch.cuda.is_available() else 'cpu', **kwargs):
         """
         memory: torch.tensor, size is (timesteps, batch_size, memory_dim)
         """

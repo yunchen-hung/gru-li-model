@@ -120,7 +120,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
             if (not train or setups[0].get("load_saved_model", False)) and os.path.exists(model_load_path/"model.pt"):
                 if setups[0].get("load_saved_model", False):
                     print("load saved model from {}".format(load_run_name_with_path))
-                model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu'), weights_only=True))
+                model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device(device), weights_only=True))
             # print(exp_path, setup["model_name"], load_run_name_with_path)
 
             model.to(device)
@@ -165,7 +165,7 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 if model_for_record is not None:
                     print("use record model setup")
                     model = model_for_record
-                    model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device('cpu'), weights_only=True))
+                    model.load_state_dict(torch.load(model_load_path/"model.pt", map_location=torch.device(device), weights_only=True))
                 data_all_env = []
                 for i in record_env:
                     data = record(model, env[i], used_output=used_output[i], 
@@ -207,12 +207,12 @@ def main(experiment, setup_name, device='cuda' if torch.cuda.is_available() else
                 for epoch_num in checkpoint_numbers:
                     if epoch_num == 0:
                         for session_num in checkpoint_numbers[epoch_num]:
-                            checkpoints.append(torch.load(model_load_path/f"{session_num}.pt", map_location=torch.device('cpu'), weights_only=True))
+                            checkpoints.append(torch.load(model_load_path/f"{session_num}.pt", map_location=torch.device(device), weights_only=True))
                             checkpoint_epoch_nums.append(epoch_num)
                             checkpoint_session_nums.append(session_num)
                     else:
                         for session_num in checkpoint_numbers[epoch_num]:
-                            checkpoints.append(torch.load(model_load_path/f"{epoch_num}_{session_num}.pt", map_location=torch.device('cpu'), weights_only=True))
+                            checkpoints.append(torch.load(model_load_path/f"{epoch_num}_{session_num}.pt", map_location=torch.device(device), weights_only=True))
                             checkpoint_epoch_nums.append(epoch_num)
                             checkpoint_session_nums.append(session_num)
                 print(checkpoint_epoch_nums, checkpoint_session_nums)

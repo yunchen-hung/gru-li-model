@@ -20,7 +20,7 @@ def train(setup,                            # setup dict, including model and tr
           
           # the following parameters can be any order, don't insert parameters between parameters above
           model_save_path=None,             # path to save the trained model
-          device='cpu',                     # device
+          device='cuda' if torch.cuda.is_available() else 'cpu',                     # device
           use_memory=None,                  # whether to use memory module
           num_iter=10000,                   # number of training iterations
           test_iter=200,                    # number of iterations between testing (outputting results)
@@ -165,7 +165,7 @@ def train(setup,                            # setup dict, including model and tr
             t7 = time.time()
             action, log_prob_action, action_max = pick_action(output)
             # obs_, reward, _, _, info = env.step(list(action))
-            obs_, reward, _, _, info = env.step(action.cpu().detach().numpy().transpose(1, 0))
+            obs_, reward, _, _, info = env.step(action.to(device).detach().numpy().transpose(1, 0))
             if "reward" in info:
                 reward = info["reward"]     # reward is a list of rewards for each task
             env_step_time += time.time() - t7
@@ -241,7 +241,7 @@ def train(setup,                            # setup dict, including model and tr
             total_loss += loss_rl.item()
             total_actor_loss += loss_actor.item()
             total_critic_loss += loss_critic.item()
-            t = torch.stack(entropys[used_output_index[env_id]]).cpu().detach().numpy().astype(np.float32)
+            t = torch.stack(entropys[used_output_index[env_id]]).to(device).detach().numpy().astype(np.float32)
             total_entropy += np.mean(t)
 
         # compute SL loss
@@ -302,8 +302,8 @@ def train(setup,                            # setup dict, including model and tr
             print('Iteration: {},  train accuracy: {}, error: {}, no action: {}, mean reward: {:2f}, total loss: {:.4f}, actor loss: {:.4f}, '
                 'critic loss: {:.4f}, entropy: {:.4f}'.format(i+1, accuracy, error, not_know_rate, mean_reward, mean_loss, mean_actor_loss, mean_critic_loss,
                                                               mean_entropy))
-            actions_trial = torch.stack(actions).cpu().detach().numpy().transpose(0, 2, 1)  # timesteps x batch_size x action_num
-            gts_trial = gts.cpu().detach().numpy()  # timesteps x batch_size x action_num
+            actions_trial = torch.stack(actions).to(device).detach().numpy().transpose(0, 2, 1)  # timesteps x batch_size x action_num
+            gts_trial = gts.to(device).detach().numpy()  # timesteps x batch_size x action_num
             # print(actions_trial.shape, gts_trial.shape)
             if sl_criterion is not None:
                 print("encoding phase, action:", actions_trial[0:memory_num, 0].reshape(-1), "gt:", gts_trial[0:memory_num, 0].reshape(-1))

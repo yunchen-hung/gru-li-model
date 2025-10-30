@@ -11,6 +11,7 @@ class BasicModule(nn.Module):
         self.name = name if name is not None else self.__class__.__name__
         self.to_numpy = to_numpy    # if true, detach and convert pytorch tensors to numpy arrays when recording
         self.analyzing = False      # if true, record activities of the model
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     def analyze(self, mode=True):
         """
@@ -32,7 +33,7 @@ class BasicModule(nn.Module):
         """
         if self.analyzing:
             if self.to_numpy and torch.is_tensor(tensor):
-                tensor = tensor.detach().cpu().numpy()
+                tensor = tensor.detach().to(self.device).numpy()
             if append:
                 # append
                 self.readout_dict[name].append(tensor)

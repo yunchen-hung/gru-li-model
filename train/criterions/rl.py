@@ -37,7 +37,7 @@ class A2CLoss(nn.Module):
         self.phase = phase
         self.value_loss_func = value_loss_func
 
-    def forward(self, probs, values, rewards, entropys, loss_masks=None, print_info=False, device='cpu'):
+    def forward(self, probs, values, rewards, entropys, loss_masks=None, print_info=False, device='cuda' if torch.cuda.is_available() else 'cpu'):
         """
         probs: list of torch.tensor, overall size is (timesteps, batch_size)
         values: list of torch.tensor, overall size is (timesteps, batch_size, 1)

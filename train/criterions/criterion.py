@@ -49,7 +49,7 @@ class MultiRLLoss(nn.Module):
         self.criteria = criteria
         self.output_index = output_index
 
-    def forward(self, probs, values, rewards, entropys, loss_masks=None, print_info=False, device="cpu"):
+    def forward(self, probs, values, rewards, entropys, loss_masks=None, print_info=False, device='cuda' if torch.cuda.is_available() else 'cpu'):
         assert len(probs) == len(values) == len(entropys)
         assert len(probs) > max(self.output_index)
         # loss = torch.tensor(0.0).to(device)
@@ -88,7 +88,7 @@ class MultiAuxiliaryLoss(nn.Module):
         super().__init__()
         self.criteria = criteria
 
-    def forward(self, device="cpu", **kwargs):
+    def forward(self, device='cuda' if torch.cuda.is_available() else 'cpu', **kwargs):
         loss = torch.tensor(0.0, device=device)
         for criterion in self.criteria:
             loss += criterion(device=device, **kwargs)

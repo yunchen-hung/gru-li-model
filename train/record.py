@@ -5,7 +5,7 @@ from models.base_module import analyze
 from .criterions.rl import pick_action
 
 
-def record(agent, env, used_output=0, context_num=20, reset_memory=False, record_activity=True, device='cpu'):
+def record(agent, env, used_output=0, context_num=20, reset_memory=False, record_activity=True, device='cuda' if torch.cuda.is_available() else 'cpu'):
     """
     record_activity: whether to record the activity of the model
     """
@@ -37,7 +37,7 @@ def record(agent, env, used_output=0, context_num=20, reset_memory=False, record
                     output, value, state, _ = agent(obs, state)
                     action_distribution = output
                     action, log_prob_action, action_max = pick_action(action_distribution)
-                    obs_, reward, _, _, info = env.step(action.cpu().detach().numpy().squeeze(axis=1))
+                    obs_, reward, _, _, info = env.step(action.to(device).detach().numpy().squeeze(axis=1))
                     done = info["done"]
                     obs = torch.Tensor(obs_).reshape(1, -1).to(device)
 
@@ -45,7 +45,7 @@ def record(agent, env, used_output=0, context_num=20, reset_memory=False, record
                     wrong_actions += np.sum(info["wrong"])
                     not_know_actions += np.sum(info["not_know"])
 
-                    actions_trial.append(action.detach().cpu())
+                    actions_trial.append(action.detach().to(device))
                     probs_trial.append(log_prob_action)
                     rewards_trial.append(reward)
                 readout = agent.readout()
@@ -71,7 +71,7 @@ def record(agent, env, used_output=0, context_num=20, reset_memory=False, record
                 output, value, state, _ = agent(obs, state)
                 action_distribution = output
                 action, log_prob_action, action_max = pick_action(action_distribution)
-                obs_, reward, _, _, info = env.step(action.cpu().detach().numpy().squeeze(axis=1))
+                obs_, reward, _, _, info = env.step(action.to(device).detach().numpy().squeeze(axis=1))
                 done = info["done"]
                 obs = torch.Tensor(obs_).reshape(1, -1).to(device)
 
@@ -79,7 +79,7 @@ def record(agent, env, used_output=0, context_num=20, reset_memory=False, record
                 wrong_actions += np.sum(info["wrong"])
                 not_know_actions += np.sum(info["not_know"])
 
-                actions_trial.append(action.detach().cpu())
+                actions_trial.append(action.detach().to(device))
                 probs_trial.append(log_prob_action)
                 rewards_trial.append(reward)
             trial_data = env.unwrapped.get_trial_data()

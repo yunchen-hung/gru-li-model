@@ -50,7 +50,7 @@ class Perturbation:
 
 
 def record_with_noise(agent, env, coefs, noise_proportion=0.05, trial_num=1000, used_output=0, 
-                      reset_memory=True, device='cpu'):
+                      reset_memory=True, device='cuda' if torch.cuda.is_available() else 'cpu'):
     accuracy = 0.0
     correct_actions, wrong_actions, not_know_actions = 0, 0, 0
     batch_size = 1 # env.num_envs
