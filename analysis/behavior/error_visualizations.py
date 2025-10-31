@@ -62,6 +62,7 @@ class PriorListIntrusion:
                 color=color,        
                 linestyle='-',
             )
+        plt.xticks(range(self.memory_num))
         plt.xlabel("Output position in Current List")
         plt.ylabel("Proportion of Errors")
         # plt.title("recall probability at each timestep")
