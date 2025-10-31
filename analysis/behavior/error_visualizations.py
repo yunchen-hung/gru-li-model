@@ -21,20 +21,19 @@ class PriorListIntrusion:
         self.protrusions1 = np.zeros((self.memory_num, self.memory_num))
         self.protrusions2 = np.zeros((self.memory_num, self.memory_num))
         for i in range(self.context_num):
-            for i in range(self.context_num):
-                # loop through every trial
-                for t in range(self.memory_num - 1):
-                    # loop through every item in sequence
+            # loop through every trial
+            for t in range(self.memory_num - 1):
+                # loop through every item in sequence
 
-                    # if the current word is not in the study list, find in prior list
-                    if actions[i][t] not in memory_contexts[i]:
-                        # if it is in ONE list prior
-                        if actions[i][t] in memory_contexts[i-1]:
-                            position = np.where(memory_contexts[i-1] == actions[i][t])
-                            self.protrusions1[t][position] += 1
-                        if actions[i][t] in memory_contexts[i-2]:
-                            position = np.where(memory_contexts[i-2] == actions[i][t])
-                            self.protrusions2[t][position] += 1
+                # if the current word is not in the study list, find in prior list
+                if actions[i][t] not in memory_contexts[i]:
+                    # if it is in ONE list prior
+                    if actions[i][t] in memory_contexts[i-1]:
+                        position = np.where(memory_contexts[i-1] == actions[i][t])
+                        self.protrusions1[t][position] += 1
+                    if actions[i][t] in memory_contexts[i-2]:
+                        position = np.where(memory_contexts[i-2] == actions[i][t])
+                        self.protrusions2[t][position] += 1
         times_sum = np.expand_dims(np.sum(self.protrusions1, axis=1), axis=1)
         times_sum[times_sum == 0] = 1
         self.protrusions1 = self.protrusions1 / times_sum

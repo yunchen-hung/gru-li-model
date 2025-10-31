@@ -23,6 +23,24 @@ class RecallProbability:
                     position1 = position1[0][0]
                     position2 = position2[0][0]
                     self.results[position1][position2] += 1
+        #get all the positions recall counts
+        self.recall_prop = np.zeros(self.memory_num)
+        for i in range(self.context_num):
+            for t in range(self.memory_num - 1):
+                position = np.where(memory_contexts[i] == actions[i][t])
+                self.recall_prop[position] += 1
+        self.recall_prop = self.recall_prop / np.sum(self.recall_prop)
+
+        position_counts = np.zeros(self.memory_num)
+        correct_recalls = np.zeros(self.memory_num)
+
+        for orig_seq, pred_seq in zip(memory_contexts, actions):
+            for idx, word in enumerate(orig_seq):
+                if word in pred_seq:
+                    correct_recalls[idx] += 1
+                position_counts[idx] += 1
+        
+        self.recall_prop = [correct / total if total != 0 else 0 for correct, total in zip(correct_recalls, position_counts)]
 
         self.forward_asymmetry = np.sum(np.triu(self.results, k=1)) / np.sum(self.results)
 
@@ -43,6 +61,7 @@ class RecallProbability:
 
         times_sum = np.expand_dims(np.sum(self.results, axis=1), axis=1)
         times_sum[times_sum == 0] = 1
+        self.result_raw = self.results
         self.results = self.results / times_sum
 
     def visualize(self, save_path, timesteps=None, no_center=False, title="", format="png"):
@@ -110,14 +129,14 @@ class RecallProbability:
         """
         establish the serial/free recall curve plot 
         """
-        recall_probs = np.sum(self.results, axis=0)
-        recall_probs = recall_probs / np.sum(recall_probs)
+        print(f'just recall prop:{self.recall_prop}')
 
         plt.figure(figsize=(4, 3.3), dpi=180)
-        plt.plot(np.arange(1, self.memory_num+1), recall_probs, 'o-k')
+        plt.plot(np.arange(1, self.memory_num+1), self.recall_prop, 'o-k')
         plt.xlabel("Serial Position")
         plt.ylabel("Recall Probability")
         plt.title("Recall Probability by item Position")
+        plt.ylim((0.0,1.0))
         plt.tight_layout()
         savefig(save_path, save_name, format=format)
 
